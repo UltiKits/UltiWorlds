@@ -1165,4 +1165,346 @@ class WorldCommandTest {
             verify(player).sendMessage(anyString());
         }
     }
+
+    @Nested
+    @DisplayName("Difficulty Command")
+    class DifficultyCommand {
+
+        @Test
+        @DisplayName("setDifficulty should set difficulty on world and settings")
+        void setDifficultySuccess() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.setDifficulty(player, "world", "HARD");
+
+                assertThat(settings.getDifficulty()).isEqualTo("HARD");
+                verify(world).setDifficulty(org.bukkit.Difficulty.HARD);
+                verify(mockWorldService).updateSettings(settings);
+                verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("setDifficulty should deny when no permission")
+        void setDifficultyNoPermission() {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
+
+            command.setDifficulty(player, "world", "EASY");
+
+            verify(mockWorldService, never()).updateSettings(any());
+            verify(player).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("setDifficulty should handle world not found")
+        void setDifficultyWorldNotFound() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("unknown")).thenReturn(null);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.setDifficulty(player, "unknown", "EASY");
+
+                verify(mockWorldService, never()).updateSettings(any());
+                verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("setDifficulty should handle invalid difficulty level")
+        void setDifficultyInvalidLevel() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.setDifficulty(player, "world", "IMPOSSIBLE");
+
+                verify(mockWorldService, never()).updateSettings(any());
+                verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("setDifficulty should accept PEACEFUL level")
+        void setDifficultyPeaceful() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.setDifficulty(player, "world", "peaceful");
+
+                assertThat(settings.getDifficulty()).isEqualTo("PEACEFUL");
+                verify(world).setDifficulty(org.bukkit.Difficulty.PEACEFUL);
+                verify(mockWorldService).updateSettings(settings);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Post-Teleport Command Management")
+    class PostCmdCommands {
+
+        @Test
+        @DisplayName("addPostCmd should add command when no existing commands")
+        void addPostCmdNewCommand() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands(null);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.addPostCmd(player, "world", "say hello");
+
+            assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello");
+            verify(mockWorldService).updateSettings(settings);
+            verify(player).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("addPostCmd should append command when existing commands exist")
+        void addPostCmdAppendCommand() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands("say hello");
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.addPostCmd(player, "world", "gamemode survival");
+
+            assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello\ngamemode survival");
+            verify(mockWorldService).updateSettings(settings);
+        }
+
+        @Test
+        @DisplayName("addPostCmd should append to empty string")
+        void addPostCmdEmptyExisting() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands("");
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.addPostCmd(player, "world", "say welcome");
+
+            assertThat(settings.getPostTeleportCommands()).isEqualTo("say welcome");
+            verify(mockWorldService).updateSettings(settings);
+        }
+
+        @Test
+        @DisplayName("addPostCmd should deny when no permission")
+        void addPostCmdNoPermission() {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
+
+            command.addPostCmd(player, "world", "say hello");
+
+            verify(mockWorldService, never()).updateSettings(any());
+            verify(player).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("listPostCmd should list commands")
+        void listPostCmdWithCommands() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands("say hello\ngamemode survival");
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.listPostCmd(player, "world");
+
+            // header + 2 command items
+            verify(player, atLeast(3)).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("listPostCmd should show empty message when no commands")
+        void listPostCmdEmpty() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands(null);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.listPostCmd(player, "world");
+
+            // header + empty message
+            verify(player, atLeast(2)).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("listPostCmd should show empty message when commands is empty string")
+        void listPostCmdEmptyString() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands("");
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.listPostCmd(player, "world");
+
+            verify(player, atLeast(2)).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("clearPostCmd should clear all commands")
+        void clearPostCmdSuccess() {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPostTeleportCommands("say hello\ngamemode survival");
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.clearPostCmd(player, "world");
+
+            assertThat(settings.getPostTeleportCommands()).isNull();
+            verify(mockWorldService).updateSettings(settings);
+            verify(player).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("clearPostCmd should deny when no permission")
+        void clearPostCmdNoPermission() {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
+
+            command.clearPostCmd(player, "world");
+
+            verify(mockWorldService, never()).updateSettings(any());
+            verify(player).sendMessage(anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("Handle Help Extended")
+    class HandleHelpExtended {
+
+        @Test
+        @DisplayName("handleHelp should do nothing for non-Player sender")
+        void handleHelpNonPlayer() {
+            org.bukkit.command.CommandSender sender = mock(org.bukkit.command.CommandSender.class);
+
+            command.handleHelp(sender);
+
+            verify(sender, never()).sendMessage(anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("SetWorldOption Difficulty via set command")
+    class SetWorldOptionDifficulty {
+
+        @Test
+        @DisplayName("setWorldOption should set difficulty via set command")
+        void setWorldOptionDifficultyValid() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.setWorldOption(player, "world", "difficulty", "HARD");
+
+                assertThat(settings.getDifficulty()).isEqualTo("HARD");
+                verify(world).setDifficulty(org.bukkit.Difficulty.HARD);
+                verify(mockWorldService).updateSettings(settings);
+            }
+        }
+
+        @Test
+        @DisplayName("setWorldOption difficulty should handle invalid value")
+        void setWorldOptionDifficultyInvalid() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.setWorldOption(player, "world", "difficulty", "INSANE");
+
+                verify(mockWorldService, never()).updateSettings(any());
+                verify(player).sendMessage(anyString());
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Suggest Difficulties")
+    class SuggestDifficulties {
+
+        @Test
+        @DisplayName("suggestDifficulties should return all difficulty levels")
+        void suggestDifficultiesAll() {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            List<String> suggestions = command.suggestDifficulties(player, "");
+
+            assertThat(suggestions).containsExactly("PEACEFUL", "EASY", "NORMAL", "HARD");
+        }
+
+        @Test
+        @DisplayName("suggestDifficulties should filter by input")
+        void suggestDifficultiesFilter() {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            List<String> suggestions = command.suggestDifficulties(player, "ha");
+
+            assertThat(suggestions).containsExactly("HARD");
+        }
+
+        @Test
+        @DisplayName("suggestDifficulties should return empty for no match")
+        void suggestDifficultiesNoMatch() {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            List<String> suggestions = command.suggestDifficulties(player, "xyz");
+
+            assertThat(suggestions).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("List World with null display name")
+    class ListWorldsExtended {
+
+        @Test
+        @DisplayName("listWorlds should use world name when display name is null")
+        void listWorldsNullDisplayName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world1 = mock(World.class);
+                when(world1.getName()).thenReturn("world");
+                when(world1.getPlayers()).thenReturn(Collections.emptyList());
+
+                when(mockWorldService.getAllWorlds()).thenReturn(Collections.singletonList(world1));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setDisplayName(null);
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+                command.listWorlds(player);
+
+                verify(player, atLeast(2)).sendMessage(anyString());
+            }
+        }
+    }
 }

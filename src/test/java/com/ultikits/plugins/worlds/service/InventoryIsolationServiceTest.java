@@ -11,7 +11,10 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.junit.jupiter.api.*;
+import org.mockito.MockedStatic;
 
 import java.util.*;
 
@@ -352,6 +355,678 @@ class InventoryIsolationServiceTest {
 
             assertThat(service.getWorldGroup("world"))
                     .isNotEqualTo(service.getWorldGroup("pvp"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Save Inventory Extended")
+    class SaveInventoryExtended {
+
+        @Test
+        @DisplayName("saveInventory should save experience when enabled")
+        void saveInventoryExperience() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(true);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            when(player.getLevel()).thenReturn(42);
+            when(player.getExp()).thenReturn(0.85f);
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            verify(mockDataOperator).update(any(WorldInventory.class));
+            assertThat(inventory.getExperienceLevel()).isEqualTo(42);
+            assertThat(inventory.getExperiencePoints()).isEqualTo(0.85f);
+        }
+
+        @Test
+        @DisplayName("saveInventory should save health when enabled")
+        void saveInventoryHealth() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(true);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            when(player.getHealth()).thenReturn(15.0);
+            when(player.getMaxHealth()).thenReturn(20.0);
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            verify(mockDataOperator).update(any(WorldInventory.class));
+            assertThat(inventory.getHealth()).isEqualTo(15.0);
+            assertThat(inventory.getMaxHealth()).isEqualTo(20.0);
+        }
+
+        @Test
+        @DisplayName("saveInventory should save hunger when enabled")
+        void saveInventoryHunger() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(true);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            when(player.getFoodLevel()).thenReturn(15);
+            when(player.getSaturation()).thenReturn(3.5f);
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            verify(mockDataOperator).update(any(WorldInventory.class));
+            assertThat(inventory.getFoodLevel()).isEqualTo(15);
+            assertThat(inventory.getSaturation()).isEqualTo(3.5f);
+        }
+
+        @Test
+        @DisplayName("saveInventory should save effects when enabled")
+        void saveInventoryEffects() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            PotionEffectType speedType = mock(PotionEffectType.class);
+            when(speedType.getName()).thenReturn("SPEED");
+            PotionEffect speedEffect = mock(PotionEffect.class);
+            when(speedEffect.getType()).thenReturn(speedType);
+            when(speedEffect.getDuration()).thenReturn(600);
+            when(speedEffect.getAmplifier()).thenReturn(1);
+            when(speedEffect.isAmbient()).thenReturn(false);
+            when(speedEffect.hasParticles()).thenReturn(true);
+            doReturn(Collections.singletonList(speedEffect)).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            verify(mockDataOperator).update(any(WorldInventory.class));
+            assertThat(inventory.getEffectsData()).contains("SPEED");
+        }
+
+        @Test
+        @DisplayName("saveInventory should handle exception gracefully")
+        void saveInventoryException() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            // Make update throw
+            doThrow(new RuntimeException("DB error")).when(mockDataOperator).update(any());
+
+            // Should not throw
+            service.saveInventory(player, "world");
+
+            // Logger should have been called with error
+            verify(UltiWorldsTestHelper.getMockPlugin().getLogger()).error(anyString(), any(Exception.class));
+        }
+
+        @Test
+        @DisplayName("saveInventory should NOT save inventory when separateInventory is false")
+        void saveInventoryNotSeparate() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            // inventoryData should still be null since we didn't save it
+            assertThat(inventory.getInventoryData()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("Load Inventory Extended")
+    class LoadInventoryExtended {
+
+        @Test
+        @DisplayName("loadInventory should clear inventory when data is null")
+        void loadInventoryClearWhenNull() {
+            when(mockConfig.isSeparateInventory()).thenReturn(true);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setInventoryData(null);
+            inventory.setArmorData(null);
+            inventory.setOffHandData(null);
+            mockQueryReturning(inventory);
+
+            service.loadInventory(player, "world");
+
+            verify(player.getInventory()).clear();
+        }
+
+        @Test
+        @DisplayName("loadInventory should load health clamped to maxHealth")
+        void loadInventoryHealthClamped() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(true);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setHealth(25.0); // higher than maxHealth
+            inventory.setMaxHealth(20.0);
+            mockQueryReturning(inventory);
+
+            service.loadInventory(player, "world");
+
+            verify(player).setMaxHealth(20.0);
+            verify(player).setHealth(20.0); // clamped to maxHealth
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle exception gracefully")
+        void loadInventoryException() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setInventoryData("invalid_data");
+            mockQueryReturning(inventory);
+
+            // Make ItemStackUtils throw via the player mock
+            when(player.getInventory().getContents()).thenThrow(new RuntimeException("test"));
+
+            // Should not throw
+            service.loadInventory(player, "world");
+        }
+
+        @Test
+        @DisplayName("loadInventory should load ender chest when data is non-null")
+        void loadInventoryEnderChest() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(true);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(false);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEnderChestData(null); // null ender chest data
+            mockQueryReturning(inventory);
+
+            service.loadInventory(player, "world");
+
+            // When data is null and separateEnderChest is true, the condition is:
+            // if (config.isSeparateEnderChest() && inv.getEnderChestData() != null)
+            // So it should NOT attempt to set contents
+            verify(player.getEnderChest(), never()).setContents(any());
+        }
+
+        @Test
+        @DisplayName("loadInventory should load effects and clear existing ones")
+        void loadInventoryEffects() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            // Player has an existing effect
+            PotionEffectType slowType = mock(PotionEffectType.class);
+            when(slowType.getName()).thenReturn("SLOW");
+            PotionEffect existingEffect = mock(PotionEffect.class);
+            when(existingEffect.getType()).thenReturn(slowType);
+            doReturn(Collections.singletonList(existingEffect)).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("SPEED,600,1,false,true");
+            mockQueryReturning(inventory);
+
+            PotionEffectType speedType = mock(PotionEffectType.class);
+            try (MockedStatic<PotionEffectType> potionTypes = mockStatic(PotionEffectType.class)) {
+                potionTypes.when(() -> PotionEffectType.getByName("SPEED")).thenReturn(speedType);
+
+                service.loadInventory(player, "world");
+            }
+
+            // Should clear existing effects
+            verify(player).removePotionEffect(slowType);
+            // Should add new effect
+            verify(player).addPotionEffect(any(PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle null effects data")
+        void loadInventoryNullEffects() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData(null); // null effects
+            mockQueryReturning(inventory);
+
+            service.loadInventory(player, "world");
+
+            // Should not try to add any effects
+            verify(player, never()).addPotionEffect(any(org.bukkit.potion.PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle effects data with invalid format")
+        void loadInventoryInvalidEffectsFormat() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("INVALID_EFFECT,abc,xyz"); // invalid data
+            mockQueryReturning(inventory);
+
+            // Should not throw
+            service.loadInventory(player, "world");
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle effects with only 3 parts (no ambient/particles)")
+        void loadInventoryEffectsMinimalParts() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("SPEED,600,1"); // only 3 parts, no ambient/particles
+            mockQueryReturning(inventory);
+
+            PotionEffectType speedType = mock(PotionEffectType.class);
+            try (MockedStatic<PotionEffectType> potionTypes = mockStatic(PotionEffectType.class)) {
+                potionTypes.when(() -> PotionEffectType.getByName("SPEED")).thenReturn(speedType);
+
+                service.loadInventory(player, "world");
+            }
+
+            verify(player).addPotionEffect(any(PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle effects with 4 parts (ambient only)")
+        void loadInventoryEffectsFourParts() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("SPEED,600,1,true"); // 4 parts: no particles flag
+            mockQueryReturning(inventory);
+
+            PotionEffectType speedType = mock(PotionEffectType.class);
+            try (MockedStatic<PotionEffectType> potionTypes = mockStatic(PotionEffectType.class)) {
+                potionTypes.when(() -> PotionEffectType.getByName("SPEED")).thenReturn(speedType);
+
+                service.loadInventory(player, "world");
+            }
+
+            verify(player).addPotionEffect(any(PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle effects with unknown type")
+        void loadInventoryEffectsUnknownType() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("NONEXISTENT_EFFECT,600,1,false,true"); // unknown type
+            mockQueryReturning(inventory);
+
+            // Should not throw, just skip invalid effects
+            service.loadInventory(player, "world");
+
+            verify(player, never()).addPotionEffect(any(org.bukkit.potion.PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle effects with less than 3 parts")
+        void loadInventoryEffectsTooFewParts() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("SPEED,600"); // only 2 parts, insufficient
+            mockQueryReturning(inventory);
+
+            service.loadInventory(player, "world");
+
+            // Should not add any effect (less than 3 parts)
+            verify(player, never()).addPotionEffect(any(org.bukkit.potion.PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle empty effects data string")
+        void loadInventoryEmptyEffectsString() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData(""); // empty string
+            mockQueryReturning(inventory);
+
+            service.loadInventory(player, "world");
+
+            verify(player, never()).addPotionEffect(any(org.bukkit.potion.PotionEffect.class));
+        }
+
+        @Test
+        @DisplayName("loadInventory should handle multiple effects separated by semicolon")
+        void loadInventoryMultipleEffects() {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            inventory.setEffectsData("SPEED,600,1,false,true;REGENERATION,200,0,true,true");
+            mockQueryReturning(inventory);
+
+            PotionEffectType speedType = mock(PotionEffectType.class);
+            PotionEffectType regenType = mock(PotionEffectType.class);
+            try (MockedStatic<PotionEffectType> potionTypes = mockStatic(PotionEffectType.class)) {
+                potionTypes.when(() -> PotionEffectType.getByName("SPEED")).thenReturn(speedType);
+                potionTypes.when(() -> PotionEffectType.getByName("REGENERATION")).thenReturn(regenType);
+
+                service.loadInventory(player, "world");
+            }
+
+            verify(player, times(2)).addPotionEffect(any(PotionEffect.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Save Inventory Multiple Effects")
+    class SaveInventoryMultipleEffects {
+
+        @Test
+        @DisplayName("saveInventory should serialize multiple effects separated by semicolons")
+        void saveMultipleEffects() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+            PotionEffectType speedType = mock(PotionEffectType.class);
+            when(speedType.getName()).thenReturn("SPEED");
+            PotionEffect speedEffect = mock(PotionEffect.class);
+            when(speedEffect.getType()).thenReturn(speedType);
+            when(speedEffect.getDuration()).thenReturn(600);
+            when(speedEffect.getAmplifier()).thenReturn(1);
+            when(speedEffect.isAmbient()).thenReturn(false);
+            when(speedEffect.hasParticles()).thenReturn(true);
+
+            PotionEffectType regenType = mock(PotionEffectType.class);
+            when(regenType.getName()).thenReturn("REGENERATION");
+            PotionEffect regenEffect = mock(PotionEffect.class);
+            when(regenEffect.getType()).thenReturn(regenType);
+            when(regenEffect.getDuration()).thenReturn(200);
+            when(regenEffect.getAmplifier()).thenReturn(0);
+            when(regenEffect.isAmbient()).thenReturn(true);
+            when(regenEffect.hasParticles()).thenReturn(true);
+
+            doReturn(Arrays.asList(speedEffect, regenEffect)).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            assertThat(inventory.getEffectsData()).contains("SPEED");
+            assertThat(inventory.getEffectsData()).contains("REGENERATION");
+            assertThat(inventory.getEffectsData()).contains(";"); // separator
+        }
+
+        @Test
+        @DisplayName("saveInventory should serialize empty effects as empty string")
+        void saveEmptyEffects() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(false);
+            when(mockConfig.isSeparateEnderChest()).thenReturn(false);
+            when(mockConfig.isSeparateExperience()).thenReturn(false);
+            when(mockConfig.isSeparateHealth()).thenReturn(false);
+            when(mockConfig.isSeparateHunger()).thenReturn(false);
+            when(mockConfig.isSeparateEffects()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            doReturn(Collections.emptyList()).when(player).getActivePotionEffects();
+
+            WorldInventory inventory = UltiWorldsTestHelper.createSampleWorldInventory(
+                    player.getUniqueId(), "world");
+            mockQueryReturning(inventory);
+
+            service.saveInventory(player, "world");
+
+            assertThat(inventory.getEffectsData()).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("World Group Edge Cases")
+    class WorldGroupEdgeCases {
+
+        @Test
+        @DisplayName("getWorldGroup should handle empty shared groups list")
+        void emptySharedGroups() {
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Collections.emptyList());
+
+            service.init();
+
+            // No group defined, world name should be the group name
+            assertThat(service.getWorldGroup("world")).isEqualTo("world");
+        }
+
+        @Test
+        @DisplayName("areWorldsShared should return true for same world")
+        void areWorldsSharedSameWorld() {
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Collections.emptyList());
+
+            service.init();
+
+            assertThat(service.areWorldsShared("world", "world")).isTrue();
+        }
+
+        @Test
+        @DisplayName("areWorldsShared should return false for ungrouped different worlds")
+        void areWorldsSharedUngrouped() {
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Collections.emptyList());
+
+            service.init();
+
+            assertThat(service.areWorldsShared("world", "pvp")).isFalse();
+        }
+
+        @Test
+        @DisplayName("parseWorldGroups should handle whitespace in world names")
+        void parseWorldGroupsWhitespace() {
+            when(mockConfig.getSharedWorldGroups()).thenReturn(
+                    Arrays.asList("world , world_nether , world_the_end"));
+
+            service.init();
+
+            assertThat(service.getWorldGroup("world")).isEqualTo(service.getWorldGroup("world_nether"));
         }
     }
 }

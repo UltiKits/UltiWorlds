@@ -1179,4 +1179,360 @@ class WorldServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("Auto-Unload Empty Worlds")
+    class AutoUnloadEmptyWorlds {
+
+        @Test
+        @DisplayName("checkAutoUnloadEmptyWorlds should return early when disabled")
+        void checkAutoUnloadDisabled() {
+            when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(false);
+
+            worldService.checkAutoUnloadEmptyWorlds();
+
+            // No Bukkit.getWorlds() call needed
+            verify(mockConfig).isAutoUnloadEmptyWorlds();
+        }
+
+        @Test
+        @DisplayName("checkAutoUnloadEmptyWorlds should skip protected worlds")
+        void checkAutoUnloadSkipsProtected() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+                when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(300);
+                when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList("world"));
+
+                World protectedWorld = mock(World.class);
+                when(protectedWorld.getName()).thenReturn("world");
+
+                bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(protectedWorld));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setAutoUnload(true);
+                mockQueryReturning(settings);
+
+                worldService.checkAutoUnloadEmptyWorlds();
+
+                // Should not try to unload protected world
+                bukkit.verify(() -> Bukkit.unloadWorld(any(World.class), anyBoolean()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("checkAutoUnloadEmptyWorlds should skip worlds with autoUnload false")
+        void checkAutoUnloadSkipsAutoUnloadFalse() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+                when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(300);
+                when(mockConfig.getProtectedWorlds()).thenReturn(Collections.emptyList());
+
+                World world = mock(World.class);
+                when(world.getName()).thenReturn("custom");
+
+                bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(world));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("custom");
+                settings.setAutoUnload(false);
+                mockQueryReturning(settings);
+
+                worldService.checkAutoUnloadEmptyWorlds();
+
+                bukkit.verify(() -> Bukkit.unloadWorld(any(World.class), anyBoolean()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("checkAutoUnloadEmptyWorlds should start timer for empty world")
+        void checkAutoUnloadStartsTimer() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+                when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(300);
+                when(mockConfig.getProtectedWorlds()).thenReturn(Collections.emptyList());
+
+                World world = mock(World.class);
+                when(world.getName()).thenReturn("custom");
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(world));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("custom");
+                settings.setAutoUnload(true);
+                mockQueryReturning(settings);
+
+                // First call: starts the timer
+                worldService.checkAutoUnloadEmptyWorlds();
+
+                // Should NOT unload yet (timer just started)
+                bukkit.verify(() -> Bukkit.unloadWorld(any(World.class), anyBoolean()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("checkAutoUnloadEmptyWorlds should reset timer when world has players")
+        void checkAutoUnloadResetsTimerWithPlayers() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+                when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(300);
+                when(mockConfig.getProtectedWorlds()).thenReturn(Collections.emptyList());
+
+                World world = mock(World.class);
+                when(world.getName()).thenReturn("custom");
+                Player p = mock(Player.class);
+                when(p.getName()).thenReturn("Player1");
+                when(world.getPlayers()).thenReturn(Collections.singletonList(p));
+
+                bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(world));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("custom");
+                settings.setAutoUnload(true);
+                mockQueryReturning(settings);
+
+                worldService.checkAutoUnloadEmptyWorlds();
+
+                // World has players, no unload
+                bukkit.verify(() -> Bukkit.unloadWorld(any(World.class), anyBoolean()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("checkAutoUnloadEmptyWorlds should unload world after timeout expires")
+        void checkAutoUnloadUnloadsAfterTimeout() throws Exception {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+                when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(0); // 0 seconds = immediate
+                when(mockConfig.getProtectedWorlds()).thenReturn(Collections.emptyList());
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+
+                World emptyWorld = mock(World.class);
+                when(emptyWorld.getName()).thenReturn("custom");
+                when(emptyWorld.getPlayers()).thenReturn(Collections.emptyList());
+
+                World defaultWorld = mock(World.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+
+                bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(emptyWorld));
+                bukkit.when(() -> Bukkit.getWorld("custom")).thenReturn(emptyWorld);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(emptyWorld, true)).thenReturn(true);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("custom");
+                settings.setAutoUnload(true);
+                mockQueryReturning(settings);
+
+                // First call: start timer
+                worldService.checkAutoUnloadEmptyWorlds();
+
+                // Small wait to ensure timeout of 0 seconds is exceeded
+                Thread.sleep(5);
+
+                // Second call: timer expired, should unload
+                worldService.checkAutoUnloadEmptyWorlds();
+
+                bukkit.verify(() -> Bukkit.unloadWorld(emptyWorld, true));
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Init Method")
+    class InitMethod {
+
+        @Test
+        @DisplayName("init should load configured worlds on start")
+        void initLoadsConfiguredWorlds() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.getLoadWorldsOnStart()).thenReturn(Arrays.asList("custom_world"));
+
+                World customWorld = mock(World.class);
+                when(customWorld.getName()).thenReturn("custom_world");
+
+                // loadWorld checks Bukkit.getWorld - returns non-null so already loaded
+                bukkit.when(() -> Bukkit.getWorld("custom_world")).thenReturn(customWorld);
+                // getWorlds returns the loaded world so getOrCreateSettings is called in init loop
+                bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(customWorld));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("custom_world");
+                mockQueryReturning(settings);
+
+                worldService.init();
+
+                // getOrCreateSettings was called for the loaded world
+                verify(mockDataOperator, atLeastOnce()).query();
+            }
+        }
+
+        @Test
+        @DisplayName("init should initialize settings for existing worlds")
+        void initInitializesExistingWorlds() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                when(mockConfig.getLoadWorldsOnStart()).thenReturn(Collections.emptyList());
+
+                World world1 = mock(World.class);
+                when(world1.getName()).thenReturn("world");
+                World world2 = mock(World.class);
+                when(world2.getName()).thenReturn("world_nether");
+
+                bukkit.when(Bukkit::getWorlds).thenReturn(Arrays.asList(world1, world2));
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                mockQueryReturning(settings);
+
+                worldService.init();
+
+                // Should have queried for each existing world's settings
+                verify(mockDataOperator, atLeast(2)).query();
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Load World")
+    class LoadWorldTests {
+
+        @Test
+        @DisplayName("loadWorld should return true when world already loaded")
+        void loadWorldAlreadyLoaded() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("existing")).thenReturn(world);
+
+                boolean result = worldService.loadWorld("existing");
+
+                assertThat(result).isTrue();
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should return false when world folder does not exist")
+        void loadWorldNoFolder() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("missing")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+
+                boolean result = worldService.loadWorld("missing_world_that_does_not_exist_12345");
+
+                assertThat(result).isFalse();
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Description Edge Cases")
+    class DescriptionEdgeCases {
+
+        @Test
+        @DisplayName("teleportToWorld should NOT show description when description is empty")
+        void teleportNoDescriptionWhenEmpty() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                Location spawnLocation = mock(Location.class);
+                when(world.getSpawnLocation()).thenReturn(spawnLocation);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setDescription(""); // Empty string, not null
+                mockQueryReturning(settings);
+
+                when(mockConfig.isUseSpawnLocation()).thenReturn(false);
+                when(mockConfig.getTpCooldown()).thenReturn(0);
+                when(mockConfig.isShowDescriptionOnTeleport()).thenReturn(true);
+
+                worldService.teleportToWorld(player, "world");
+
+                // Only 1 message: the teleport success message
+                ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+                verify(player, atLeastOnce()).sendMessage(captor.capture());
+                // None of the messages should be empty description lines
+                List<String> messages = captor.getAllValues();
+                assertThat(messages).hasSize(1);
+            }
+        }
+
+        @Test
+        @DisplayName("teleportToWorld should NOT show description when description is null")
+        void teleportNoDescriptionWhenNull() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                Location spawnLocation = mock(Location.class);
+                when(world.getSpawnLocation()).thenReturn(spawnLocation);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setDescription(null);
+                mockQueryReturning(settings);
+
+                when(mockConfig.isUseSpawnLocation()).thenReturn(false);
+                when(mockConfig.getTpCooldown()).thenReturn(0);
+                when(mockConfig.isShowDescriptionOnTeleport()).thenReturn(true);
+
+                worldService.teleportToWorld(player, "world");
+
+                ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+                verify(player, atLeastOnce()).sendMessage(captor.capture());
+                List<String> messages = captor.getAllValues();
+                assertThat(messages).hasSize(1); // only teleport message
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("GetOrCreateSettings Edge Cases")
+    class GetOrCreateSettingsEdgeCases {
+
+        @Test
+        @DisplayName("getOrCreateSettings should apply difficulty when world exists")
+        void getOrCreateSettingsAppliesDifficultyOnWorldFound() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setDifficulty("EASY");
+                mockQueryReturning(settings);
+
+                worldService.getOrCreateSettings("world");
+
+                verify(world).setDifficulty(org.bukkit.Difficulty.EASY);
+            }
+        }
+
+        @Test
+        @DisplayName("getOrCreateSettings should NOT apply difficulty when null")
+        void getOrCreateSettingsNullDifficulty() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setDifficulty(null);
+                mockQueryReturning(settings);
+
+                worldService.getOrCreateSettings("world");
+
+                verify(world, never()).setDifficulty(any());
+            }
+        }
+
+        @Test
+        @DisplayName("getOrCreateSettings should handle world not loaded during difficulty apply")
+        void getOrCreateSettingsWorldNotLoadedDifficulty() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("offline")).thenReturn(null);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("offline");
+                settings.setDifficulty("HARD");
+                mockQueryReturning(settings);
+
+                WorldSettings result = worldService.getOrCreateSettings("offline");
+
+                assertThat(result.getDifficulty()).isEqualTo("HARD");
+                // No NPE thrown
+            }
+        }
+    }
+
 }
