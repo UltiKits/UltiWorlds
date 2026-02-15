@@ -49,6 +49,7 @@ success:
   post_cmd_list_header: "§6世界 %world% 的传送后命令:"
   post_cmd_list_item: "§7- §f%command%"
   post_cmd_empty: "§7未配置传送后命令"
+  world_unloading_tp: "§e世界正在卸载，你已被传送到主世界"
 
 # ==================== 保护消息 ====================
 protection:

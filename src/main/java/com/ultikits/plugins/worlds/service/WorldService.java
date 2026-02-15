@@ -389,7 +389,7 @@ public class WorldService {
         
         for (Player player : world.getPlayers()) {
             player.teleport(defaultWorld.getSpawnLocation());
-            player.sendMessage("§e世界正在卸载，你已被传送到主世界");
+            player.sendMessage(plugin.i18n("success.world_unloading_tp"));
         }
         
         return Bukkit.unloadWorld(world, save);

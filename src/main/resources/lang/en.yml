@@ -49,6 +49,7 @@ success:
   post_cmd_list_header: "§6Post-teleport commands for %world%:"
   post_cmd_list_item: "§7- §f%command%"
   post_cmd_empty: "§7No post-teleport commands configured"
+  world_unloading_tp: "§eWorld is being unloaded, you have been teleported to the default world"
 
 # ==================== Protection Messages ====================
 protection:
