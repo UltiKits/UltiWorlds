@@ -18,7 +18,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Table("ulti_world_inventory")
-public class WorldInventory extends BaseDataEntity<Integer> {
+public class WorldInventory extends BaseDataEntity<String> {
     
     @Column("player_uuid")
     private String playerUuid;

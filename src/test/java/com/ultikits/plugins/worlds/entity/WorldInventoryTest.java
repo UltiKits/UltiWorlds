@@ -574,7 +574,7 @@ class WorldInventoryTest {
         @DisplayName("isNew should return false when id is set")
         void isNewFalse() {
             WorldInventory inventory = new WorldInventory();
-            inventory.setId(1);
+            inventory.setId("1");
 
             assertThat(inventory.isNew()).isFalse();
         }
@@ -584,9 +584,9 @@ class WorldInventoryTest {
         void getSetId() {
             WorldInventory inventory = new WorldInventory();
 
-            inventory.setId(42);
+            inventory.setId("42");
 
-            assertThat(inventory.getId()).isEqualTo(42);
+            assertThat(inventory.getId()).isEqualTo("42");
         }
 
         @Test

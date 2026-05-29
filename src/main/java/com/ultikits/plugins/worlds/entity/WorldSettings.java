@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Table("world_settings")
-public class WorldSettings extends BaseDataEntity<Integer> {
+public class WorldSettings extends BaseDataEntity<String> {
     
     @Column("world_name")
     private String worldName;
