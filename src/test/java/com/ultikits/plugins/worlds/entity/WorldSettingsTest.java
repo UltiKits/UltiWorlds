@@ -942,7 +942,7 @@ class WorldSettingsTest {
         @DisplayName("isNew should return false when id is set")
         void isNewFalse() {
             WorldSettings settings = WorldSettings.createDefault("world");
-            settings.setId(1);
+            settings.setId("1");
 
             assertThat(settings.isNew()).isFalse();
         }
@@ -952,9 +952,9 @@ class WorldSettingsTest {
         void getSetId() {
             WorldSettings settings = WorldSettings.createDefault("world");
 
-            settings.setId(42);
+            settings.setId("42");
 
-            assertThat(settings.getId()).isEqualTo(42);
+            assertThat(settings.getId()).isEqualTo("42");
         }
     }
 
