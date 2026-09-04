@@ -648,7 +648,7 @@ class WorldServiceTest {
                 bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("deleted_world");
-                settings.setId(5);
+                settings.setId("5");
                 Query<WorldSettings> mockQuery = mockQueryReturning(settings);
 
                 boolean result = worldService.deleteWorld("deleted_world");
