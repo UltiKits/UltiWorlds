@@ -93,7 +93,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("constructor should create GUI with correct viewer")
         void constructorCreatesGui() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -105,7 +105,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("constructor should handle empty world list")
         void constructorEmptyWorlds() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 WorldListGUI gui = createGUI(bukkit, Collections.emptyList());
 
                 assertThat(gui.getViewer()).isNotNull();
@@ -121,7 +121,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getWorldAtSlot should return world at valid slot")
         void getWorldAtValidSlot() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world1 = createMockWorld("world1", World.Environment.NORMAL);
                 World world2 = createMockWorld("world2", World.Environment.NETHER);
                 WorldListGUI gui = createGUI(bukkit, Arrays.asList(world1, world2));
@@ -134,7 +134,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getWorldAtSlot should return null for negative slot")
         void getWorldAtNegativeSlot() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -145,7 +145,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getWorldAtSlot should return null for slot beyond items")
         void getWorldAtSlotBeyondItems() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -156,7 +156,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getWorldAtSlot should return null for slot at ITEMS_PER_PAGE")
         void getWorldAtSlotBeyondPage() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -172,7 +172,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("nextPage should not increment beyond total pages")
         void nextPageAtEnd() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -185,7 +185,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("previousPage should not decrement below 0")
         void previousPageAtStart() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -198,7 +198,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("nextPage should advance to second page with many worlds")
         void nextPageWithManyWorlds() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 List<World> worlds = new ArrayList<>();
                 for (int i = 0; i < 50; i++) {
                     worlds.add(createMockWorld("world_" + i, World.Environment.NORMAL));
@@ -219,7 +219,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getDefaultIcon should return correct icons for environments")
         void getDefaultIcon() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -235,7 +235,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getEnvironmentName should return Chinese names")
         void getEnvironmentName() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -251,7 +251,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getTimeOfDay should return correct time period")
         void getTimeOfDay() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -279,7 +279,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("getWeather should return correct weather")
         void getWeather() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldListGUI gui = createGUI(bukkit, Collections.singletonList(world));
 
@@ -310,7 +310,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("createWorldItem should handle world with description")
         void createWorldItemWithDescription() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setDescription("A test world");
@@ -329,7 +329,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("createWorldItem should handle locked world")
         void createWorldItemLocked() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setLocked(true);
@@ -348,7 +348,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("createWorldItem should handle NETHER environment icon")
         void createWorldItemNetherIcon() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("nether", World.Environment.NETHER);
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("nether");
                 settings.setIcon("INVALID_ICON");
@@ -367,7 +367,7 @@ class WorldListGUITest {
         @Test
         @DisplayName("createWorldItem should handle null display name")
         void createWorldItemNullDisplayName() throws Exception {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = createMockWorld("world", World.Environment.NORMAL);
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setDisplayName(null);
