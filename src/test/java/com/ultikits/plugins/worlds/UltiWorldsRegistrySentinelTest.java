@@ -3,7 +3,10 @@ package com.ultikits.plugins.worlds;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.util.UUID;
 
@@ -16,10 +19,20 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Every assertion here is deliberately non-null on a live-server-backed accessor, never a bare
  * registry constant — a bare constant (e.g. {@code Sound.AMBIENT_CAVE}) resolves via
  * {@link java.util.ServiceLoader} merely from the {@code mockbukkit-v1.21} dependency being on the
- * classpath, independent of whether {@code MockBukkit.mock()} ever ran, and would stay green even if
- * every bootstrap call were silently deleted.
+ * classpath, independent of the setup below, and would stay green even if the bootstrap call were
+ * silently deleted from {@link #setUp()}.
  */
 public class UltiWorldsRegistrySentinelTest {
+
+    @BeforeEach
+    void setUp() {
+        MockBukkit.mock();
+    }
+
+    @AfterEach
+    void tearDown() {
+        MockBukkit.unmock();
+    }
 
     @Test
     void liveServerIsBootstrapped() {
