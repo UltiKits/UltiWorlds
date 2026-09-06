@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.Difficulty;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -478,6 +479,10 @@ public class WorldService {
     /**
      * Delete folder recursively.
      *
+     * <p>A linked directory is not part of the world folder, so only the link entry is removed --
+     * this method never descends into a {@link Files#isSymbolicLink(java.nio.file.Path) symbolic
+     * link}, even when it points at a directory. Only real subdirectories are recursed into.
+     *
      * @return true if every entry under {@code folder} (and {@code folder} itself) was
      *         successfully removed; false if {@link File#delete()} refused any entry (for example
      *         a permission issue or a lingering lock), in which case some data may remain on disk.
@@ -487,7 +492,7 @@ public class WorldService {
         boolean allDeleted = true;
         if (files != null) {
             for (File file : files) {
-                if (file.isDirectory()) {
+                if (file.isDirectory() && !Files.isSymbolicLink(file.toPath())) {
                     if (!deleteFolder(file)) {
                         allDeleted = false;
                     }

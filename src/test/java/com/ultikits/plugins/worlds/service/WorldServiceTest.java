@@ -800,6 +800,10 @@ class WorldServiceTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
                 bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+                // Stub the query chain so that, if a regression makes this method reach the
+                // database-delete step unconditionally again (the pre-fix behaviour), the test
+                // fails on the assertions below rather than crashing on an unstubbed mock.
+                mockQueryReturning(null);
 
                 boolean result = worldService.deleteWorld(worldFolder.getName());
 
@@ -834,6 +838,39 @@ class WorldServiceTest {
                 assertThat(result).isTrue();
                 assertThat(worldFolder).doesNotExist();
                 verify(mockQuery).delete();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteRemovesOnlyTheLinkEntryForALinkedDirectory")
+        void deleteRemovesOnlyTheLinkEntryForALinkedDirectory() throws java.io.IOException {
+            java.io.File linkTarget = java.nio.file.Files.createTempDirectory("linked_target_").toFile();
+            java.io.File targetFile = new java.io.File(linkTarget, "shared.dat");
+            assertThat(targetFile.createNewFile()).isTrue();
+
+            java.io.File worldFolder = java.nio.file.Files.createTempDirectory("linked_world_").toFile();
+            java.io.File linkEntry = new java.io.File(worldFolder, "datapacks");
+            java.nio.file.Files.createSymbolicLink(linkEntry.toPath(), linkTarget.toPath());
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+
+                Query<WorldSettings> mockQuery = mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld(worldFolder.getName());
+
+                assertThat(result).isTrue();
+                // A linked directory is not part of the world folder, so only the link entry is
+                // removed -- the world folder (and the link inside it) are gone, but the link's
+                // target keeps its own contents.
+                assertThat(worldFolder).doesNotExist();
+                assertThat(linkTarget).exists();
+                assertThat(targetFile).exists();
+                verify(mockQuery).delete();
+            } finally {
+                targetFile.delete();
+                linkTarget.delete();
             }
         }
     }

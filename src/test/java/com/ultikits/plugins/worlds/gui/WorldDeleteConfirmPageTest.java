@@ -1,6 +1,7 @@
 package com.ultikits.plugins.worlds.gui;
 
 import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
+import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 
@@ -34,6 +35,12 @@ class WorldDeleteConfirmPageTest {
         mockPlugin = UltiWorldsTestHelper.getMockPlugin();
         mockWorldService = mock(WorldService.class);
         mockPlayer = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+        // Default stub so onConfirm's default-world guard has something to compare against;
+        // tests that specifically exercise the guard override this with their own mock.
+        WorldConfig defaultConfig = mock(WorldConfig.class);
+        when(defaultConfig.getDefaultWorld()).thenReturn("default_world");
+        lenient().when(mockWorldService.getConfig()).thenReturn(defaultConfig);
     }
 
     @AfterEach
@@ -93,6 +100,27 @@ class WorldDeleteConfirmPageTest {
 
             verify(mockWorldService).deleteWorld("test_world");
             verify(mockPlayer).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("onConfirm should refuse to delete the default world and leave the settings row")
+        void onConfirmRefusesTheDefaultWorld() throws Exception {
+            WorldConfig mockConfig = mock(WorldConfig.class);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockWorldService.getConfig()).thenReturn(mockConfig);
+
+            WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
+                    mockPlayer, mockWorldService, "world", mockPlugin);
+
+            Method method = WorldDeleteConfirmPage.class.getDeclaredMethod("onConfirm", InventoryClickEvent.class);
+            method.setAccessible(true); // NOPMD - test reflection
+
+            InventoryClickEvent event = mock(InventoryClickEvent.class);
+            method.invoke(page, event);
+
+            verify(mockWorldService, never()).deleteWorld(anyString());
+            verify(mockPlayer).sendMessage(anyString());
+            verify(mockPlugin).i18n("world.delete.default");
         }
     }
 

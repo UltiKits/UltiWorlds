@@ -28,6 +28,11 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     
     @Override
     protected void onConfirm(InventoryClickEvent event) {
+        if (worldName.equals(worldService.getConfig().getDefaultWorld())) {
+            player.sendMessage(i18n("world.delete.default"));
+            return;
+        }
+
         boolean success = worldService.deleteWorld(worldName);
         
         if (success) {
