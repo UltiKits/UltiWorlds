@@ -34,13 +34,19 @@ import java.util.stream.Collectors;
     description = "世界管理系统"
 )
 public class WorldCommand extends BaseCommandExecutor {
-    
+
+    /**
+     * The options handled by the boolean-token parser in {@code set &lt;world&gt; &lt;option&gt; &lt;value&gt;}.
+     */
+    private static final List<String> BOOLEAN_OPTIONS = Arrays.asList(
+            "pvp", "monsters", "animals", "weather", "hidden", "locked", "blocked");
+
     @Autowired
     private UltiToolsPlugin plugin;
 
     @Autowired
     private WorldService worldService;
-    
+
     // ==================== Basic Commands ====================
     
     @CmdMapping(format = "")
@@ -211,8 +217,19 @@ public class WorldCommand extends BaseCommandExecutor {
         }
         
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
-        boolean boolValue = value.equalsIgnoreCase("true") || value.equalsIgnoreCase("on") || value.equals("1");
-        
+
+        Boolean boolValue = null;
+        if (BOOLEAN_OPTIONS.contains(option.toLowerCase())) {
+            if (value.equalsIgnoreCase("true") || value.equalsIgnoreCase("on") || value.equals("1")) {
+                boolValue = Boolean.TRUE;
+            } else if (value.equalsIgnoreCase("false") || value.equalsIgnoreCase("off") || value.equals("0")) {
+                boolValue = Boolean.FALSE;
+            } else {
+                player.sendMessage(i18n("error.invalid_value"));
+                return;
+            }
+        }
+
         switch (option.toLowerCase()) {
             case "pvp":
                 settings.setPvpEnabled(boolValue);

@@ -185,4 +185,66 @@ class WorldCommandValidationTest {
             verify(mockWorldService, atLeast(3)).getOrCreateSettings("live_world");
         }
     }
+
+    @Test
+    @DisplayName("aRecognisedTrueTokenSetsTheOptionOn")
+    void aRecognisedTrueTokenSetsTheOptionOn() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            World world = mock(World.class);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPvpEnabled(false);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.setWorldOption(player, "world", "pvp", "on");
+
+            assertThat(settings.isPvpEnabled()).isTrue();
+            verify(mockWorldService).updateSettings(settings);
+        }
+    }
+
+    @Test
+    @DisplayName("aRecognisedFalseTokenSetsTheOptionOff")
+    void aRecognisedFalseTokenSetsTheOptionOff() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            World world = mock(World.class);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPvpEnabled(true);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.setWorldOption(player, "world", "pvp", "off");
+
+            assertThat(settings.isPvpEnabled()).isFalse();
+            verify(mockWorldService).updateSettings(settings);
+        }
+    }
+
+    @Test
+    @DisplayName("anUnrecognisedValueIsRefused")
+    void anUnrecognisedValueIsRefused() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            World world = mock(World.class);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPvpEnabled(true);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+            command.setWorldOption(player, "world", "pvp", "maybe");
+
+            // Neither direction: the stored option is untouched and no success is reported.
+            assertThat(settings.isPvpEnabled()).isTrue();
+            verify(mockWorldService, never()).updateSettings(any());
+            verify(player).sendMessage(anyString());
+        }
+    }
 }
