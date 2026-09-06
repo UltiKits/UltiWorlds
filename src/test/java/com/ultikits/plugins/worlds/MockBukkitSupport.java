@@ -9,11 +9,18 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 /**
  * Defensive MockBukkit singleton-cleanup helper.
  * <p>
- * Copied (logic only, per phase-14's "no shared artifact" decision) from
- * {@code com.ultikits.ultitools.utils.MockBukkitHelper} in the framework repository — never add a
- * dependency on that class. Reconciles the fact that {@link MockBukkit#unmock()} alone can leave a
- * stale {@code Bukkit.server}/{@code MockBukkit.mocked} singleton behind between test classes reused
- * in the same Surefire fork.
+ * MockBukkit keeps its server in two static fields — {@code Bukkit.server} and
+ * {@code MockBukkit.mock} — that outlive any single test class, because Surefire reuses one JVM fork
+ * across all of them. {@link MockBukkit#unmock()} normally clears both, but only if it runs to
+ * completion: its own try/finally covers just the scheduler shutdown, so an exception thrown earlier
+ * (while disabling plugins) propagates before the fields are nulled. A leftover non-null
+ * {@code MockBukkit.mock} then makes the next {@link MockBukkit#mock()} call fail with
+ * {@code "Already mocking"}, and the failure surfaces in whichever test class happens to run next
+ * rather than in the one that caused it. The reflective fallback below closes that window.
+ * <p>
+ * This helper is deliberately local to this module rather than shared: a test-only utility published
+ * from another repository would make this module's test suite depend on that repository's release
+ * cadence, for roughly thirty lines of reflection.
  */
 @SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Test helper requires reflection for singleton cleanup
 public final class MockBukkitSupport {
@@ -36,9 +43,11 @@ public final class MockBukkitSupport {
         }
 
         try {
-            Field mockedField = MockBukkit.class.getDeclaredField("mocked");
-            mockedField.setAccessible(true);
-            mockedField.setBoolean(null, false);
+            // MockBukkit 4.x holds the server in "private static ServerMock mock" — the legacy
+            // be.seeseemelk.mockbukkit boolean "mocked" no longer exists.
+            Field mockField = MockBukkit.class.getDeclaredField("mock");
+            mockField.setAccessible(true);
+            mockField.set(null, null);
         } catch (Exception ignored) {
             // best-effort cleanup only
         }
