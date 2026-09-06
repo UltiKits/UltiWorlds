@@ -14,6 +14,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
+import org.mockbukkit.mockbukkit.MockBukkit;
+
 import java.lang.reflect.Field;
 import java.util.UUID;
 
@@ -42,6 +44,13 @@ public final class UltiWorldsTestHelper {
      */
     @SuppressWarnings("unchecked")
     public static void setUp() throws Exception {
+        // Live test-time server bootstrap: resolves registry-backed types
+        // (InventoryType/MenuType, PotionEffectType, ItemStack/Material) that a plain Mockito mock
+        // cannot satisfy. Centralized here so every class that already calls this helper picks it
+        // up with zero per-class edits (phase-14).
+        MockBukkitSupport.ensureCleanState();
+        MockBukkit.mock();
+
         // Mock UltiToolsPlugin (not UltiWorlds -- no more singleton)
         mockPlugin = mock(UltiToolsPlugin.class);
 
@@ -63,6 +72,7 @@ public final class UltiWorldsTestHelper {
      */
     public static void tearDown() throws Exception {
         mockPlugin = null;
+        MockBukkitSupport.safeUnmock();
     }
 
     public static UltiToolsPlugin getMockPlugin() {

@@ -6,21 +6,15 @@ import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 
 import mc.obliviate.inventory.Icon;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemFactory;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.junit.jupiter.api.*;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -36,35 +30,23 @@ class WorldListPageTest {
 
     private WorldService mockWorldService;
     private UltiToolsPlugin mockPlugin;
-    private Server mockServer;
 
     @BeforeEach
     void setUp() throws Exception {
+        // UltiWorldsTestHelper.setUp() installs a live MockBukkit server (phase-14 bootstrap),
+        // which already answers ItemFactory/registry lookups for real ItemStack construction. A
+        // hand-rolled Bukkit.setServer(mock(Server.class)) used to run after this and silently
+        // replace that live server with a bare Mockito mock stubbing only getItemFactory() -- a
+        // stand-in that could not satisfy Tag/Registry resolution, permanently poisoning
+        // registry-backed classes (MaterialTags/BlockStateMetaMock) for the rest of the Surefire
+        // fork. Removed; the live server is sufficient on its own.
         UltiWorldsTestHelper.setUp();
         mockPlugin = UltiWorldsTestHelper.getMockPlugin();
         mockWorldService = mock(WorldService.class);
-
-        // Set up Bukkit server for ItemStack creation
-        mockServer = mock(Server.class);
-        ItemFactory itemFactory = mock(ItemFactory.class);
-        ItemMeta itemMeta = mock(ItemMeta.class);
-        lenient().when(itemFactory.getItemMeta(any(Material.class))).thenReturn(itemMeta);
-        lenient().when(itemFactory.isApplicable(any(ItemMeta.class), any(Material.class))).thenReturn(true);
-        lenient().when(mockServer.getItemFactory()).thenReturn(itemFactory);
-
-        // Set Bukkit.server via reflection
-        Field serverField = Bukkit.class.getDeclaredField("server");
-        serverField.setAccessible(true); // NOPMD - test reflection
-        serverField.set(null, mockServer);
     }
 
     @AfterEach
     void tearDown() throws Exception {
-        // Reset Bukkit.server
-        Field serverField = Bukkit.class.getDeclaredField("server");
-        serverField.setAccessible(true); // NOPMD - test reflection
-        serverField.set(null, null);
-
         UltiWorldsTestHelper.tearDown();
     }
 
