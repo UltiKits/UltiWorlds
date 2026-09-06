@@ -1,8 +1,12 @@
 package com.ultikits.plugins.worlds;
 
+import com.ultikits.ultitools.UltiTools;
 import com.ultikits.ultitools.interfaces.impl.logger.PluginLogger;
+import com.ultikits.ultitools.manager.ConfigManager;
 
+import org.bukkit.configuration.file.FileConfiguration;
 import org.junit.jupiter.api.*;
+import org.mockito.MockedStatic;
 
 import java.util.List;
 
@@ -76,7 +80,17 @@ class UltiWorldsTest {
             when(plugin.getLogger()).thenReturn(logger);
             doCallRealMethod().when(plugin).reloadSelf();
 
-            plugin.reloadSelf();
+            // reloadSelf() now delegates to super.reloadSelf() (UltiWorlds#10 fix) --
+            // getConfigManager()/getConfig() are UltiTools.getInstance() calls, so the static
+            // singleton must resolve to something non-null for the real method body to run.
+            try (MockedStatic<UltiTools> ultiToolsStatic = mockStatic(UltiTools.class)) {
+                UltiTools fakeCore = mock(UltiTools.class);
+                when(fakeCore.getConfigManager()).thenReturn(mock(ConfigManager.class));
+                when(fakeCore.getConfig()).thenReturn(mock(FileConfiguration.class));
+                ultiToolsStatic.when(UltiTools::getInstance).thenReturn(fakeCore);
+
+                plugin.reloadSelf();
+            }
 
             verify(logger).info("UltiWorlds configuration reloaded!");
         }
