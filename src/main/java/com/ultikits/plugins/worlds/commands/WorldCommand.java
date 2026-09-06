@@ -174,11 +174,15 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
+        if (!requireWorld(player, name)) {
+            return;
+        }
+
         if (name.equals(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.delete.default"));
             return;
         }
-        
+
         player.sendMessage(i18n("world.delete.deleting").replace("{WORLD}", name));
         
         if (worldService.deleteWorld(name)) {
@@ -422,6 +426,10 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
+        if (!requireWorld(player, worldName)) {
+            return;
+        }
+
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
         String existing = settings.getPostTeleportCommands();
         if (existing == null || existing.isEmpty()) {
@@ -437,6 +445,10 @@ public class WorldCommand extends BaseCommandExecutor {
     @CmdMapping(format = "postcmd <world> list")
     public void listPostCmd(@CmdSender Player player,
                             @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
+        if (!requireWorld(player, worldName)) {
+            return;
+        }
+
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
         String commands = settings.getPostTeleportCommands();
 
@@ -455,6 +467,10 @@ public class WorldCommand extends BaseCommandExecutor {
                              @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
         if (!player.hasPermission("ultiworlds.admin.settings")) {
             player.sendMessage(i18n("error.no_permission"));
+            return;
+        }
+
+        if (!requireWorld(player, worldName)) {
             return;
         }
 
@@ -568,6 +584,21 @@ public class WorldCommand extends BaseCommandExecutor {
             .collect(Collectors.toList());
     }
     
+    /**
+     * Refuse a name that is not a well-formed world name, or that does not name a loaded world.
+     * Sends the same refusal message the other validating handlers already send.
+     *
+     * @return true if the caller should continue, false if a refusal was already sent
+     */
+    private boolean requireWorld(Player player, String worldName) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(worldName).matches()
+                || Bukkit.getWorld(worldName) == null) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Get i18n message from plugin.
      */

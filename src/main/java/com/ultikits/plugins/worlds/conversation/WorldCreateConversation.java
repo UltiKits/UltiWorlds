@@ -25,7 +25,12 @@ import java.util.regex.Pattern;
 public class WorldCreateConversation implements ConversationAbandonedListener {
     
     private static final int TIMEOUT_SECONDS = 60;
-    private static final Pattern WORLD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{1,32}$");
+
+    /**
+     * The one legal-world-name pattern for this module, shared by every command handler and
+     * conversation prompt that needs to know whether a name is well-formed before acting on it.
+     */
+    public static final Pattern WORLD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{1,32}$");
     
     private static final String KEY_WORLD_NAME = "world_name";
     private static final String KEY_WORLD_TYPE = "world_type";
