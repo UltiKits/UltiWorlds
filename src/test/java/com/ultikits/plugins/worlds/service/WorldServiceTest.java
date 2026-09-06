@@ -665,6 +665,18 @@ class WorldServiceTest {
     class DeleteWorldTests {
 
         @Test
+        @DisplayName("deleteWorld should refuse a name outside the legal world-name form")
+        void deleteWorldRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                boolean result = worldService.deleteWorld("bad/name");
+
+                assertThat(result).isFalse();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+                verify(mockDataOperator, never()).query();
+            }
+        }
+
+        @Test
         @DisplayName("deleteWorld should remove from database and cache regardless of report value")
         void deleteWorldRemovesData() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
