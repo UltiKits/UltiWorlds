@@ -9,8 +9,8 @@ worlds_disabled: "§cUltiWorlds has been disabled!"
 common:
   enabled: "Enabled"
   disabled: "Disabled"
-  yes: "Yes"
-  no: "No"
+  "yes": "Yes"
+  "no": "No"
   random: "Random"
   on: "On"
   off: "Off"
@@ -140,6 +140,89 @@ wizard:
   timeout: "§cOperation timed out, world creation cancelled"
   cancelled: "§eWorld creation cancelled"
 
+# ==================== World Command Messages ====================
+# Referenced via the "world.*" keys the /world command's handlers call directly
+# (as opposed to the flat "error.*"/"success.*" keys the older handlers use).
+world:
+  not_found: "§cWorld {WORLD} does not exist!"
+
+  list:
+    header: "§6World List ({COUNT} total):"
+    item: "§7- §f{NAME} §7({PLAYERS} players)"
+
+  tp:
+    disabled: "§cTeleporting to worlds via this command is disabled!"
+
+  create:
+    exists: "§cWorld {WORLD} already exists!"
+    creating: "§6Creating world {WORLD}, please wait..."
+    success: "§aWorld {WORLD} has been created!"
+    failed: "§cFailed to create the world!"
+    invalid_type: "§cInvalid world type! Use: NORMAL, NETHER, THE_END"
+
+  load:
+    success: "§aWorld {WORLD} has been loaded!"
+    failed: "§cFailed to load the world!"
+
+  unload:
+    default: "§cCannot unload the default world!"
+    success: "§eWorld {WORLD} has been unloaded"
+    failed: "§cFailed to unload the world!"
+
+  delete:
+    default: "§cCannot delete the default world!"
+    deleting: "§6Deleting world {WORLD}, please wait..."
+    success: "§cWorld {WORLD} has been deleted!"
+    failed: "§cFailed to delete the world!"
+
+  set:
+    invalid_option: "§cInvalid option! Use: pvp, monsters, animals, weather, hidden, locked, blocked, displayname, description, icon, difficulty"
+    success: "§aSet {OPTION} = {VALUE} for world {WORLD}"
+
+  protect:
+    enabled: "§aFull protection enabled for world {WORLD}"
+    disabled: "§eAll protection disabled for world {WORLD}"
+
+  block:
+    kicked: "§cWorld {WORLD} has been blocked, you have been teleported out"
+    enabled: "§cWorld {WORLD} has been blocked"
+    disabled: "§aWorld {WORLD} has been unblocked"
+
+  setspawn:
+    success: "§aSpawn point set for world {WORLD}"
+
+  info:
+    header: "§6========== World Info =========="
+    name: "§7Name: §f{VALUE}"
+    displayname: "§7Display Name: §f{VALUE}"
+    environment: "§7Environment: §f{VALUE}"
+    seed: "§7Seed: §f{VALUE}"
+    players: "§7Players: §f{VALUE}"
+    pvp: "§7PVP: §f{VALUE}"
+    monsters: "§7Monsters: §f{VALUE}"
+    protection: "§7Protection: §f{VALUE}"
+    blocked: "§7Blocked: §f{VALUE}"
+
+# ==================== Help Menu ====================
+# Referenced by WorldCommand#help() via the "help.*" keys (distinct from the
+# "command.help.*" keys below, which back the /world create <name> <type> [generator]
+# style reference text and are not all read by the live /world help command).
+help:
+  header: "§6========== UltiWorlds Help =========="
+  list: "§e/world list §7- Open world list GUI"
+  tp: "§e/world tp <world> §7- Teleport to a world"
+  info: "§e/world info §7- Show info about the current world"
+  wizard: "§e/world wizard §7- Start the world creation wizard"
+  admin_header: "§6========== Admin Commands =========="
+  create: "§e/world create <name> [type] §7- Create a world (type: NORMAL, NETHER, THE_END)"
+  load: "§e/world load <world> §7- Load a world"
+  unload: "§e/world unload <world> §7- Unload a world"
+  delete: "§e/world delete <world> §7- Delete a world"
+  setspawn: "§e/world setspawn §7- Set the current world's spawn point"
+  set: "§e/world set <world> <option> <value> §7- Modify world settings"
+  protect: "§e/world protect <world> §7- Enable full protection for a world"
+  block: "§e/world block <world> §7- Block access to a world"
+
 # ==================== Command Help ====================
 command:
   usage: "§eUsage: %usage%"
@@ -147,7 +230,7 @@ command:
     header: "§6========== UltiWorlds Help =========="
     list: "§e/world list §7- Open world list GUI"
     tp: "§e/world tp <world> §7- Teleport to a world"
-    create: "§e/world create <name> <type> [generator] §7- Create world"
+    create: "§e/world create <name> [type] §7- Create world (type: NORMAL, NETHER, THE_END)"
     delete: "§e/world delete <world> §7- Delete a world"
     load: "§e/world load <world> §7- Load a world"
     unload: "§e/world unload <world> §7- Unload a world"
