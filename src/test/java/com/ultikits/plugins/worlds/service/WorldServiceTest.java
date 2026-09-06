@@ -641,7 +641,7 @@ class WorldServiceTest {
     class DeleteWorldTests {
 
         @Test
-        @DisplayName("deleteWorld should remove from database and cache")
+        @DisplayName("deleteWorld should remove from database and cache regardless of report value")
         void deleteWorldRemovesData() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld("deleted_world")).thenReturn(null);
@@ -653,14 +653,17 @@ class WorldServiceTest {
 
                 boolean result = worldService.deleteWorld("deleted_world");
 
-                assertThat(result).isTrue();
+                // The database row is still removed even though nothing was loaded and no folder
+                // existed -- but that alone does not make the report true (see
+                // deleteReportsFalseWhenThereWasNothingToDelete below).
+                assertThat(result).isFalse();
                 verify(mockQuery).delete();
             }
         }
 
         @Test
-        @DisplayName("deleteWorld should return true when world is not loaded")
-        void deleteWorldNotLoaded() {
+        @DisplayName("deleteReportsFalseWhenThereWasNothingToDelete")
+        void deleteReportsFalseWhenThereWasNothingToDelete() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld("old_world")).thenReturn(null);
                 bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
@@ -669,7 +672,55 @@ class WorldServiceTest {
 
                 boolean result = worldService.deleteWorld("old_world");
 
+                assertThat(result).isFalse();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteReportsTrueWhenSomethingWasRemoved")
+        void deleteReportsTrueWhenSomethingWasRemoved() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                World defaultWorld = mock(World.class);
+                Location defaultSpawn = mock(Location.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(defaultSpawn);
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(() -> Bukkit.getWorld("live_world")).thenReturn(world);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld("live_world");
+
                 assertThat(result).isTrue();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteStillReportsFalseWhenUnloadFails")
+        void deleteStillReportsFalseWhenUnloadFails() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                World defaultWorld = mock(World.class);
+                Location defaultSpawn = mock(Location.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(defaultSpawn);
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(() -> Bukkit.getWorld("stubborn_world")).thenReturn(world);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(false);
+
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+
+                boolean result = worldService.deleteWorld("stubborn_world");
+
+                assertThat(result).isFalse();
+                // Nothing on disk is touched when the unload itself fails.
+                bukkit.verify(() -> Bukkit.getWorldContainer(), never());
             }
         }
     }

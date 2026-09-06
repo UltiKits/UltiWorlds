@@ -397,17 +397,23 @@ public class WorldService {
     
     /**
      * Delete a world (unload and delete files).
+     *
+     * @return true only if a loaded world was unloaded or an on-disk folder was actually removed;
+     *         false if there was nothing to delete, or if unloading a loaded world failed (in which
+     *         case nothing is removed from disk).
      */
     public boolean deleteWorld(String name) {
         World world = Bukkit.getWorld(name);
-        if (world != null) {
+        boolean wasLoaded = world != null;
+        if (wasLoaded) {
             if (!unloadWorld(name, false)) {
                 return false;
             }
         }
-        
+
         File worldFolder = new File(Bukkit.getWorldContainer(), name);
-        if (worldFolder.exists()) {
+        boolean folderExisted = worldFolder.exists();
+        if (folderExisted) {
             deleteFolder(worldFolder);
         }
 
@@ -417,7 +423,7 @@ public class WorldService {
             .delete();
         settingsCache.remove(name);
 
-        return true;
+        return wasLoaded || folderExisted;
     }
     
     /**
