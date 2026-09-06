@@ -603,6 +603,29 @@ class WorldCommandTest {
         }
 
         @Test
+        @DisplayName("deleteWorld should still work for a world that was unloaded but whose folder remains on disk")
+        void deleteWorldAllowsAnUnloadedWorldWithAnExistingFolder() {
+            java.io.File container = new java.io.File(System.getProperty("java.io.tmpdir"));
+            java.io.File worldFolder = new java.io.File(container, "unloaded_world");
+            worldFolder.mkdirs();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("unloaded_world")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                when(mockWorldService.deleteWorld("unloaded_world")).thenReturn(true);
+
+                command.deleteWorld(player, "unloaded_world");
+
+                verify(mockWorldService).deleteWorld("unloaded_world");
+            } finally {
+                worldFolder.delete();
+            }
+        }
+
+        @Test
         @DisplayName("deleteWorld should deny when no permission")
         void deleteWorldNoPermission() {
             Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
