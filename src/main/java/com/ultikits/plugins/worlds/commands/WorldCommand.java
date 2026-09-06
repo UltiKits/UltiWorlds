@@ -608,13 +608,18 @@ public class WorldCommand extends BaseCommandExecutor {
     }
     
     /**
-     * Refuse a name that is not a well-formed world name, or that does not name a loaded world.
-     * Sends the same refusal message the other validating handlers already send.
+     * Refuse a name that is not filesystem-safe, or that does not name a loaded world. Sends the
+     * same refusal message the other validating handlers already send.
+     *
+     * <p>This deliberately does not apply the creation wizard's narrower alphanumeric/length
+     * naming convention ({@link WorldCreateConversation#WORLD_NAME_PATTERN}): the world this checks
+     * already exists, so it may have been named before the wizard shipped, or by other tooling.
+     * See {@link WorldService#isFilesystemSafeWorldName(String)}.
      *
      * @return true if the caller should continue, false if a refusal was already sent
      */
     private boolean requireWorld(Player player, String worldName) {
-        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(worldName).matches()
+        if (!WorldService.isFilesystemSafeWorldName(worldName)
                 || Bukkit.getWorld(worldName) == null) {
             player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
             return false;
@@ -623,16 +628,17 @@ public class WorldCommand extends BaseCommandExecutor {
     }
 
     /**
-     * Refuse a name that is not a well-formed world name, or that names neither a loaded world nor
-     * an on-disk world folder. Unlike {@link #requireWorld}, this does not require the world to be
+     * Refuse a name that is not filesystem-safe, or that names neither a loaded world nor an
+     * on-disk world folder. Unlike {@link #requireWorld}, this does not require the world to be
      * currently loaded: {@code WorldService.deleteWorld} deliberately supports removing an unloaded
      * world's folder and settings, so requiring "loaded" here would reject the ordinary
-     * {@code /world unload} then {@code /world delete} workflow.
+     * {@code /world unload} then {@code /world delete} workflow. See the note on
+     * {@link #requireWorld} about why the wizard's naming convention does not apply here either.
      *
      * @return true if the caller should continue, false if a refusal was already sent
      */
     private boolean requireDeletableWorld(Player player, String worldName) {
-        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(worldName).matches()
+        if (!WorldService.isFilesystemSafeWorldName(worldName)
                 || (Bukkit.getWorld(worldName) == null
                     && !new File(Bukkit.getWorldContainer(), worldName).exists())) {
             player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));

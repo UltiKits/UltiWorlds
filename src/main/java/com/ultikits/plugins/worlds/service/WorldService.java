@@ -362,7 +362,7 @@ public class WorldService {
      * Load an existing world.
      */
     public boolean loadWorld(String name) {
-        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+        if (!isFilesystemSafeWorldName(name)) {
             return false;
         }
 
@@ -416,7 +416,7 @@ public class WorldService {
      *         case nothing is removed from disk).
      */
     public boolean deleteWorld(String name) {
-        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+        if (!isFilesystemSafeWorldName(name)) {
             return false;
         }
 
@@ -442,7 +442,30 @@ public class WorldService {
 
         return wasLoaded || folderExisted;
     }
-    
+
+    /**
+     * Whether {@code name} is safe to combine with {@link Bukkit#getWorldContainer()} to build a
+     * {@link File} that always resolves to a direct child of that container.
+     *
+     * <p>This is deliberately narrower than {@link WorldCreateConversation#WORLD_NAME_PATTERN}: that
+     * pattern is the creation wizard's own naming convention for <em>new</em> worlds, but
+     * {@link #loadWorld}, {@link #deleteWorld}, and the per-world management commands operate on
+     * worlds that may already exist -- created before the wizard shipped, or by other tooling -- so
+     * they must not reject a name just because it does not follow the wizard's narrower
+     * alphanumeric/length convention (for example, a name containing a dot). All this check rules
+     * out is a directory separator or a parent-directory segment, either of which would let the
+     * resulting {@code File} resolve to something other than a direct child of the world container.
+     */
+    public static boolean isFilesystemSafeWorldName(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        if (name.contains("/") || name.contains("\\")) {
+            return false;
+        }
+        return !".".equals(name) && !"..".equals(name);
+    }
+
     /**
      * Delete folder recursively.
      */
