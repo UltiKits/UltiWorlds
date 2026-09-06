@@ -567,6 +567,30 @@ class WorldServiceTest {
                 assertThat(result).isNull();
             }
         }
+
+        @Test
+        @DisplayName("createWorld with generator should refuse a name outside the legal world-name form")
+        void createWorldRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                boolean result = worldService.createWorld("bad/name",
+                        World.Environment.NORMAL, WorldType.NORMAL, null);
+
+                assertThat(result).isFalse();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("createWorld with full options should refuse a name outside the legal world-name form")
+        void createWorldFullRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World result = worldService.createWorld("bad/name",
+                        World.Environment.NORMAL, WorldType.NORMAL, true, "123");
+
+                assertThat(result).isNull();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            }
+        }
     }
 
     @Nested
@@ -1463,6 +1487,17 @@ class WorldServiceTest {
                 boolean result = worldService.loadWorld("missing_world_that_does_not_exist_12345");
 
                 assertThat(result).isFalse();
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should refuse a name outside the legal world-name form")
+        void loadWorldRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                boolean result = worldService.loadWorld("bad/name");
+
+                assertThat(result).isFalse();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
             }
         }
     }
