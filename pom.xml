@@ -115,6 +115,26 @@
             <version>1.7.1</version>
             <scope>test</scope>
         </dependency>
+        <!-- SQLite is this module's actual configured default storage backend
+             (config.yml: datasource.type, default sqlite); the framework's own
+             SQLiteDataOperator takes a plain javax.sql.DataSource and declares no compile
+             dependency on a concrete driver, so a real round-trip test needs one explicitly. -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.41.2.2</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- AbstractRelationalDataOperator uses commons-dbutils' QueryRunner directly; the
+             framework only declares it provided (Paper's own libraries: block supplies it at
+             runtime), which is not on this module's test classpath. Same coordinates as the
+             framework's own pin, test-scope only. -->
+        <dependency>
+            <groupId>commons-dbutils</groupId>
+            <artifactId>commons-dbutils</artifactId>
+            <version>1.8.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     
     <build>

@@ -1019,4 +1019,69 @@ class WorldSettingsTest {
             assertThat(settings.getCreatedAt()).isEqualTo(1700000000000L);
         }
     }
+
+    /**
+     * UltiWorlds#11 (FIX-04): all twelve boolean columns declare no explicit {@code @Column}
+     * type, and the framework's read-side fix (issue #388, closed 2026-09-04) already covers
+     * pre-existing text-typed boolean columns. Plan 13-03 already ran this exact measurement
+     * once as a throwaway harness against the module's own production {@code SQLiteDataOperator}
+     * class (not a mock) and recorded {@code ALL_12_ROUND_TRIP_CORRECTLY} in
+     * {@code 13-RECONFIRMATION.md}. This nested class turns that one-off measurement into a
+     * standing regression test rather than re-litigating the verdict -- per D-05, no
+     * {@code @Column(type = "BOOLEAN")} is added anywhere in {@link WorldSettings}.
+     */
+    @Nested
+    @DisplayName("Real-backend persistence (UltiWorlds#11)")
+    class RealBackendPersistence {
+
+        @Test
+        @DisplayName("all twelve boolean flags round-trip through a real SQLiteDataOperator")
+        void allTwelveBooleanFlagsRoundTrip(
+                @org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) throws Exception {
+            java.io.File dbFile = new java.io.File(tempDir.toFile(), "world_settings_roundtrip.db");
+            org.sqlite.SQLiteDataSource dataSource = new org.sqlite.SQLiteDataSource();
+            dataSource.setUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
+
+            com.ultikits.ultitools.interfaces.DataOperator<WorldSettings> operator =
+                    new com.ultikits.ultitools.interfaces.impl.data.sqlite.SQLiteDataOperator<>(
+                            dataSource, WorldSettings.class);
+
+            // Every one of the twelve boolean columns set to its non-default value.
+            WorldSettings written = WorldSettings.builder()
+                    .worldName("roundtrip_world")
+                    .displayName("roundtrip_world")
+                    .description("")
+                    .icon("GRASS_BLOCK")
+                    .pvpEnabled(false)          // default true
+                    .monstersEnabled(false)     // default true
+                    .animalsEnabled(false)      // default true
+                    .weatherEnabled(false)      // default true
+                    .hidden(true)               // default false
+                    .locked(true)               // default false
+                    .blocked(true)              // default false
+                    .autoUnload(false)          // default true
+                    .protectBreak(true)         // default false
+                    .protectPlace(true)         // default false
+                    .protectInteract(true)      // default false
+                    .protectExplosion(true)     // default false
+                    .build();
+
+            operator.insert(written);
+            WorldSettings read = operator.getById(written.getId());
+
+            assertThat(read).as("the row must be readable back by id").isNotNull();
+            assertThat(read.isPvpEnabled()).as("pvp_enabled").isFalse();
+            assertThat(read.isMonstersEnabled()).as("monsters_enabled").isFalse();
+            assertThat(read.isAnimalsEnabled()).as("animals_enabled").isFalse();
+            assertThat(read.isWeatherEnabled()).as("weather_enabled").isFalse();
+            assertThat(read.isHidden()).as("hidden").isTrue();
+            assertThat(read.isLocked()).as("locked").isTrue();
+            assertThat(read.isBlocked()).as("blocked").isTrue();
+            assertThat(read.isAutoUnload()).as("auto_unload").isFalse();
+            assertThat(read.isProtectBreak()).as("protect_break").isTrue();
+            assertThat(read.isProtectPlace()).as("protect_place").isTrue();
+            assertThat(read.isProtectInteract()).as("protect_interact").isTrue();
+            assertThat(read.isProtectExplosion()).as("protect_explosion").isTrue();
+        }
+    }
 }
