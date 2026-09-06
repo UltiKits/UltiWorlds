@@ -209,7 +209,7 @@ world:
 # 并非全部被实际运行的 /world help 命令读取）。
 help:
   header: "§6========== UltiWorlds 帮助 =========="
-  list: "§e/world list §7- 打开世界列表GUI"
+  list: "§e/world list §7- 列出所有已加载的世界"
   tp: "§e/world tp <世界> §7- 传送到指定世界"
   info: "§e/world info §7- 查看当前世界的信息"
   wizard: "§e/world wizard §7- 启动世界创建向导"

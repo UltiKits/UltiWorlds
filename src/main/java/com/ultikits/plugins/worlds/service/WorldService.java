@@ -411,9 +411,11 @@ public class WorldService {
     /**
      * Delete a world (unload and delete files).
      *
-     * @return true only if a loaded world was unloaded or an on-disk folder was actually removed;
-     *         false if there was nothing to delete, or if unloading a loaded world failed (in which
-     *         case nothing is removed from disk).
+     * @return true only if a loaded world was unloaded and, when an on-disk folder existed, that
+     *         folder was actually removed; false if there was nothing to delete, if unloading a
+     *         loaded world failed (in which case nothing is removed from disk), or if the folder
+     *         still exists after the deletion attempt (in which case the settings row is kept so
+     *         the world can be retried or inspected).
      */
     public boolean deleteWorld(String name) {
         if (!isFilesystemSafeWorldName(name)) {
@@ -431,7 +433,14 @@ public class WorldService {
         File worldFolder = new File(Bukkit.getWorldContainer(), name);
         boolean folderExisted = worldFolder.exists();
         if (folderExisted) {
-            deleteFolder(worldFolder);
+            boolean allEntriesDeleted = deleteFolder(worldFolder);
+            if (!allEntriesDeleted || worldFolder.exists()) {
+                plugin.getLogger().warn(
+                    "Failed to fully delete the folder for world " + name
+                        + "; some files remain on disk. Settings for this world were kept."
+                );
+                return false;
+            }
         }
 
         // Remove from database
@@ -468,19 +477,26 @@ public class WorldService {
 
     /**
      * Delete folder recursively.
+     *
+     * @return true if every entry under {@code folder} (and {@code folder} itself) was
+     *         successfully removed; false if {@link File#delete()} refused any entry (for example
+     *         a permission issue or a lingering lock), in which case some data may remain on disk.
      */
-    private void deleteFolder(File folder) {
+    private boolean deleteFolder(File folder) {
         File[] files = folder.listFiles();
+        boolean allDeleted = true;
         if (files != null) {
             for (File file : files) {
                 if (file.isDirectory()) {
-                    deleteFolder(file);
-                } else {
-                    file.delete();
+                    if (!deleteFolder(file)) {
+                        allDeleted = false;
+                    }
+                } else if (!file.delete()) {
+                    allDeleted = false;
                 }
             }
         }
-        folder.delete();
+        return folder.delete() && allDeleted;
     }
     
     /**

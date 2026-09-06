@@ -209,7 +209,7 @@ world:
 # style reference text and are not all read by the live /world help command).
 help:
   header: "§6========== UltiWorlds Help =========="
-  list: "§e/world list §7- Open world list GUI"
+  list: "§e/world list §7- List all loaded worlds"
   tp: "§e/world tp <world> §7- Teleport to a world"
   info: "§e/world info §7- Show info about the current world"
   wizard: "§e/world wizard §7- Start the world creation wizard"

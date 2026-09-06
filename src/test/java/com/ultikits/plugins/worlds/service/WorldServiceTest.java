@@ -783,6 +783,59 @@ class WorldServiceTest {
                 bukkit.verify(() -> Bukkit.getWorldContainer(), never());
             }
         }
+
+        @Test
+        @DisplayName("deleteReportsFalseWhenAFileInTheFolderCannotBeDeleted")
+        void deleteReportsFalseWhenAFileInTheFolderCannotBeDeleted() throws java.io.IOException {
+            java.io.File worldFolder = java.nio.file.Files.createTempDirectory("locked_world_").toFile();
+            java.io.File lockedSub = new java.io.File(worldFolder, "locked");
+            java.io.File innerFile = new java.io.File(lockedSub, "inner.dat");
+            assertThat(lockedSub.mkdir()).isTrue();
+            assertThat(innerFile.createNewFile()).isTrue();
+            // Removing an entry requires write permission on its *parent* directory, not on the
+            // entry itself -- stripping write from lockedSub is what makes innerFile.delete()
+            // (and, in turn, lockedSub.delete(), since it stays non-empty) fail.
+            assertThat(lockedSub.setWritable(false)).isTrue();
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+
+                boolean result = worldService.deleteWorld(worldFolder.getName());
+
+                assertThat(result).isFalse();
+                assertThat(worldFolder).exists();
+                // The settings row must be kept when the folder was only partially removed.
+                verify(mockDataOperator, never()).query();
+            } finally {
+                lockedSub.setWritable(true);
+                innerFile.delete();
+                lockedSub.delete();
+                worldFolder.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteReportsTrueWhenTheWorldFolderIsFullyDeleted")
+        void deleteReportsTrueWhenTheWorldFolderIsFullyDeleted() throws java.io.IOException {
+            java.io.File worldFolder = java.nio.file.Files.createTempDirectory("fully_deleted_world_").toFile();
+            java.io.File subDir = new java.io.File(worldFolder, "region");
+            assertThat(subDir.mkdir()).isTrue();
+            assertThat(new java.io.File(subDir, "r.0.0.mca").createNewFile()).isTrue();
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+
+                Query<WorldSettings> mockQuery = mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld(worldFolder.getName());
+
+                assertThat(result).isTrue();
+                assertThat(worldFolder).doesNotExist();
+                verify(mockQuery).delete();
+            }
+        }
     }
 
     @Nested
