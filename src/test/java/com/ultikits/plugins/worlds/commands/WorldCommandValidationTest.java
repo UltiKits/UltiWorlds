@@ -61,10 +61,12 @@ class WorldCommandValidationTest {
     }
 
     @Test
-    @DisplayName("deleteRejectsANameThatIsNotALoadedWorld")
-    void deleteRejectsANameThatIsNotALoadedWorld() {
+    @DisplayName("deleteRejectsANameThatIsNeitherLoadedNorOnDisk")
+    void deleteRejectsANameThatIsNeitherLoadedNorOnDisk() {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getWorld("ghost_world")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer)
+                    .thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
 
             Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 

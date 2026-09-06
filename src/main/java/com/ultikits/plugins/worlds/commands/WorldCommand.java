@@ -16,6 +16,7 @@ import org.bukkit.WorldType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -180,7 +181,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        if (!requireWorld(player, name)) {
+        if (!requireDeletableWorld(player, name)) {
             return;
         }
 
@@ -610,6 +611,25 @@ public class WorldCommand extends BaseCommandExecutor {
     private boolean requireWorld(Player player, String worldName) {
         if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(worldName).matches()
                 || Bukkit.getWorld(worldName) == null) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Refuse a name that is not a well-formed world name, or that names neither a loaded world nor
+     * an on-disk world folder. Unlike {@link #requireWorld}, this does not require the world to be
+     * currently loaded: {@code WorldService.deleteWorld} deliberately supports removing an unloaded
+     * world's folder and settings, so requiring "loaded" here would reject the ordinary
+     * {@code /world unload} then {@code /world delete} workflow.
+     *
+     * @return true if the caller should continue, false if a refusal was already sent
+     */
+    private boolean requireDeletableWorld(Player player, String worldName) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(worldName).matches()
+                || (Bukkit.getWorld(worldName) == null
+                    && !new File(Bukkit.getWorldContainer(), worldName).exists())) {
             player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
             return false;
         }
