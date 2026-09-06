@@ -1,6 +1,7 @@
 package com.ultikits.plugins.worlds.service;
 
 import com.ultikits.plugins.worlds.config.WorldConfig;
+import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.Autowired;
@@ -14,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.Difficulty;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -295,8 +297,12 @@ public class WorldService {
     /**
      * Create a new world with all options.
      */
-    public World createWorld(String name, World.Environment environment, WorldType type, 
+    public World createWorld(String name, World.Environment environment, WorldType type,
                              Boolean generateStructures, String seed) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+            return null;
+        }
+
         if (Bukkit.getWorld(name) != null) {
             return null;
         }
@@ -329,6 +335,10 @@ public class WorldService {
      * Create a new world.
      */
     public boolean createWorld(String name, World.Environment environment, WorldType type, String generator) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+            return false;
+        }
+
         if (Bukkit.getWorld(name) != null) {
             return false;
         }
@@ -353,6 +363,10 @@ public class WorldService {
      * Load an existing world.
      */
     public boolean loadWorld(String name) {
+        if (!isFilesystemSafeWorldName(name)) {
+            return false;
+        }
+
         if (Bukkit.getWorld(name) != null) {
             return true; // Already loaded
         }
@@ -397,18 +411,37 @@ public class WorldService {
     
     /**
      * Delete a world (unload and delete files).
+     *
+     * @return true only if a loaded world was unloaded and, when an on-disk folder existed, that
+     *         folder was actually removed; false if there was nothing to delete, if unloading a
+     *         loaded world failed (in which case nothing is removed from disk), or if the folder
+     *         still exists after the deletion attempt (in which case the settings row is kept so
+     *         the world can be retried or inspected).
      */
     public boolean deleteWorld(String name) {
+        if (!isFilesystemSafeWorldName(name)) {
+            return false;
+        }
+
         World world = Bukkit.getWorld(name);
-        if (world != null) {
+        boolean wasLoaded = world != null;
+        if (wasLoaded) {
             if (!unloadWorld(name, false)) {
                 return false;
             }
         }
-        
+
         File worldFolder = new File(Bukkit.getWorldContainer(), name);
-        if (worldFolder.exists()) {
-            deleteFolder(worldFolder);
+        boolean folderExisted = worldFolder.exists();
+        if (folderExisted) {
+            boolean allEntriesDeleted = deleteFolder(worldFolder);
+            if (!allEntriesDeleted || worldFolder.exists()) {
+                plugin.getLogger().warn(
+                    "Failed to fully delete the folder for world " + name
+                        + "; some files remain on disk. Settings for this world were kept."
+                );
+                return false;
+            }
         }
 
         // Remove from database
@@ -417,24 +450,58 @@ public class WorldService {
             .delete();
         settingsCache.remove(name);
 
-        return true;
+        return wasLoaded || folderExisted;
     }
-    
+
+    /**
+     * Whether {@code name} is safe to combine with {@link Bukkit#getWorldContainer()} to build a
+     * {@link File} that always resolves to a direct child of that container.
+     *
+     * <p>This is deliberately narrower than {@link WorldCreateConversation#WORLD_NAME_PATTERN}: that
+     * pattern is the creation wizard's own naming convention for <em>new</em> worlds, but
+     * {@link #loadWorld}, {@link #deleteWorld}, and the per-world management commands operate on
+     * worlds that may already exist -- created before the wizard shipped, or by other tooling -- so
+     * they must not reject a name just because it does not follow the wizard's narrower
+     * alphanumeric/length convention (for example, a name containing a dot). All this check rules
+     * out is a directory separator or a parent-directory segment, either of which would let the
+     * resulting {@code File} resolve to something other than a direct child of the world container.
+     */
+    public static boolean isFilesystemSafeWorldName(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
+        if (name.contains("/") || name.contains("\\")) {
+            return false;
+        }
+        return !".".equals(name) && !"..".equals(name);
+    }
+
     /**
      * Delete folder recursively.
+     *
+     * <p>A linked directory is not part of the world folder, so only the link entry is removed --
+     * this method never descends into a {@link Files#isSymbolicLink(java.nio.file.Path) symbolic
+     * link}, even when it points at a directory. Only real subdirectories are recursed into.
+     *
+     * @return true if every entry under {@code folder} (and {@code folder} itself) was
+     *         successfully removed; false if {@link File#delete()} refused any entry (for example
+     *         a permission issue or a lingering lock), in which case some data may remain on disk.
      */
-    private void deleteFolder(File folder) {
+    private boolean deleteFolder(File folder) {
         File[] files = folder.listFiles();
+        boolean allDeleted = true;
         if (files != null) {
             for (File file : files) {
-                if (file.isDirectory()) {
-                    deleteFolder(file);
-                } else {
-                    file.delete();
+                if (file.isDirectory() && !Files.isSymbolicLink(file.toPath())) {
+                    if (!deleteFolder(file)) {
+                        allDeleted = false;
+                    }
+                } else if (!file.delete()) {
+                    allDeleted = false;
                 }
             }
         }
-        folder.delete();
+        return folder.delete() && allDeleted;
     }
     
     /**

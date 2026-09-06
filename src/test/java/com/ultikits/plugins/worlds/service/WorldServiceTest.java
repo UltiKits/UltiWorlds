@@ -567,6 +567,30 @@ class WorldServiceTest {
                 assertThat(result).isNull();
             }
         }
+
+        @Test
+        @DisplayName("createWorld with generator should refuse a name outside the legal world-name form")
+        void createWorldRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                boolean result = worldService.createWorld("bad/name",
+                        World.Environment.NORMAL, WorldType.NORMAL, null);
+
+                assertThat(result).isFalse();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("createWorld with full options should refuse a name outside the legal world-name form")
+        void createWorldFullRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World result = worldService.createWorld("bad/name",
+                        World.Environment.NORMAL, WorldType.NORMAL, true, "123");
+
+                assertThat(result).isNull();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            }
+        }
     }
 
     @Nested
@@ -641,7 +665,43 @@ class WorldServiceTest {
     class DeleteWorldTests {
 
         @Test
-        @DisplayName("deleteWorld should remove from database and cache")
+        @DisplayName("deleteWorld should refuse a name containing a directory separator")
+        void deleteWorldRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                boolean result = worldService.deleteWorld("bad/name");
+
+                assertThat(result).isFalse();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+                verify(mockDataOperator, never()).query();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteWorld should accept a loaded world whose name predates the wizard's format")
+        void deleteWorldAcceptsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                World defaultWorld = mock(World.class);
+                Location defaultSpawn = mock(Location.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(defaultSpawn);
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld("legacy.world");
+
+                assertThat(result).isTrue();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteWorld should remove from database and cache regardless of report value")
         void deleteWorldRemovesData() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld("deleted_world")).thenReturn(null);
@@ -653,14 +713,17 @@ class WorldServiceTest {
 
                 boolean result = worldService.deleteWorld("deleted_world");
 
-                assertThat(result).isTrue();
+                // The database row is still removed even though nothing was loaded and no folder
+                // existed -- but that alone does not make the report true (see
+                // deleteReportsFalseWhenThereWasNothingToDelete below).
+                assertThat(result).isFalse();
                 verify(mockQuery).delete();
             }
         }
 
         @Test
-        @DisplayName("deleteWorld should return true when world is not loaded")
-        void deleteWorldNotLoaded() {
+        @DisplayName("deleteReportsFalseWhenThereWasNothingToDelete")
+        void deleteReportsFalseWhenThereWasNothingToDelete() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(() -> Bukkit.getWorld("old_world")).thenReturn(null);
                 bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
@@ -669,7 +732,145 @@ class WorldServiceTest {
 
                 boolean result = worldService.deleteWorld("old_world");
 
+                assertThat(result).isFalse();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteReportsTrueWhenSomethingWasRemoved")
+        void deleteReportsTrueWhenSomethingWasRemoved() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                World defaultWorld = mock(World.class);
+                Location defaultSpawn = mock(Location.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(defaultSpawn);
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(() -> Bukkit.getWorld("live_world")).thenReturn(world);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld("live_world");
+
                 assertThat(result).isTrue();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteStillReportsFalseWhenUnloadFails")
+        void deleteStillReportsFalseWhenUnloadFails() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                World defaultWorld = mock(World.class);
+                Location defaultSpawn = mock(Location.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(defaultSpawn);
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(() -> Bukkit.getWorld("stubborn_world")).thenReturn(world);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(false);
+
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+
+                boolean result = worldService.deleteWorld("stubborn_world");
+
+                assertThat(result).isFalse();
+                // Nothing on disk is touched when the unload itself fails.
+                bukkit.verify(() -> Bukkit.getWorldContainer(), never());
+            }
+        }
+
+        @Test
+        @DisplayName("deleteReportsFalseWhenAFileInTheFolderCannotBeDeleted")
+        void deleteReportsFalseWhenAFileInTheFolderCannotBeDeleted() throws java.io.IOException {
+            java.io.File worldFolder = java.nio.file.Files.createTempDirectory("locked_world_").toFile();
+            java.io.File lockedSub = new java.io.File(worldFolder, "locked");
+            java.io.File innerFile = new java.io.File(lockedSub, "inner.dat");
+            assertThat(lockedSub.mkdir()).isTrue();
+            assertThat(innerFile.createNewFile()).isTrue();
+            // Removing an entry requires write permission on its *parent* directory, not on the
+            // entry itself -- stripping write from lockedSub is what makes innerFile.delete()
+            // (and, in turn, lockedSub.delete(), since it stays non-empty) fail.
+            assertThat(lockedSub.setWritable(false)).isTrue();
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+                // Stub the query chain so that, if a regression makes this method reach the
+                // database-delete step unconditionally again (the pre-fix behaviour), the test
+                // fails on the assertions below rather than crashing on an unstubbed mock.
+                mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld(worldFolder.getName());
+
+                assertThat(result).isFalse();
+                assertThat(worldFolder).exists();
+                // The settings row must be kept when the folder was only partially removed.
+                verify(mockDataOperator, never()).query();
+            } finally {
+                lockedSub.setWritable(true);
+                innerFile.delete();
+                lockedSub.delete();
+                worldFolder.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteReportsTrueWhenTheWorldFolderIsFullyDeleted")
+        void deleteReportsTrueWhenTheWorldFolderIsFullyDeleted() throws java.io.IOException {
+            java.io.File worldFolder = java.nio.file.Files.createTempDirectory("fully_deleted_world_").toFile();
+            java.io.File subDir = new java.io.File(worldFolder, "region");
+            assertThat(subDir.mkdir()).isTrue();
+            assertThat(new java.io.File(subDir, "r.0.0.mca").createNewFile()).isTrue();
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+
+                Query<WorldSettings> mockQuery = mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld(worldFolder.getName());
+
+                assertThat(result).isTrue();
+                assertThat(worldFolder).doesNotExist();
+                verify(mockQuery).delete();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteRemovesOnlyTheLinkEntryForALinkedDirectory")
+        void deleteRemovesOnlyTheLinkEntryForALinkedDirectory() throws java.io.IOException {
+            java.io.File linkTarget = java.nio.file.Files.createTempDirectory("linked_target_").toFile();
+            java.io.File targetFile = new java.io.File(linkTarget, "shared.dat");
+            assertThat(targetFile.createNewFile()).isTrue();
+
+            java.io.File worldFolder = java.nio.file.Files.createTempDirectory("linked_world_").toFile();
+            java.io.File linkEntry = new java.io.File(worldFolder, "datapacks");
+            java.nio.file.Files.createSymbolicLink(linkEntry.toPath(), linkTarget.toPath());
+
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld(worldFolder.getName())).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+
+                Query<WorldSettings> mockQuery = mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld(worldFolder.getName());
+
+                assertThat(result).isTrue();
+                // A linked directory is not part of the world folder, so only the link entry is
+                // removed -- the world folder (and the link inside it) are gone, but the link's
+                // target keeps its own contents.
+                assertThat(worldFolder).doesNotExist();
+                assertThat(linkTarget).exists();
+                assertThat(targetFile).exists();
+                verify(mockQuery).delete();
+            } finally {
+                targetFile.delete();
+                linkTarget.delete();
             }
         }
     }
@@ -1412,6 +1613,30 @@ class WorldServiceTest {
                 boolean result = worldService.loadWorld("missing_world_that_does_not_exist_12345");
 
                 assertThat(result).isFalse();
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should refuse a name containing a directory separator")
+        void loadWorldRejectsAnIllegalName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                boolean result = worldService.loadWorld("bad/name");
+
+                assertThat(result).isFalse();
+                bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should accept an already-loaded world whose name predates the wizard's format")
+        void loadWorldAcceptsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+
+                boolean result = worldService.loadWorld("legacy.world");
+
+                assertThat(result).isTrue();
             }
         }
     }
