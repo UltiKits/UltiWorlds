@@ -416,6 +416,10 @@ public class WorldService {
      *         case nothing is removed from disk).
      */
     public boolean deleteWorld(String name) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+            return false;
+        }
+
         World world = Bukkit.getWorld(name);
         boolean wasLoaded = world != null;
         if (wasLoaded) {
