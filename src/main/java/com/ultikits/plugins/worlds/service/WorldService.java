@@ -1,6 +1,7 @@
 package com.ultikits.plugins.worlds.service;
 
 import com.ultikits.plugins.worlds.config.WorldConfig;
+import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.Autowired;
@@ -295,8 +296,12 @@ public class WorldService {
     /**
      * Create a new world with all options.
      */
-    public World createWorld(String name, World.Environment environment, WorldType type, 
+    public World createWorld(String name, World.Environment environment, WorldType type,
                              Boolean generateStructures, String seed) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+            return null;
+        }
+
         if (Bukkit.getWorld(name) != null) {
             return null;
         }
@@ -329,6 +334,10 @@ public class WorldService {
      * Create a new world.
      */
     public boolean createWorld(String name, World.Environment environment, WorldType type, String generator) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+            return false;
+        }
+
         if (Bukkit.getWorld(name) != null) {
             return false;
         }
@@ -353,6 +362,10 @@ public class WorldService {
      * Load an existing world.
      */
     public boolean loadWorld(String name) {
+        if (!WorldCreateConversation.WORLD_NAME_PATTERN.matcher(name).matches()) {
+            return false;
+        }
+
         if (Bukkit.getWorld(name) != null) {
             return true; // Already loaded
         }
