@@ -1371,6 +1371,26 @@ class WorldCommandTest {
         }
 
         @Test
+        @DisplayName("listPostCmd should deny when no permission")
+        void listPostCmdNoPermission() {
+            // The world must resolve as loaded here, so that only the permission check (not the
+            // name-format check the two sibling handlers already share with this one) is what
+            // stands between the caller and getOrCreateSettings.
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
+
+                command.listPostCmd(player, "world");
+
+                verify(mockWorldService, never()).getOrCreateSettings(anyString());
+                verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
         @DisplayName("listPostCmd should list commands")
         void listPostCmdWithCommands() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
