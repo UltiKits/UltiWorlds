@@ -665,7 +665,7 @@ class WorldServiceTest {
     class DeleteWorldTests {
 
         @Test
-        @DisplayName("deleteWorld should refuse a name outside the legal world-name form")
+        @DisplayName("deleteWorld should refuse a name containing a directory separator")
         void deleteWorldRejectsAnIllegalName() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 boolean result = worldService.deleteWorld("bad/name");
@@ -673,6 +673,30 @@ class WorldServiceTest {
                 assertThat(result).isFalse();
                 bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
                 verify(mockDataOperator, never()).query();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteWorld should accept a loaded world whose name predates the wizard's format")
+        void deleteWorldAcceptsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                World defaultWorld = mock(World.class);
+                Location defaultSpawn = mock(Location.class);
+                when(defaultWorld.getSpawnLocation()).thenReturn(defaultSpawn);
+                when(world.getPlayers()).thenReturn(Collections.emptyList());
+
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                bukkit.when(() -> Bukkit.unloadWorld(world, false)).thenReturn(true);
+                bukkit.when(() -> Bukkit.getWorldContainer()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                mockQueryReturning(null);
+
+                boolean result = worldService.deleteWorld("legacy.world");
+
+                assertThat(result).isTrue();
             }
         }
 
@@ -1503,13 +1527,26 @@ class WorldServiceTest {
         }
 
         @Test
-        @DisplayName("loadWorld should refuse a name outside the legal world-name form")
+        @DisplayName("loadWorld should refuse a name containing a directory separator")
         void loadWorldRejectsAnIllegalName() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 boolean result = worldService.loadWorld("bad/name");
 
                 assertThat(result).isFalse();
                 bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should accept an already-loaded world whose name predates the wizard's format")
+        void loadWorldAcceptsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+
+                boolean result = worldService.loadWorld("legacy.world");
+
+                assertThat(result).isTrue();
             }
         }
     }

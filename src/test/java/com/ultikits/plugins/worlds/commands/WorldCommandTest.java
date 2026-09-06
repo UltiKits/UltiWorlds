@@ -626,6 +626,24 @@ class WorldCommandTest {
         }
 
         @Test
+        @DisplayName("deleteWorld should still work for a loaded world whose name predates the wizard's format")
+        void deleteWorldAllowsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                when(mockWorldService.deleteWorld("legacy.world")).thenReturn(true);
+
+                command.deleteWorld(player, "legacy.world");
+
+                verify(mockWorldService).deleteWorld("legacy.world");
+            }
+        }
+
+        @Test
         @DisplayName("deleteWorld should deny when no permission")
         void deleteWorldNoPermission() {
             Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
@@ -1446,6 +1464,25 @@ class WorldCommandTest {
                 command.listPostCmd(player, "world");
 
                 verify(player, atLeast(2)).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("listPostCmd should still work for a loaded world whose name predates the wizard's format")
+        void listPostCmdAllowsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("legacy.world");
+                settings.setPostTeleportCommands("say hello");
+                when(mockWorldService.getOrCreateSettings("legacy.world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.listPostCmd(player, "legacy.world");
+
+                verify(mockWorldService).getOrCreateSettings("legacy.world");
             }
         }
 
