@@ -73,16 +73,22 @@ class UltiWorldsTest {
         }
 
         @Test
-        @DisplayName("reloadSelf should log message")
+        @DisplayName("reloadSelf should delegate to super.reloadSelf() before logging")
         void reloadSelf() throws Exception {
             UltiWorlds plugin = mock(UltiWorlds.class);
             PluginLogger logger = mock(PluginLogger.class);
             when(plugin.getLogger()).thenReturn(logger);
             doCallRealMethod().when(plugin).reloadSelf();
 
-            // reloadSelf() now delegates to super.reloadSelf() (UltiWorlds#10 fix) --
+            // reloadSelf() delegates to super.reloadSelf() (UltiWorlds#10 fix) --
             // getConfigManager()/getConfig() are UltiTools.getInstance() calls, so the static
             // singleton must resolve to something non-null for the real method body to run.
+            //
+            // Asserting only the log line below does NOT pin this: that statement runs
+            // unconditionally whether or not super.reloadSelf() executed first. The
+            // verify(fakeCore).getConfigManager() call is the one assertion here that only
+            // fires through the real super.reloadSelf() call chain -- removing that call would
+            // turn this assertion red while leaving the log assertion green.
             try (MockedStatic<UltiTools> ultiToolsStatic = mockStatic(UltiTools.class)) {
                 UltiTools fakeCore = mock(UltiTools.class);
                 when(fakeCore.getConfigManager()).thenReturn(mock(ConfigManager.class));
@@ -90,6 +96,8 @@ class UltiWorldsTest {
                 ultiToolsStatic.when(UltiTools::getInstance).thenReturn(fakeCore);
 
                 plugin.reloadSelf();
+
+                verify(fakeCore).getConfigManager();
             }
 
             verify(logger).info("UltiWorlds configuration reloaded!");
