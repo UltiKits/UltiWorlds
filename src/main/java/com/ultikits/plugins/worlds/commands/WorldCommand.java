@@ -86,7 +86,6 @@ public class WorldCommand extends BaseCommandExecutor {
     }
     
     @CmdMapping(format = "create <name>")
-    @RunAsync
     public void createWorld(@CmdSender Player player, @CmdParam("name") String name) {
         if (!player.hasPermission("ultiworlds.admin.create")) {
             player.sendMessage(i18n("error.no_permission"));
@@ -108,8 +107,7 @@ public class WorldCommand extends BaseCommandExecutor {
     }
     
     @CmdMapping(format = "create <name> <type>")
-    @RunAsync
-    public void createWorldWithType(@CmdSender Player player, 
+    public void createWorldWithType(@CmdSender Player player,
                                     @CmdParam("name") String name,
                                     @CmdParam(value = "type", suggest = "suggestWorldTypes") String type) {
         if (!player.hasPermission("ultiworlds.admin.create")) {
