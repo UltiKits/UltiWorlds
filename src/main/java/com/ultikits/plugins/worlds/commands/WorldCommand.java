@@ -463,6 +463,11 @@ public class WorldCommand extends BaseCommandExecutor {
     @CmdMapping(format = "postcmd <world> list")
     public void listPostCmd(@CmdSender Player player,
                             @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
+        if (!player.hasPermission("ultiworlds.admin.settings")) {
+            player.sendMessage(i18n("error.no_permission"));
+            return;
+        }
+
         if (!requireWorld(player, worldName)) {
             return;
         }
