@@ -33,6 +33,10 @@
             <releases><enabled>false</enabled></releases>
             <snapshots><enabled>true</enabled></snapshots>
         </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
     
     <dependencies>
@@ -96,6 +100,19 @@
             <groupId>org.mockbukkit.mockbukkit</groupId>
             <artifactId>mockbukkit-v1.21</artifactId>
             <version>4.101.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Mockito's inline mock maker eagerly resolves every method signature across a
+             mocked type's whole hierarchy via Class.getDeclaredMethods(); mockStatic(UltiTools.class)
+             fails with NoClassDefFoundError: net/milkbowl/vault/economy/Economy without this,
+             because UltiTools.java references that class in a method signature and the framework
+             only declares VaultAPI as provided scope (pom.xml:892-897), which does not
+             propagate to this module's test classpath. Same coordinates as the framework's own
+             pin, test-scope only. -->
+        <dependency>
+            <groupId>com.github.MilkBowl</groupId>
+            <artifactId>VaultAPI</artifactId>
+            <version>1.7.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
