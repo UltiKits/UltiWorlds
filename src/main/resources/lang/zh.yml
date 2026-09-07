@@ -9,8 +9,8 @@ worlds_disabled: "§cUltiWorlds 已禁用！"
 common:
   enabled: "已启用"
   disabled: "已禁用"
-  yes: "是"
-  no: "否"
+  "yes": "是"
+  "no": "否"
   random: "随机"
   on: "开"
   off: "关"
@@ -140,6 +140,89 @@ wizard:
   timeout: "§c操作超时，世界创建已取消"
   cancelled: "§e世界创建已取消"
 
+# ==================== 世界命令消息 ====================
+# 由 /world 命令的处理器直接调用的 "world.*" key（区别于旧处理器使用的
+# 扁平 "error.*"/"success.*" key）。
+world:
+  not_found: "§c世界 {WORLD} 不存在！"
+
+  list:
+    header: "§6世界列表（共 {COUNT} 个）："
+    item: "§7- §f{NAME} §7（{PLAYERS} 名玩家）"
+
+  tp:
+    disabled: "§c此命令的传送功能已被禁用！"
+
+  create:
+    exists: "§c世界 {WORLD} 已存在！"
+    creating: "§6正在创建世界 {WORLD}，请稍候..."
+    success: "§a世界 {WORLD} 已创建！"
+    failed: "§c创建世界失败！"
+    invalid_type: "§c无效的世界类型！可用：NORMAL、NETHER、THE_END"
+
+  load:
+    success: "§a世界 {WORLD} 已加载！"
+    failed: "§c加载世界失败！"
+
+  unload:
+    default: "§c无法卸载默认世界！"
+    success: "§e世界 {WORLD} 已卸载"
+    failed: "§c卸载世界失败！"
+
+  delete:
+    default: "§c无法删除默认世界！"
+    deleting: "§6正在删除世界 {WORLD}，请稍候..."
+    success: "§c世界 {WORLD} 已删除！"
+    failed: "§c删除世界失败！"
+
+  set:
+    invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、displayname、description、icon、difficulty"
+    success: "§a已将世界 {WORLD} 的 {OPTION} 设置为 {VALUE}"
+
+  protect:
+    enabled: "§a已为世界 {WORLD} 启用完整保护"
+    disabled: "§e已禁用世界 {WORLD} 的所有保护"
+
+  block:
+    kicked: "§c世界 {WORLD} 已被禁止进入，你已被传送出该世界"
+    enabled: "§c世界 {WORLD} 已被禁止进入"
+    disabled: "§a世界 {WORLD} 已允许进入"
+
+  setspawn:
+    success: "§a已设置世界 {WORLD} 的出生点"
+
+  info:
+    header: "§6========== 世界信息 =========="
+    name: "§7名称: §f{VALUE}"
+    displayname: "§7显示名称: §f{VALUE}"
+    environment: "§7环境: §f{VALUE}"
+    seed: "§7种子: §f{VALUE}"
+    players: "§7玩家数: §f{VALUE}"
+    pvp: "§7PVP: §f{VALUE}"
+    monsters: "§7怪物: §f{VALUE}"
+    protection: "§7保护: §f{VALUE}"
+    blocked: "§7已禁止: §f{VALUE}"
+
+# ==================== 帮助菜单 ====================
+# 由 WorldCommand#help() 通过 "help.*" key 调用（区别于下方 "command.help.*"
+# key，后者用于 /world create <名称> <类型> [生成器] 一类的参考文本，
+# 并非全部被实际运行的 /world help 命令读取）。
+help:
+  header: "§6========== UltiWorlds 帮助 =========="
+  list: "§e/world list §7- 列出所有已加载的世界"
+  tp: "§e/world tp <世界> §7- 传送到指定世界"
+  info: "§e/world info §7- 查看当前世界的信息"
+  wizard: "§e/world wizard §7- 启动世界创建向导"
+  admin_header: "§6========== 管理员命令 =========="
+  create: "§e/world create <名称> [类型] §7- 创建世界（类型：NORMAL、NETHER、THE_END）"
+  load: "§e/world load <世界> §7- 加载世界"
+  unload: "§e/world unload <世界> §7- 卸载世界"
+  delete: "§e/world delete <世界> §7- 删除世界"
+  setspawn: "§e/world setspawn §7- 设置当前世界的出生点"
+  set: "§e/world set <世界> <选项> <值> §7- 修改世界设置"
+  protect: "§e/world protect <世界> §7- 为世界启用完整保护"
+  block: "§e/world block <世界> §7- 禁止进入世界"
+
 # ==================== 命令帮助 ====================
 command:
   usage: "§e用法: %usage%"
@@ -147,7 +230,7 @@ command:
     header: "§6========== UltiWorlds 帮助 =========="
     list: "§e/world list §7- 打开世界列表GUI"
     tp: "§e/world tp <世界> §7- 传送到指定世界"
-    create: "§e/world create <名称> <类型> [生成器] §7- 创建世界"
+    create: "§e/world create <名称> [类型] §7- 创建世界（类型：NORMAL、NETHER、THE_END）"
     delete: "§e/world delete <世界> §7- 删除世界"
     load: "§e/world load <世界> §7- 加载世界"
     unload: "§e/world unload <世界> §7- 卸载世界"

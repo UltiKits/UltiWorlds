@@ -491,16 +491,26 @@ class WorldCommandTest {
     class LoadUnloadCommands {
 
         @Test
-        @DisplayName("loadWorld should load when player has permission")
+        @DisplayName("loadWorld should load an existing on-disk folder when player has permission")
         void loadWorld() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
-            when(mockWorldService.loadWorld("myworld")).thenReturn(true);
+            java.io.File container = new java.io.File(System.getProperty("java.io.tmpdir"));
+            java.io.File worldFolder = new java.io.File(container, "myworld");
+            worldFolder.mkdirs();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("myworld")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
 
-            command.loadWorld(player, "myworld");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
+                when(mockWorldService.loadWorld("myworld")).thenReturn(true);
 
-            verify(mockWorldService).loadWorld("myworld");
-            verify(player).sendMessage(anyString());
+                command.loadWorld(player, "myworld");
+
+                verify(mockWorldService).loadWorld("myworld");
+                verify(player).sendMessage(anyString());
+            } finally {
+                worldFolder.delete();
+            }
         }
 
         @Test
@@ -516,15 +526,45 @@ class WorldCommandTest {
         }
 
         @Test
-        @DisplayName("loadWorld should send failure message when loading fails")
+        @DisplayName("loadWorld should send failure message when an existing folder fails to load")
         void loadWorldFails() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
-            when(mockWorldService.loadWorld("missing")).thenReturn(false);
+            java.io.File container = new java.io.File(System.getProperty("java.io.tmpdir"));
+            java.io.File worldFolder = new java.io.File(container, "missing");
+            worldFolder.mkdirs();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("missing")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
 
-            command.loadWorld(player, "missing");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
+                when(mockWorldService.loadWorld("missing")).thenReturn(false);
 
-            verify(player).sendMessage(anyString());
+                command.loadWorld(player, "missing");
+
+                verify(mockWorldService).loadWorld("missing");
+                verify(player).sendMessage("world.load.failed");
+            } finally {
+                worldFolder.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should send the not-found key and never touch the loader for a name that is neither loaded nor on disk")
+        void loadWorldSendsNotFoundForNonexistentName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("ghost_world")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer)
+                        .thenReturn(new java.io.File(System.getProperty("java.io.tmpdir"),
+                                "ultiworlds-test-empty-container-" + UUID.randomUUID()));
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
+
+                command.loadWorld(player, "ghost_world");
+
+                verify(mockWorldService, never()).loadWorld(anyString());
+                verify(player).sendMessage("world.not_found");
+            }
         }
 
         @Test
@@ -587,14 +627,60 @@ class WorldCommandTest {
         @Test
         @DisplayName("deleteWorld should delete when player has permission")
         void deleteWorld() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
-            when(mockConfig.getDefaultWorld()).thenReturn("world");
-            when(mockWorldService.deleteWorld("old_world")).thenReturn(true);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("old_world")).thenReturn(world);
 
-            command.deleteWorld(player, "old_world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                when(mockWorldService.deleteWorld("old_world")).thenReturn(true);
 
-            verify(mockWorldService).deleteWorld("old_world");
+                command.deleteWorld(player, "old_world");
+
+                verify(mockWorldService).deleteWorld("old_world");
+            }
+        }
+
+        @Test
+        @DisplayName("deleteWorld should still work for a world that was unloaded but whose folder remains on disk")
+        void deleteWorldAllowsAnUnloadedWorldWithAnExistingFolder() {
+            java.io.File container = new java.io.File(System.getProperty("java.io.tmpdir"));
+            java.io.File worldFolder = new java.io.File(container, "unloaded_world");
+            worldFolder.mkdirs();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("unloaded_world")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                when(mockWorldService.deleteWorld("unloaded_world")).thenReturn(true);
+
+                command.deleteWorld(player, "unloaded_world");
+
+                verify(mockWorldService).deleteWorld("unloaded_world");
+            } finally {
+                worldFolder.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("deleteWorld should still work for a loaded world whose name predates the wizard's format")
+        void deleteWorldAllowsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                when(mockWorldService.deleteWorld("legacy.world")).thenReturn(true);
+
+                command.deleteWorld(player, "legacy.world");
+
+                verify(mockWorldService).deleteWorld("legacy.world");
+            }
         }
 
         @Test
@@ -612,27 +698,37 @@ class WorldCommandTest {
         @Test
         @DisplayName("deleteWorld should deny deleting default world")
         void deleteWorldDefault() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
-            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            command.deleteWorld(player, "world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
 
-            verify(mockWorldService, never()).deleteWorld(anyString());
-            verify(player).sendMessage(anyString());
+                command.deleteWorld(player, "world");
+
+                verify(mockWorldService, never()).deleteWorld(anyString());
+                verify(player).sendMessage(anyString());
+            }
         }
 
         @Test
         @DisplayName("deleteWorld should send failure message when delete fails")
         void deleteWorldFails() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
-            when(mockConfig.getDefaultWorld()).thenReturn("world");
-            when(mockWorldService.deleteWorld("old_world")).thenReturn(false);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("old_world")).thenReturn(world);
 
-            command.deleteWorld(player, "old_world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+                when(mockConfig.getDefaultWorld()).thenReturn("world");
+                when(mockWorldService.deleteWorld("old_world")).thenReturn(false);
 
-            verify(player, atLeast(2)).sendMessage(anyString()); // deleting + failed
+                command.deleteWorld(player, "old_world");
+
+                verify(player, atLeast(2)).sendMessage(anyString()); // deleting + failed
+            }
         }
     }
 
@@ -1262,47 +1358,99 @@ class WorldCommandTest {
         @Test
         @DisplayName("addPostCmd should add command when no existing commands")
         void addPostCmdNewCommand() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands(null);
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands(null);
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.addPostCmd(player, "world", "say hello");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello");
-            verify(mockWorldService).updateSettings(settings);
-            verify(player).sendMessage(anyString());
+                command.addPostCmd(player, "world", new String[]{"say", "hello"});
+
+                assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello");
+                verify(mockWorldService).updateSettings(settings);
+                verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("addPostCmd should join an unquoted multi-word command with single spaces and store it exactly")
+        void addPostCmdMultiWordCommand() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands(null);
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.addPostCmd(player, "world", new String[]{"say", "hi", "there"});
+
+                assertThat(settings.getPostTeleportCommands()).isEqualTo("say hi there");
+                verify(mockWorldService).updateSettings(settings);
+            }
+        }
+
+        @Test
+        @DisplayName("addPostCmd should reject an empty command with the existing invalid-argument message")
+        void addPostCmdRejectsEmptyCommand() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.addPostCmd(player, "world", new String[0]);
+
+                verify(mockWorldService, never()).getOrCreateSettings(anyString());
+                verify(mockWorldService, never()).updateSettings(any());
+                verify(player).sendMessage("error.invalid_value");
+            }
         }
 
         @Test
         @DisplayName("addPostCmd should append command when existing commands exist")
         void addPostCmdAppendCommand() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands("say hello");
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands("say hello");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.addPostCmd(player, "world", "gamemode survival");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello\ngamemode survival");
-            verify(mockWorldService).updateSettings(settings);
+                command.addPostCmd(player, "world", new String[]{"gamemode", "survival"});
+
+                assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello\ngamemode survival");
+                verify(mockWorldService).updateSettings(settings);
+            }
         }
 
         @Test
         @DisplayName("addPostCmd should append to empty string")
         void addPostCmdEmptyExisting() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands("");
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands("");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.addPostCmd(player, "world", "say welcome");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            assertThat(settings.getPostTeleportCommands()).isEqualTo("say welcome");
-            verify(mockWorldService).updateSettings(settings);
+                command.addPostCmd(player, "world", new String[]{"say", "welcome"});
+
+                assertThat(settings.getPostTeleportCommands()).isEqualTo("say welcome");
+                verify(mockWorldService).updateSettings(settings);
+            }
         }
 
         @Test
@@ -1311,70 +1459,129 @@ class WorldCommandTest {
             Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
             when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
 
-            command.addPostCmd(player, "world", "say hello");
+            command.addPostCmd(player, "world", new String[]{"say", "hello"});
 
             verify(mockWorldService, never()).updateSettings(any());
             verify(player).sendMessage(anyString());
         }
 
         @Test
+        @DisplayName("listPostCmd should deny when no permission")
+        void listPostCmdNoPermission() {
+            // The world must resolve as loaded here, so that only the permission check (not the
+            // name-format check the two sibling handlers already share with this one) is what
+            // stands between the caller and getOrCreateSettings.
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
+
+                command.listPostCmd(player, "world");
+
+                verify(mockWorldService, never()).getOrCreateSettings(anyString());
+                verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
         @DisplayName("listPostCmd should list commands")
         void listPostCmdWithCommands() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands("say hello\ngamemode survival");
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands("say hello\ngamemode survival");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.listPostCmd(player, "world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            // header + 2 command items
-            verify(player, atLeast(3)).sendMessage(anyString());
+                command.listPostCmd(player, "world");
+
+                // header + 2 command items
+                verify(player, atLeast(3)).sendMessage(anyString());
+            }
         }
 
         @Test
         @DisplayName("listPostCmd should show empty message when no commands")
         void listPostCmdEmpty() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands(null);
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands(null);
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.listPostCmd(player, "world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            // header + empty message
-            verify(player, atLeast(2)).sendMessage(anyString());
+                command.listPostCmd(player, "world");
+
+                // header + empty message
+                verify(player, atLeast(2)).sendMessage(anyString());
+            }
         }
 
         @Test
         @DisplayName("listPostCmd should show empty message when commands is empty string")
         void listPostCmdEmptyString() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands("");
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands("");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.listPostCmd(player, "world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            verify(player, atLeast(2)).sendMessage(anyString());
+                command.listPostCmd(player, "world");
+
+                verify(player, atLeast(2)).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("listPostCmd should still work for a loaded world whose name predates the wizard's format")
+        void listPostCmdAllowsANameOutsideTheWizardFormat() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("legacy.world");
+                settings.setPostTeleportCommands("say hello");
+                when(mockWorldService.getOrCreateSettings("legacy.world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.listPostCmd(player, "legacy.world");
+
+                verify(mockWorldService).getOrCreateSettings("legacy.world");
+            }
         }
 
         @Test
         @DisplayName("clearPostCmd should clear all commands")
         void clearPostCmdSuccess() {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            settings.setPostTeleportCommands("say hello\ngamemode survival");
-            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands("say hello\ngamemode survival");
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
 
-            command.clearPostCmd(player, "world");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            assertThat(settings.getPostTeleportCommands()).isNull();
-            verify(mockWorldService).updateSettings(settings);
-            verify(player).sendMessage(anyString());
+                command.clearPostCmd(player, "world");
+
+                assertThat(settings.getPostTeleportCommands()).isNull();
+                verify(mockWorldService).updateSettings(settings);
+                verify(player).sendMessage(anyString());
+            }
         }
 
         @Test

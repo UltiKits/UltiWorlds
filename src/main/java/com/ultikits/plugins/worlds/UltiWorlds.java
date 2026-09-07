@@ -32,6 +32,12 @@ public class UltiWorlds extends UltiToolsPlugin {
 
     @Override
     public void reloadSelf() {
+        // super.reloadSelf() reloads this module's own bound config entities (WorldConfig) and
+        // reports @ConditionalOnConfig drift (ConditionalRegistrationEvaluator.reportDrift) --
+        // the only signal an operator gets that a flag flipped without a restart. Omitting it
+        // silently dropped both for every conditional class in this module, not just
+        // InventoryIsolationService (UltiWorlds#10).
+        super.reloadSelf();
         getLogger().info("UltiWorlds configuration reloaded!");
     }
 

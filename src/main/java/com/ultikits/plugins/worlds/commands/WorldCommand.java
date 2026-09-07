@@ -16,6 +16,7 @@ import org.bukkit.WorldType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,13 +35,19 @@ import java.util.stream.Collectors;
     description = "世界管理系统"
 )
 public class WorldCommand extends BaseCommandExecutor {
-    
+
+    /**
+     * The options handled by the boolean-token parser in {@code set &lt;world&gt; &lt;option&gt; &lt;value&gt;}.
+     */
+    private static final List<String> BOOLEAN_OPTIONS = Arrays.asList(
+            "pvp", "monsters", "animals", "weather", "hidden", "locked", "blocked");
+
     @Autowired
     private UltiToolsPlugin plugin;
 
     @Autowired
     private WorldService worldService;
-    
+
     // ==================== Basic Commands ====================
     
     @CmdMapping(format = "")
@@ -86,7 +93,6 @@ public class WorldCommand extends BaseCommandExecutor {
     }
     
     @CmdMapping(format = "create <name>")
-    @RunAsync
     public void createWorld(@CmdSender Player player, @CmdParam("name") String name) {
         if (!player.hasPermission("ultiworlds.admin.create")) {
             player.sendMessage(i18n("error.no_permission"));
@@ -108,8 +114,7 @@ public class WorldCommand extends BaseCommandExecutor {
     }
     
     @CmdMapping(format = "create <name> <type>")
-    @RunAsync
-    public void createWorldWithType(@CmdSender Player player, 
+    public void createWorldWithType(@CmdSender Player player,
                                     @CmdParam("name") String name,
                                     @CmdParam(value = "type", suggest = "suggestWorldTypes") String type) {
         if (!player.hasPermission("ultiworlds.admin.create")) {
@@ -142,7 +147,11 @@ public class WorldCommand extends BaseCommandExecutor {
             player.sendMessage(i18n("error.no_permission"));
             return;
         }
-        
+
+        if (!requireLoadableWorld(player, name)) {
+            return;
+        }
+
         if (worldService.loadWorld(name)) {
             player.sendMessage(i18n("world.load.success").replace("{WORLD}", name));
         } else {
@@ -176,11 +185,15 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
+        if (!requireDeletableWorld(player, name)) {
+            return;
+        }
+
         if (name.equals(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.delete.default"));
             return;
         }
-        
+
         player.sendMessage(i18n("world.delete.deleting").replace("{WORLD}", name));
         
         if (worldService.deleteWorld(name)) {
@@ -209,8 +222,19 @@ public class WorldCommand extends BaseCommandExecutor {
         }
         
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
-        boolean boolValue = value.equalsIgnoreCase("true") || value.equalsIgnoreCase("on") || value.equals("1");
-        
+
+        Boolean boolValue = null;
+        if (BOOLEAN_OPTIONS.contains(option.toLowerCase())) {
+            if (value.equalsIgnoreCase("true") || value.equalsIgnoreCase("on") || value.equals("1")) {
+                boolValue = Boolean.TRUE;
+            } else if (value.equalsIgnoreCase("false") || value.equalsIgnoreCase("off") || value.equals("0")) {
+                boolValue = Boolean.FALSE;
+            } else {
+                player.sendMessage(i18n("error.invalid_value"));
+                return;
+            }
+        }
+
         switch (option.toLowerCase()) {
             case "pvp":
                 settings.setPvpEnabled(boolValue);
@@ -415,21 +439,34 @@ public class WorldCommand extends BaseCommandExecutor {
 
     // ==================== Post-Teleport Command Management ====================
 
-    @CmdMapping(format = "postcmd <world> add <command>")
+    @CmdMapping(format = "postcmd <world> add <command...>")
     public void addPostCmd(@CmdSender Player player,
                            @CmdParam(value = "world", suggest = "suggestWorlds") String worldName,
-                           @CmdParam("command") String command) {
+                           @CmdParam("command") String[] command) {
         if (!player.hasPermission("ultiworlds.admin.settings")) {
             player.sendMessage(i18n("error.no_permission"));
+            return;
+        }
+
+        if (!requireWorld(player, worldName)) {
+            return;
+        }
+
+        // Varargs binding hands back a zero-length array (never null) when the caller supplied no
+        // trailing words -- see BaseCommandExecutor#parseParameterValue -- so an empty join is the
+        // signal to refuse, not a NullPointerException to guard against.
+        String joinedCommand = String.join(" ", command);
+        if (joinedCommand.isEmpty()) {
+            player.sendMessage(i18n("error.invalid_value"));
             return;
         }
 
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
         String existing = settings.getPostTeleportCommands();
         if (existing == null || existing.isEmpty()) {
-            settings.setPostTeleportCommands(command);
+            settings.setPostTeleportCommands(joinedCommand);
         } else {
-            settings.setPostTeleportCommands(existing + "\n" + command);
+            settings.setPostTeleportCommands(existing + "\n" + joinedCommand);
         }
         worldService.updateSettings(settings);
 
@@ -439,6 +476,15 @@ public class WorldCommand extends BaseCommandExecutor {
     @CmdMapping(format = "postcmd <world> list")
     public void listPostCmd(@CmdSender Player player,
                             @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
+        if (!player.hasPermission("ultiworlds.admin.settings")) {
+            player.sendMessage(i18n("error.no_permission"));
+            return;
+        }
+
+        if (!requireWorld(player, worldName)) {
+            return;
+        }
+
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
         String commands = settings.getPostTeleportCommands();
 
@@ -457,6 +503,10 @@ public class WorldCommand extends BaseCommandExecutor {
                              @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
         if (!player.hasPermission("ultiworlds.admin.settings")) {
             player.sendMessage(i18n("error.no_permission"));
+            return;
+        }
+
+        if (!requireWorld(player, worldName)) {
             return;
         }
 
@@ -570,6 +620,73 @@ public class WorldCommand extends BaseCommandExecutor {
             .collect(Collectors.toList());
     }
     
+    /**
+     * Refuse a name that is not filesystem-safe, or that does not name a loaded world. Sends the
+     * same refusal message the other validating handlers already send.
+     *
+     * <p>This deliberately does not apply the creation wizard's narrower alphanumeric/length
+     * naming convention ({@link WorldCreateConversation#WORLD_NAME_PATTERN}): the world this checks
+     * already exists, so it may have been named before the wizard shipped, or by other tooling.
+     * See {@link WorldService#isFilesystemSafeWorldName(String)}.
+     *
+     * @return true if the caller should continue, false if a refusal was already sent
+     */
+    private boolean requireWorld(Player player, String worldName) {
+        if (!WorldService.isFilesystemSafeWorldName(worldName)
+                || Bukkit.getWorld(worldName) == null) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Whether {@code worldName} is filesystem-safe and currently exists -- either loaded in Bukkit
+     * or present as an on-disk folder in the world container. Shared by {@link #requireDeletableWorld}
+     * and {@link #requireLoadableWorld}: both accept a world that is on disk but not currently
+     * loaded, unlike {@link #requireWorld} which requires the world to already be loaded.
+     */
+    private static boolean existsLoadedOrOnDisk(String worldName) {
+        return WorldService.isFilesystemSafeWorldName(worldName)
+                && (Bukkit.getWorld(worldName) != null
+                    || new File(Bukkit.getWorldContainer(), worldName).exists());
+    }
+
+    /**
+     * Refuse a name that is not filesystem-safe, or that names neither a loaded world nor an
+     * on-disk world folder. Unlike {@link #requireWorld}, this does not require the world to be
+     * currently loaded: {@code WorldService.deleteWorld} deliberately supports removing an unloaded
+     * world's folder and settings, so requiring "loaded" here would reject the ordinary
+     * {@code /world unload} then {@code /world delete} workflow. See the note on
+     * {@link #requireWorld} about why the wizard's naming convention does not apply here either.
+     *
+     * @return true if the caller should continue, false if a refusal was already sent
+     */
+    private boolean requireDeletableWorld(Player player, String worldName) {
+        if (!existsLoadedOrOnDisk(worldName)) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Refuse a name that is not filesystem-safe, or that names neither a loaded world nor an
+     * on-disk world folder. {@code load} is meant to bring an unloaded-but-on-disk world back
+     * online, so -- like {@link #requireDeletableWorld} and unlike {@link #requireWorld} -- this
+     * does not require the world to already be loaded. Without this check, {@code WorldService}'s
+     * generic load failure message was indistinguishable from "this name does not exist at all".
+     *
+     * @return true if the caller should continue, false if a refusal was already sent
+     */
+    private boolean requireLoadableWorld(Player player, String worldName) {
+        if (!existsLoadedOrOnDisk(worldName)) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Get i18n message from plugin.
      */
