@@ -491,16 +491,26 @@ class WorldCommandTest {
     class LoadUnloadCommands {
 
         @Test
-        @DisplayName("loadWorld should load when player has permission")
+        @DisplayName("loadWorld should load an existing on-disk folder when player has permission")
         void loadWorld() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
-            when(mockWorldService.loadWorld("myworld")).thenReturn(true);
+            java.io.File container = new java.io.File(System.getProperty("java.io.tmpdir"));
+            java.io.File worldFolder = new java.io.File(container, "myworld");
+            worldFolder.mkdirs();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("myworld")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
 
-            command.loadWorld(player, "myworld");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
+                when(mockWorldService.loadWorld("myworld")).thenReturn(true);
 
-            verify(mockWorldService).loadWorld("myworld");
-            verify(player).sendMessage(anyString());
+                command.loadWorld(player, "myworld");
+
+                verify(mockWorldService).loadWorld("myworld");
+                verify(player).sendMessage(anyString());
+            } finally {
+                worldFolder.delete();
+            }
         }
 
         @Test
@@ -516,15 +526,45 @@ class WorldCommandTest {
         }
 
         @Test
-        @DisplayName("loadWorld should send failure message when loading fails")
+        @DisplayName("loadWorld should send failure message when an existing folder fails to load")
         void loadWorldFails() {
-            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
-            when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
-            when(mockWorldService.loadWorld("missing")).thenReturn(false);
+            java.io.File container = new java.io.File(System.getProperty("java.io.tmpdir"));
+            java.io.File worldFolder = new java.io.File(container, "missing");
+            worldFolder.mkdirs();
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("missing")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
 
-            command.loadWorld(player, "missing");
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
+                when(mockWorldService.loadWorld("missing")).thenReturn(false);
 
-            verify(player).sendMessage(anyString());
+                command.loadWorld(player, "missing");
+
+                verify(mockWorldService).loadWorld("missing");
+                verify(player).sendMessage("world.load.failed");
+            } finally {
+                worldFolder.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("loadWorld should send the not-found key and never touch the loader for a name that is neither loaded nor on disk")
+        void loadWorldSendsNotFoundForNonexistentName() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(() -> Bukkit.getWorld("ghost_world")).thenReturn(null);
+                bukkit.when(Bukkit::getWorldContainer)
+                        .thenReturn(new java.io.File(System.getProperty("java.io.tmpdir"),
+                                "ultiworlds-test-empty-container-" + UUID.randomUUID()));
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+                when(player.hasPermission("ultiworlds.admin.load")).thenReturn(true);
+
+                command.loadWorld(player, "ghost_world");
+
+                verify(mockWorldService, never()).loadWorld(anyString());
+                verify(player).sendMessage("world.not_found");
+            }
         }
 
         @Test
@@ -1328,11 +1368,48 @@ class WorldCommandTest {
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-                command.addPostCmd(player, "world", "say hello");
+                command.addPostCmd(player, "world", new String[]{"say", "hello"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello");
                 verify(mockWorldService).updateSettings(settings);
                 verify(player).sendMessage(anyString());
+            }
+        }
+
+        @Test
+        @DisplayName("addPostCmd should join an unquoted multi-word command with single spaces and store it exactly")
+        void addPostCmdMultiWordCommand() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setPostTeleportCommands(null);
+                when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.addPostCmd(player, "world", new String[]{"say", "hi", "there"});
+
+                assertThat(settings.getPostTeleportCommands()).isEqualTo("say hi there");
+                verify(mockWorldService).updateSettings(settings);
+            }
+        }
+
+        @Test
+        @DisplayName("addPostCmd should reject an empty command with the existing invalid-argument message")
+        void addPostCmdRejectsEmptyCommand() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+
+                command.addPostCmd(player, "world", new String[0]);
+
+                verify(mockWorldService, never()).getOrCreateSettings(anyString());
+                verify(mockWorldService, never()).updateSettings(any());
+                verify(player).sendMessage("error.invalid_value");
             }
         }
 
@@ -1349,7 +1426,7 @@ class WorldCommandTest {
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-                command.addPostCmd(player, "world", "gamemode survival");
+                command.addPostCmd(player, "world", new String[]{"gamemode", "survival"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello\ngamemode survival");
                 verify(mockWorldService).updateSettings(settings);
@@ -1369,7 +1446,7 @@ class WorldCommandTest {
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-                command.addPostCmd(player, "world", "say welcome");
+                command.addPostCmd(player, "world", new String[]{"say", "welcome"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say welcome");
                 verify(mockWorldService).updateSettings(settings);
@@ -1382,7 +1459,7 @@ class WorldCommandTest {
             Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
             when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
 
-            command.addPostCmd(player, "world", "say hello");
+            command.addPostCmd(player, "world", new String[]{"say", "hello"});
 
             verify(mockWorldService, never()).updateSettings(any());
             verify(player).sendMessage(anyString());

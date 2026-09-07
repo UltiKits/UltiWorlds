@@ -109,7 +109,7 @@ class WorldCommandValidationTest {
 
             Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            command.addPostCmd(player, "ghost_world", "say hello");
+            command.addPostCmd(player, "ghost_world", new String[]{"say", "hello"});
 
             verify(mockWorldService, never()).getOrCreateSettings(anyString());
             verify(player).sendMessage(anyString());
@@ -124,7 +124,7 @@ class WorldCommandValidationTest {
 
             Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            command.addPostCmd(player, "ghost_world", "say hello");
+            command.addPostCmd(player, "ghost_world", new String[]{"say", "hello"});
 
             // The persistence-catching assertion: a check placed one line too late (after the
             // settings lookup) would still have called getOrCreateSettings/updateSettings here.
@@ -180,7 +180,7 @@ class WorldCommandValidationTest {
             command.deleteWorld(player, "live_world");
             verify(mockWorldService).deleteWorld("live_world");
 
-            command.addPostCmd(player, "live_world", "say hi");
+            command.addPostCmd(player, "live_world", new String[]{"say", "hi"});
             command.listPostCmd(player, "live_world");
             command.clearPostCmd(player, "live_world");
 

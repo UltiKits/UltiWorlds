@@ -147,7 +147,11 @@ public class WorldCommand extends BaseCommandExecutor {
             player.sendMessage(i18n("error.no_permission"));
             return;
         }
-        
+
+        if (!requireLoadableWorld(player, name)) {
+            return;
+        }
+
         if (worldService.loadWorld(name)) {
             player.sendMessage(i18n("world.load.success").replace("{WORLD}", name));
         } else {
@@ -435,10 +439,10 @@ public class WorldCommand extends BaseCommandExecutor {
 
     // ==================== Post-Teleport Command Management ====================
 
-    @CmdMapping(format = "postcmd <world> add <command>")
+    @CmdMapping(format = "postcmd <world> add <command...>")
     public void addPostCmd(@CmdSender Player player,
                            @CmdParam(value = "world", suggest = "suggestWorlds") String worldName,
-                           @CmdParam("command") String command) {
+                           @CmdParam("command") String[] command) {
         if (!player.hasPermission("ultiworlds.admin.settings")) {
             player.sendMessage(i18n("error.no_permission"));
             return;
@@ -448,12 +452,21 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
+        // Varargs binding hands back a zero-length array (never null) when the caller supplied no
+        // trailing words -- see BaseCommandExecutor#parseParameterValue -- so an empty join is the
+        // signal to refuse, not a NullPointerException to guard against.
+        String joinedCommand = String.join(" ", command);
+        if (joinedCommand.isEmpty()) {
+            player.sendMessage(i18n("error.invalid_value"));
+            return;
+        }
+
         WorldSettings settings = worldService.getOrCreateSettings(worldName);
         String existing = settings.getPostTeleportCommands();
         if (existing == null || existing.isEmpty()) {
-            settings.setPostTeleportCommands(command);
+            settings.setPostTeleportCommands(joinedCommand);
         } else {
-            settings.setPostTeleportCommands(existing + "\n" + command);
+            settings.setPostTeleportCommands(existing + "\n" + joinedCommand);
         }
         worldService.updateSettings(settings);
 
@@ -628,6 +641,18 @@ public class WorldCommand extends BaseCommandExecutor {
     }
 
     /**
+     * Whether {@code worldName} is filesystem-safe and currently exists -- either loaded in Bukkit
+     * or present as an on-disk folder in the world container. Shared by {@link #requireDeletableWorld}
+     * and {@link #requireLoadableWorld}: both accept a world that is on disk but not currently
+     * loaded, unlike {@link #requireWorld} which requires the world to already be loaded.
+     */
+    private static boolean existsLoadedOrOnDisk(String worldName) {
+        return WorldService.isFilesystemSafeWorldName(worldName)
+                && (Bukkit.getWorld(worldName) != null
+                    || new File(Bukkit.getWorldContainer(), worldName).exists());
+    }
+
+    /**
      * Refuse a name that is not filesystem-safe, or that names neither a loaded world nor an
      * on-disk world folder. Unlike {@link #requireWorld}, this does not require the world to be
      * currently loaded: {@code WorldService.deleteWorld} deliberately supports removing an unloaded
@@ -638,9 +663,24 @@ public class WorldCommand extends BaseCommandExecutor {
      * @return true if the caller should continue, false if a refusal was already sent
      */
     private boolean requireDeletableWorld(Player player, String worldName) {
-        if (!WorldService.isFilesystemSafeWorldName(worldName)
-                || (Bukkit.getWorld(worldName) == null
-                    && !new File(Bukkit.getWorldContainer(), worldName).exists())) {
+        if (!existsLoadedOrOnDisk(worldName)) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Refuse a name that is not filesystem-safe, or that names neither a loaded world nor an
+     * on-disk world folder. {@code load} is meant to bring an unloaded-but-on-disk world back
+     * online, so -- like {@link #requireDeletableWorld} and unlike {@link #requireWorld} -- this
+     * does not require the world to already be loaded. Without this check, {@code WorldService}'s
+     * generic load failure message was indistinguishable from "this name does not exist at all".
+     *
+     * @return true if the caller should continue, false if a refusal was already sent
+     */
+    private boolean requireLoadableWorld(Player player, String worldName) {
+        if (!existsLoadedOrOnDisk(worldName)) {
             player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
             return false;
         }
