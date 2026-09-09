@@ -26,11 +26,16 @@ for UAT execution and issue reconciliation — the public description of these f
   on that one class) — the row unit is the mapping, not the executor, so this document carries 21
   `command`-Kind rows against 1 `@CmdExecutor` site, and the two counts are not meant to match.
 - **Tier**, exactly three: `player`, `admin`, `internal`. Judged from what the feature is for, not
-  from whether it carries a permission string — every one of this module's 21 `@CmdMapping`
-  methods checks a method-specific `player.hasPermission(...)` node by hand inside the method
-  body (not via the framework's own `@CmdMapping(permission=...)` attribute, which none of them
-  use), so the permission string is a hand-written guard here, not a framework-enforced one; a
-  malformed guard would be silently absent, not merely misclassified.
+  from whether it carries a permission string. Most, but not all, of this module's 21
+  `@CmdMapping` methods check a method-specific `player.hasPermission(...)` node by hand inside
+  the method body (not via the framework's own `@CmdMapping(permission=...)` attribute, which
+  none of them use) — a hand-written guard, not a framework-enforced one, so a malformed guard
+  would be silently absent, not merely misclassified. Four mappings (`openWorldList`,
+  `listWorlds`, `teleportToWorld`, `worldInfo`) have NO such hand-written check at all and rely
+  solely on the class-level `@CmdExecutor(permission = "ultiworlds.use")`, enforced by the
+  framework's own `PermissionValidator` before the method body ever runs — a genuinely different
+  enforcement path, not an oversight in this reading. Each such row's own Permission cell still
+  names `ultiworlds.use`, since that IS the node actually required, just enforced one layer up.
 - **Manual**, exactly three: `detailed`, `brief`, `none`.
 - **Target**, exactly four: `player`, `console`, `both`, or `n/a` — the first three read straight
   off `@CmdTarget` for a `command` row; it is a property, not a tier. `n/a` is for every other
@@ -202,7 +207,7 @@ that whole block "Messages (legacy, prefer i18n)").
 | ultiworlds.config.worlds.auto_unload.enabled | Master switch for the empty-world auto-unload scheduled task | config | `config/worlds.yml: auto_unload.enabled (default: false)` | n/a | n/a | admin | brief | WorldService#checkAutoUnloadEmptyWorlds |
 | ultiworlds.config.worlds.auto_unload.unload_after | Seconds a non-protected, `autoUnload`-eligible world must sit empty before the scheduled task unloads it | config | `config/worlds.yml: auto_unload.unload_after (default: 300)` | n/a | n/a | admin | brief | WorldService#checkAutoUnloadEmptyWorlds |
 | ultiworlds.config.worlds.default_world | The world name treated as the server's default — `/world unload`/`/world delete` both refuse to act on it, and it is the fallback teleport target when kicking players out of a blocked/unloading world | config | `config/worlds.yml: default_world (default: "world")` | n/a | n/a | admin | detailed | WorldCommand#unloadWorld, WorldCommand#deleteWorld, WorldCommand#blockWorld |
-| ultiworlds.config.worlds.gui_title | World-list GUI title; shipped default is Simplified Chinese, not reproduced per D-02 — see this same file's source line for the exact characters, customizable, independent of `language` | config | `config/worlds.yml: gui_title (default: Simplified Chinese text, not reproduced per D-02 -- see this same file's source line for the exact characters)` | n/a | n/a | admin | brief | WorldListPage#WorldListPage |
+| ultiworlds.config.worlds.gui_title | Declared as the world-list GUI title, shipped default Simplified Chinese; has NO effect on the live, reachable GUI — `WorldListPage#WorldListPage` (the class `/world` actually opens) reads `plugin.i18n("gui.title")` instead, never this key. The only production reader of `WorldConfig#getGuiTitle()` is the documented-unreachable `WorldListGUI` (`UltiKits/UltiWorlds#18`) | config | `config/worlds.yml: gui_title (default: Simplified Chinese text, not reproduced per D-02, has no effect on the live GUI, see UltiKits/UltiWorlds#18)` | n/a | n/a | admin | brief | WorldListGUI#WorldListGUI (declared, read only by this dead class) |
 | ultiworlds.config.worlds.load_worlds_on_start | World names to load automatically during this module's own `@PostConstruct` boot step | config | `config/worlds.yml: load_worlds_on_start (default: [])` | n/a | n/a | admin | brief | WorldService#init |
 | ultiworlds.config.worlds.messages.no_permission | Declared as the no-permission-for-world message; never read — every actual no-permission refusal in this module goes through `plugin.i18n(...)` (`error.no_permission`), not this config field | config | `config/worlds.yml: messages.no_permission (default: Simplified Chinese text, not reproduced per D-02, has no effect)` | n/a | n/a | admin | none | WorldConfig#noPermissionMessage (declared, never read outside this class) |
 | ultiworlds.config.worlds.messages.world_created | Declared as the world-created message; never read — the actual `/world create` success line comes from `world.create.success` via `plugin.i18n(...)` | config | `config/worlds.yml: messages.world_created (default: Simplified Chinese text, not reproduced per D-02, has no effect)` | n/a | n/a | admin | none | WorldConfig#worldCreatedMessage (declared, never read outside this class) |
