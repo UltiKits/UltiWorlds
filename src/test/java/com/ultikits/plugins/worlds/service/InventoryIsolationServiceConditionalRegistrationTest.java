@@ -1,31 +1,23 @@
 package com.ultikits.plugins.worlds.service;
 
 import com.ultikits.plugins.worlds.UltiWorlds;
-import com.ultikits.ultitools.UltiTools;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.context.ConditionalRegistrationEvaluator;
 import com.ultikits.ultitools.context.SimpleContainer;
-import com.ultikits.ultitools.interfaces.impl.logger.PluginLogger;
-import com.ultikits.ultitools.manager.ConfigManager;
 
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.MockedStatic;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 /**
@@ -47,13 +39,15 @@ import static org.mockito.Mockito.when;
  * are green before any change -- recorded here as evidence rather than forced red, per
  * {@code 13-RECONFIRMATION.md}'s "Rule for the fan-out."
  * <p>
- * <b>Reload (the actual defect):</b> {@link UltiWorlds#reloadSelf()} overrides
- * {@code UltiToolsPlugin.reloadSelf()} without calling {@code super.reloadSelf()}, so the
- * framework's own drift-reporting mechanism -- the ONLY visible signal an operator gets that a
- * {@code @ConditionalOnConfig} flag flipped without a restart -- is never reached, for every
- * conditional class in this module, not only this one. {@link #reloadReportsDriftWhenFlagFlipsOn()}
- * and {@link #reloadReportsDriftWhenFlagFlipsOff()} are red while that call is missing and green
- * once {@code UltiWorlds.reloadSelf()} delegates to it.
+ * <b>Reload:</b> the framework's documented evaluate-once-at-scan semantics mean a reload never
+ * re-registers or unregisters anything; it only reports drift via
+ * {@code ConditionalRegistrationEvaluator.reportDrift}. On UltiTools 6.3.0 that report is a step of
+ * {@code UltiToolsPlugin.reloadSelf()}, which is {@code final} and whose steps are covered by the
+ * framework's own suite. The defect UltiWorlds#10 recorded -- a module override of
+ * {@code reloadSelf()} that skipped this report -- can therefore only come back if this module
+ * declares its own {@code reloadSelf()}, which no longer compiles.
+ * {@link #reloadIsTheFrameworkFinalMethodThatReportsDrift()} pins that structural fact instead of
+ * driving the framework method through static mocks of framework managers (UltiWorlds#27).
  */
 @DisplayName("InventoryIsolationService conditional-registration wiring")
 class InventoryIsolationServiceConditionalRegistrationTest {
@@ -93,58 +87,16 @@ class InventoryIsolationServiceConditionalRegistrationTest {
     }
 
     @Test
-    @DisplayName("flag flipped on and the module reloaded: drift is reported -- documented evaluate-once-at-scan semantics, not a hoped-for re-registration")
-    void reloadReportsDriftWhenFlagFlipsOn(@TempDir Path tempDir) throws Exception {
-        assertDriftReportedAfterReload(tempDir, false, true);
-    }
+    @DisplayName("reload is UltiToolsPlugin's final reloadSelf(), whose own steps report drift -- UltiWorlds declares no override that could skip it")
+    void reloadIsTheFrameworkFinalMethodThatReportsDrift() throws Exception {
+        Method reload = UltiWorlds.class.getMethod("reloadSelf");
 
-    @Test
-    @DisplayName("flag flipped off and the module reloaded: drift is reported -- documented evaluate-once-at-scan semantics, not a hoped-for re-registration")
-    void reloadReportsDriftWhenFlagFlipsOff(@TempDir Path tempDir) throws Exception {
-        assertDriftReportedAfterReload(tempDir, true, false);
-    }
-
-    /**
-     * Records a cold-start decision for {@code initialEnabled}, flips the file on disk to
-     * {@code flippedEnabled}, then calls the real {@link UltiWorlds#reloadSelf()} and asserts it
-     * invokes {@link ConditionalRegistrationEvaluator#reportDrift(UltiToolsPlugin)} exactly once
-     * -- the framework's documented reload contract for this annotation. Per that same contract,
-     * this method never asserts that the service's actual registration changes: a reload cannot
-     * rebuild the container, only report that it would decide differently now.
-     */
-    private void assertDriftReportedAfterReload(Path tempDir, boolean initialEnabled,
-                                                 boolean flippedEnabled) throws Exception {
-        writeIsolationConfig(tempDir, initialEnabled);
-
-        UltiWorlds plugin = mock(UltiWorlds.class, CALLS_REAL_METHODS);
-        plugin.setResourceFolderPath(tempDir.toString());
-        doReturn(mock(PluginLogger.class)).when(plugin).getLogger();
-
-        SimpleContainer container = mock(SimpleContainer.class);
-        when(container.getBean(UltiToolsPlugin.class)).thenReturn(plugin);
-
-        // Cold-start recording -- exactly what component scan does for real, via the sole real
-        // gate (ComponentScanner.shouldRegister's only implementation).
-        ConditionalRegistrationEvaluator.shouldRegister(InventoryIsolationService.class, container);
-
-        // Operator edits the file, then issues `ul reload`.
-        writeIsolationConfig(tempDir, flippedEnabled);
-
-        try (MockedStatic<UltiTools> ultiToolsStatic = mockStatic(UltiTools.class);
-             MockedStatic<ConditionalRegistrationEvaluator> evaluatorStatic =
-                     mockStatic(ConditionalRegistrationEvaluator.class, CALLS_REAL_METHODS)) {
-
-            UltiTools fakeCore = mock(UltiTools.class);
-            when(fakeCore.getConfigManager()).thenReturn(mock(ConfigManager.class));
-            when(fakeCore.getConfig()).thenReturn(mock(FileConfiguration.class));
-            ultiToolsStatic.when(UltiTools::getInstance).thenReturn(fakeCore);
-
-            plugin.reloadSelf();
-
-            evaluatorStatic.verify(
-                    () -> ConditionalRegistrationEvaluator.reportDrift(any()),
-                    times(1));
-        }
+        assertThat(reload.getDeclaringClass())
+                .as("UltiWorlds must inherit reloadSelf() rather than declare its own")
+                .isEqualTo(UltiToolsPlugin.class);
+        assertThat(Modifier.isFinal(reload.getModifiers()))
+                .as("the framework's reloadSelf() must be final, so no module can skip its drift report")
+                .isTrue();
     }
 
     private void writeIsolationConfig(Path tempDir, boolean enabled) throws IOException {
