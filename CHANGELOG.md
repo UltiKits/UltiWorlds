@@ -9,14 +9,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Unloading this module (`/upm uninstall UltiWorlds`, or server shutdown) now runs the framework's
-  command unregistration and then its listener unregistration. Previously this module's unload
-  method replaced the framework's and only logged a line, so its commands were never unregistered
-  on any unload path, and its listeners were not unregistered on `/upm uninstall`
+- Unloading this module (`/upm uninstall UltiWorlds`, server shutdown, or a newer copy of the
+  module replacing an older one at load) now runs the framework's command unregistration and then
+  its listener unregistration. Previously this module's unload method replaced the framework's and
+  only logged a line, so its commands were never unregistered on any unload path, and its listeners
+  were not unregistered on `/upm uninstall` or when a newer copy replaced an older one at load
   (UltiKits/UltiWorlds#27).
-- 卸载本模块（`/upm uninstall UltiWorlds` 或关闭服务器）现在会由框架先注销命令，再注销监听器。此前本模块的
-  卸载方法替换了框架的卸载方法且只输出一行日志，因此任何卸载途径都不会注销其命令，`/upm uninstall`
-  也不会注销其监听器（UltiKits/UltiWorlds#27）。
+- 卸载本模块（`/upm uninstall UltiWorlds`、关闭服务器，或加载时由较新的模块副本替换较旧副本）现在会由框架先
+  注销命令，再注销监听器。此前本模块的卸载方法替换了框架的卸载方法且只输出一行日志，因此任何卸载途径都不会
+  注销其命令，`/upm uninstall` 以及加载时较新副本替换较旧副本时也不会注销其监听器（UltiKits/UltiWorlds#27）。
 
 ### Removed
 

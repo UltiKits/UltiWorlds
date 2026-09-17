@@ -25,6 +25,9 @@ for UAT execution and issue reconciliation — the public description of these f
   `@CmdExecutor` = 1 (one class, `WorldCommand`) while `@CmdMapping` = 21 (21 sub-command formats
   on that one class) — the row unit is the mapping, not the executor, so this document carries 21
   `command`-Kind rows against 1 `@CmdExecutor` site, and the two counts are not meant to match.
+  The one row under `## Lifecycle Hooks` is an `event` row with no `@EventHandler` site behind it:
+  `/ul reload` is a framework-invoked lifecycle step, not a command this repository maps or a
+  config read, so `event` is the closest-fitting Kind.
 - **Tier**, exactly three: `player`, `admin`, `internal`. Judged from what the feature is for, not
   from whether it carries a permission string. Most, but not all, of this module's 21
   `@CmdMapping` methods check a method-specific `player.hasPermission(...)` node by hand inside
@@ -172,6 +175,22 @@ with no live entry point — see each row's own note.
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
 | ultiworlds.task.auto-unload-empty-worlds | Every 60 seconds, when `auto_unload.enabled`, unload any non-protected world (per `protected_worlds` AND its own `WorldSettings#autoUnload` flag) that has had zero players for at least `auto_unload.unload_after` seconds | scheduled | runs automatically every 1200 ticks (60s) while the server is up | n/a | n/a | internal | brief | WorldService#checkAutoUnloadEmptyWorlds |
+
+## Lifecycle Hooks
+
+This module declares no lifecycle hook of its own. Before `UltiKits/UltiWorlds#27` it overrode
+`unregisterSelf()` and `reloadSelf()` with log-only bodies (its reload override did call the
+framework's reload first); both overrides were deleted, and as of UltiTools 6.3.0 both methods are
+`final` on the framework's `UltiToolsPlugin`, so `/ul reload UltiWorlds` runs only the framework's
+own reload: `config/worlds.yml` is re-read into `WorldConfig`, the language files are refreshed,
+`@ConditionalOnConfig` drift is reported for this module's one gated class
+(`InventoryIsolationService`, `## Configuration Gate` below), and the framework logs its own
+per-module line `Module 'UltiWorlds' reloaded.`. The module prints no reload line of its own. The
+Source cell names that inherited framework member.
+
+| ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
+|---|---|---|---|---|---|---|---|---|
+| ultiworlds.lifecycle.reload | `/ul reload UltiWorlds` re-reads `config/worlds.yml` and, when `world_isolation.enabled` now evaluates differently from its value at startup, logs a warning-level `@ConditionalOnConfig` drift line naming `InventoryIsolationService`, `config/worlds.yml` and `world_isolation.enabled` — it never registers or unregisters the service, which still needs a restart; then logs the framework's `Module 'UltiWorlds' reloaded.` line. No drift line when the value is unchanged | event | `/ul reload UltiWorlds` (framework calls the module's inherited final `reloadSelf()`) | n/a | n/a | admin | brief | UltiToolsPlugin#reloadSelf |
 
 ## Configuration Gate
 

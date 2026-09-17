@@ -127,6 +127,22 @@ Phase 9 excluded all three classes below from this module's JaCoCo `check` gate
 |---|---|---|---|---|---|
 | ultiworlds.task.auto-unload-empty-worlds | `auto_unload.enabled: true` (NOT the shipped default), reloaded via `/ul reload` (or restart) after the edit; `auto_unload.unload_after: 60` (the minimum value `@Range(min = 60, max = 86400)` on `WorldConfig#emptyWorldUnloadAfter` accepts — NOT the shipped default 300, since a lower value fails config validation and would not exercise the real path at all), also reloaded; a non-protected, `autoUnload`-eligible throwaway world `uatworld-autounload` created via `/world create uatworld-autounload`, then left with zero players | Wait at least 130 seconds (past the 60-second empty threshold, plus at least one full 60-second scheduler tick to guarantee the sweep actually ran after that threshold elapsed) | `uatworld-autounload` is no longer in `Bukkit#getWorlds()` — the console log shows "Auto-unloading empty world: uatworld-autounload" | server | |
 
+## Lifecycle Hooks
+
+The row below exercises `/ul reload UltiWorlds` after `UltiKits/UltiWorlds#27` deleted this
+module's own reload override (see `FEATURES.md`'s `## Lifecycle Hooks`). It is a regression guard,
+not a row that fails on the code before that change: the deleted override already called the
+framework's reload first, so none of the framework's reload steps was skipped — only the module's
+own reload console line is gone.
+`/ul reload <name>` requires op, so run it from the server console. The two lines quoted in
+Expected are the framework's own, localised by the framework's `language` setting, so this row
+carries a `language: en` precondition. The row must run before `ultiworlds.gate.inventory-isolation`,
+which restarts the server with the flag enabled.
+
+| ID | Preconditions | Steps | Expected | Layer | Covers |
+|---|---|---|---|---|---|
+| ultiworlds.lifecycle.reload | `language: en` in `plugins/UltiTools/config.yml`; the server was started with `world_isolation.enabled: false` (shipped default) in `plugins/UltiTools/pluginConfig/UltiWorlds/config/worlds.yml` and has not been restarted since — open that file and confirm it reads `false` before step 1 | 1. From the server console, run `ul reload UltiWorlds` without editing the file. 2. Set `world_isolation.enabled: true` in that file, save it, and run `ul reload UltiWorlds` again. 3. Set it back to `false`, save it, and run `ul reload UltiWorlds` a third time | 1: the console shows a line containing `Module 'UltiWorlds' reloaded.` and NO line containing `@ConditionalOnConfig drift after reload`; neither `UltiWorlds configuration reloaded!` nor `UltiWorlds has been disabled!` appears. 2: the console shows, at warning level, a line containing exactly `[UltiTools-API] @ConditionalOnConfig drift after reload: com.ultikits.plugins.worlds.service.InventoryIsolationService (config/worlds.yml -> world_isolation.enabled) now evaluates to enabled, but the component was not registered at startup. @ConditionalOnConfig is evaluated once at component scan; a restart is required to create the component.`, followed by a line containing `Module 'UltiWorlds' reloaded.`. 3: a line containing `Module 'UltiWorlds' reloaded.` and NO line containing `@ConditionalOnConfig drift after reload` (the restored value matches the startup decision) | server | |
+
 ## Configuration Gate
 
 | ID | Preconditions | Steps | Expected | Layer | Covers |
