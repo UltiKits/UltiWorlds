@@ -3,7 +3,6 @@
 
 # ==================== Plugin Status ====================
 worlds_enabled: "§aUltiWorlds has been enabled!"
-worlds_disabled: "§cUltiWorlds has been disabled!"
 
 # ==================== Common ====================
 common:

@@ -10,6 +10,11 @@ import com.ultikits.ultitools.annotations.UltiToolsModule;
  * UltiWorlds - Multi-world management module.
  * Provides world creation, teleportation, per-world settings,
  * world protection, and inventory isolation.
+ * <p>
+ * This class declares no reload or unload override: UltiTools' final {@code reloadSelf()} re-reads
+ * {@code config/worlds.yml} into {@code WorldConfig} and reports {@code @ConditionalOnConfig} drift
+ * (such as a changed {@code world_isolation.enabled}), which an override that skipped the framework
+ * call used to silently drop (UltiWorlds#10).
  *
  * @author wisdomme
  * @version 2.0.0
@@ -23,22 +28,6 @@ public class UltiWorlds extends UltiToolsPlugin {
     public boolean registerSelf() {
         getLogger().info(i18n("worlds_enabled"));
         return true;
-    }
-
-    @Override
-    public void unregisterSelf() {
-        getLogger().info(i18n("worlds_disabled"));
-    }
-
-    @Override
-    public void reloadSelf() {
-        // super.reloadSelf() reloads this module's own bound config entities (WorldConfig) and
-        // reports @ConditionalOnConfig drift (ConditionalRegistrationEvaluator.reportDrift) --
-        // the only signal an operator gets that a flag flipped without a restart. Omitting it
-        // silently dropped both for every conditional class in this module, not just
-        // InventoryIsolationService (UltiWorlds#10).
-        super.reloadSelf();
-        getLogger().info("UltiWorlds configuration reloaded!");
     }
 
     @Override
