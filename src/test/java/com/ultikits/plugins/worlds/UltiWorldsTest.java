@@ -63,6 +63,8 @@ class UltiWorldsTest {
         @Test
         @DisplayName("declares no onUnregister()/onReload() hook: the log-only overrides were deleted, not renamed")
         void declaresNoLifecycleHook() {
+            // When UltiWorlds gains real unload or reload work, delete this test in the same change
+            // that adds the hook, together with a behaviour test for that hook -- do not weaken it.
             for (Method method : UltiWorlds.class.getDeclaredMethods()) {
                 assertThat(method.getName())
                     .as("UltiWorlds has no unload or reload work of its own, so must not declare %s", method)
