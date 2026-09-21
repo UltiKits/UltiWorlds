@@ -148,6 +148,10 @@ class WorldServiceLoadEnvironmentTest {
     private void assertNoInstruction(PluginLogger logger) {
         verify(logger).warn(contains("changelog entry"));
         verify(logger).warn(contains("UltiKits/UltiWorlds#22"));
+        // Gate-1 R4-IN-18: the console line carries no version string, so "this version's
+        // changelog entry" is not findable from the console alone. The delegation is only as
+        // good as the pointer, so the pointer names the file.
+        verify(logger).warn(contains("CHANGELOG.md"));
 
         ArgumentCaptor<String> lines = ArgumentCaptor.forClass(String.class);
         verify(logger, atLeastOnce()).warn(lines.capture());
