@@ -552,13 +552,24 @@ public class WorldService {
      * {@code default_world}, or any entry of {@code protected_worlds}, whose own declared comment
      * reads "Worlds that cannot be auto-unloaded or deleted".
      *
-     * <p>The comparison is case-insensitive, which is deliberately stricter than the exact
-     * {@code contains} check this list was originally read with. Bukkit resolves a world name
-     * case-insensitively, and on a case-insensitive filesystem (Windows, macOS) so does the
-     * {@code new File(worldContainer, name)} this class builds, so an exact-match guard would be
-     * bypassable by typing the same world's name in a different case. Two loaded worlds cannot
-     * differ only by case, so the wider match cannot refuse a world the operator did not mean to
-     * protect.
+     * <p>The comparison is case-insensitive, which is deliberately wider than the exact
+     * {@code contains} check this list was originally read with. {@code CraftServer#getWorld} looks
+     * its argument up as {@code name.toLowerCase(Locale.ROOT)}, so an exact-match guard here is
+     * bypassable on every platform by typing a protected world's name in another case; on a
+     * case-insensitive filesystem (Windows, macOS) {@code new File(worldContainer, name)} then
+     * resolves to the real folder and the deletion goes through.
+     *
+     * <p>The wider match can err, and it errs in one direction only: it can refuse a world the
+     * operator did not list. Two worlds that differ only by case cannot both be loaded, but two
+     * such folders can both sit on disk on a case-sensitive filesystem, and
+     * {@link #deleteWorld(String)} deliberately accepts an unloaded world -- so listing
+     * {@code Arena} does now refuse {@code /world delete arena}. That is an inconvenience with a
+     * manual workaround (rename, or drop the entry), whereas on the very same input the
+     * exact-match version resolved {@code Bukkit.getWorld("arena")} to the loaded {@code Arena},
+     * unloaded it, and deleted the {@code arena} folder. A refusal is the safe error here.
+     *
+     * <p>{@link String#equalsIgnoreCase(String)} is locale-independent, so this does not inherit
+     * the Turkish dotted-I trap that a {@code toLowerCase()} without an explicit locale would.
      *
      * @param name the world name as typed by the caller
      * @return true if deleting this world must be refused

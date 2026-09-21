@@ -166,7 +166,10 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        if (name.equals(worldService.getConfig().getDefaultWorld())) {
+        // Case-insensitive on purpose: CraftServer#getWorld resolves its argument as
+        // name.toLowerCase(Locale.ROOT), so an exact comparison here lets "/world unload LOBBY"
+        // past the guard and then unloads the real "lobby".
+        if (name.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.unload.default"));
             return;
         }
@@ -189,7 +192,11 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        if (name.equals(worldService.getConfig().getDefaultWorld())) {
+        // Case-insensitive for the same reason as the unload guard above, and additionally so
+        // that "/world delete WORLD" is not told it is "listed in protected_worlds" when the real
+        // reason is that it is the default world -- a statement about the operator's own
+        // configuration has to be true.
+        if (name.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.delete.default"));
             return;
         }

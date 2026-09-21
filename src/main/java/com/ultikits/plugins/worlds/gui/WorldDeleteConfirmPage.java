@@ -28,8 +28,18 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     
     @Override
     protected void onConfirm(InventoryClickEvent event) {
-        if (worldName.equals(worldService.getConfig().getDefaultWorld())) {
+        // Case-insensitive because CraftServer#getWorld resolves a world name that way, so an
+        // exact comparison here would let a differently-cased default world through this guard.
+        if (worldName.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.delete.default"));
+            return;
+        }
+
+        // WorldService#deleteWorld refuses a protected world on its own; asking here only decides
+        // which message this page shows, so that a protected refusal is not reported as the generic
+        // "failed to delete", which would be indistinguishable from a locked file.
+        if (worldService.isDeleteProtected(worldName)) {
+            player.sendMessage(i18n("world.delete.protected").replace("{WORLD}", worldName));
             return;
         }
 
