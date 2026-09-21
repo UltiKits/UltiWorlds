@@ -9,6 +9,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/world delete` now refuses a world listed in `protected_worlds`, as that key's own comment
+  ("Worlds that cannot be auto-unloaded or deleted") always promised. The sender is told
+  "World `<name>` is listed in protected_worlds and cannot be deleted!" and nothing is removed —
+  neither the world folder nor its stored settings. With the shipped defaults this means
+  `/world delete world_nether` and `/world delete world_the_end` no longer permanently delete those
+  worlds. The refusal is applied in the service, so it also covers a deletion started from
+  anywhere other than the command (UltiKits/UltiWorlds#20).
+- `/world delete` 现在会拒绝删除列入 `protected_worlds` 的世界，兑现该配置项自身注释
+  （"Worlds that cannot be auto-unloaded or deleted"）一直以来的承诺。执行者会收到
+  "World `<名称>` is listed in protected_worlds and cannot be deleted!"，并且不会移除任何内容——
+  世界文件夹和已保存的设置都会保留。按出厂默认配置，这意味着 `/world delete world_nether` 与
+  `/world delete world_the_end` 不再永久删除这两个世界。该拒绝逻辑位于服务层，因此从命令以外的
+  位置发起的删除同样受到保护（UltiKits/UltiWorlds#20）。
+- `protected_worlds` is now matched without regard to letter case, both when refusing a deletion and
+  when the empty-world auto-unload task skips a world. A world listed as `MyWorld` while the server
+  calls it `myworld` is now covered by both; previously only an exact spelling matched
+  (UltiKits/UltiWorlds#20).
+- `protected_worlds` 现在在两处读取时都忽略字母大小写：拒绝删除时，以及空世界自动卸载任务跳过世界时。
+  若配置写作 `MyWorld` 而服务器中的世界名为 `myworld`，现在两处都会生效；此前只有完全一致的拼写才匹配
+  （UltiKits/UltiWorlds#20）。
 - After `/upm uninstall UltiWorlds`, this module's commands are now really removed and its
   listeners stop firing. Previously this module's unload method replaced the framework's and only
   logged a line, so both stayed active until the server restarted (UltiKits/UltiWorlds#27).

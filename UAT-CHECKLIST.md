@@ -30,8 +30,11 @@ for real-machine verification, not user-facing documentation.
   uses its own throwaway world name, never reused by another row, and every deleting row appears
   strictly after every row that reads or writes the world it deletes. Throwaway names used in
   this document: `uatworld1` (created first, used throughout, deleted last), `uatworld2`
-  (NETHER, exercises unload/load/block/unblock), `uatworld3` (created via the wizard), and
-  `uatworld-delete` (created and deleted by the same row, used nowhere else).
+  (NETHER, exercises unload/load/block/unblock), `uatworld3` (created via the wizard),
+  `uatworld-delete` (created and deleted by the same row, used nowhere else), and
+  `uatworld-protected-test` (created for `ultiworlds.world.delete.neg-protected`, which proves it
+  is NOT deleted; it is the one throwaway world a passing run leaves on disk, and the operator
+  removes it by hand afterwards).
 - **Expected** must name an observable truth — an exact chat line, a log line, a database row,
   an inventory slot — and never the words "it works".
 - **Covers** back-references a Phase 9 GUI-excluded class name; left blank when no such class
@@ -107,7 +110,7 @@ for real-machine verification, not user-facing documentation.
 | ultiworlds.world.wizard.neg-timeout | `language: en`; sender holds `ultiworlds.admin.create` | Run `/world wizard`, then do not respond to any prompt for over 60 seconds | `wizard.timeout`: "Operation timed out, world creation cancelled" (red, `sendRawMessage`); no world is created | server | |
 | ultiworlds.world.delete | `language: en`; sender holds `ultiworlds.admin.delete`; a throwaway world `uatworld-delete` created via `/world create uatworld-delete` for this row alone, used nowhere else in this document | Run `/world delete uatworld-delete` | `world.delete.deleting` with `{WORLD}` substituted (gold), then `world.delete.success` with `{WORLD}` substituted (red-colored success line, matching the actual `world.delete.success` key's own red color code) — executed IMMEDIATELY with no confirmation step of any kind (`UltiKits/UltiWorlds#19`); `uatworld-delete`'s on-disk folder and `WorldSettings` row are both gone | server | |
 | ultiworlds.world.delete.neg-default | `language: en`; sender holds `ultiworlds.admin.delete` | Run `/world delete world` (the configured `default_world`) | `world.delete.default`: "Cannot delete the default world!" (red); the default world's folder is untouched | server | |
-| ultiworlds.world.delete.neg-protected-not-actually-protected | `language: en`; sender holds `ultiworlds.admin.delete`; a throwaway world `uatworld-protected-test` created via `/world create uatworld-protected-test`, then added to `protected_worlds` in `config/worlds.yml` (requires a restart to take effect, since it is read at multiple call sites, none of which reload live) | Run `/world delete uatworld-protected-test` | The world IS deleted despite being listed in `protected_worlds` — `protected_worlds` is consulted only by the auto-unload scheduled task, never by `/world delete`, contradicting that key's own declared comment ("Worlds that cannot be auto-unloaded or deleted"). Known product defect, `UltiKits/UltiWorlds#20` | server | |
+| ultiworlds.world.delete.neg-protected | `language: en`; sender holds `ultiworlds.admin.delete`; a throwaway world `uatworld-protected-test` created via `/world create uatworld-protected-test`, used by this row alone; its name then appended to `protected_worlds` in `config/worlds.yml`, and the server restarted so the edited file is the one in memory | Run `/world delete uatworld-protected-test` | `world.delete.protected` with `{WORLD}` substituted: "§cWorld uatworld-protected-test is listed in protected_worlds and cannot be deleted!" (red). `world.delete.deleting` is NOT printed, so the deletion never started; the `uatworld-protected-test` folder is still present in the server's world container, with its contents intact (`UltiKits/UltiWorlds#20`, fixed — this row previously recorded the opposite outcome as a known defect) | server | |
 
 
 ## GUI
