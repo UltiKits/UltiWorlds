@@ -18,18 +18,21 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -133,14 +136,32 @@ class WorldServiceLoadEnvironmentTest {
         assertNoInstruction(logger);
     }
 
-    /** The log states what it observed; it never tells the operator what to do about it. */
+    /**
+     * The log states what it observed; it never tells the operator what to do about it.
+     *
+     * <p>The forbidden half is matched case-insensitively, over every line the logger was given.
+     * Mockito's {@code contains} is case-sensitive, and an instruction appended as a new sentence
+     * starts with a capital -- a mutation that appended "Leave only that dimension's own
+     * directory" walked straight past a {@code never().warn(contains("leave only"))} guard. A
+     * guard that can be evaded by capitalising the first letter is not a guard.
+     */
     private void assertNoInstruction(PluginLogger logger) {
         verify(logger).warn(contains("changelog entry"));
         verify(logger).warn(contains("UltiKits/UltiWorlds#22"));
-        verify(logger, never()).warn(contains("stop the server"));
-        verify(logger, never()).warn(contains("move"));
-        verify(logger, never()).warn(contains("leave only"));
-        verify(logger, never()).warn(contains("Do not delete"));
+
+        ArgumentCaptor<String> lines = ArgumentCaptor.forClass(String.class);
+        verify(logger, atLeastOnce()).warn(lines.capture());
+        for (String line : lines.getAllValues()) {
+            assertThat(line.toLowerCase(Locale.ROOT))
+                    .as("a line the module printed must not instruct: %s", line)
+                    .doesNotContain("stop the server")
+                    .doesNotContain("leave only")
+                    .doesNotContain("do not delete")
+                    .doesNotContain("move the")
+                    .doesNotContain("move that")
+                    .doesNotContain("you should")
+                    .doesNotContain("please ");
+        }
     }
 
     private World mockWorld(World.Environment environment) {

@@ -6,6 +6,7 @@ import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.DataOperator;
 import com.ultikits.ultitools.interfaces.Query;
+import com.ultikits.ultitools.interfaces.impl.logger.PluginLogger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -25,8 +26,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -213,6 +218,13 @@ class WorldServiceFolderShapeProcedureTest {
             assertThat(new File(linked, "region").mkdirs()).isTrue();
             Files.createSymbolicLink(new File(linked, "DIM-1").toPath(), target.toPath());
             assertThat(environmentAppliedIn(container, "s4link")).isEqualTo(World.Environment.NORMAL);
+            // Both rules match this folder and both refuse, so the ORDER is observable only in
+            // which observation is reported. The published procedure for this shape rests on the
+            // symlink rule winning -- it is why "moving directories out cannot help" is true --
+            // so that is what has to be asserted, not merely the (identical) outcome.
+            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
+            verify(logger, atLeastOnce()).warn(contains("symbolic link"));
+            verify(logger, never()).warn(contains("each holding a different world's terrain"));
 
             // Remove the other directory -- still nothing applied, because the link is still a link.
             assertThat(new File(linked, "region").delete()).isTrue();
