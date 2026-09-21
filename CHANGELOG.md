@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
+  Reloading such a world previously reported success while rebinding it to the `NORMAL`
+  environment, so overworld terrain generated over the stored world. The environment comes from
+  what the module recorded when it last created, loaded or unloaded that world, and failing that
+  from the dimension folder the server writes inside the world folder, so it also survives a
+  restart (UltiKits/UltiWorlds#22).
+- `/world load` 现在会把下界或末地世界按其原本维度载入，而不再变为主世界。此前重新载入这类世界会提示成功，
+  却把世界改绑到 `NORMAL` 维度，导致主世界地形覆盖原有世界。维度取自本模块上次创建、载入或卸载该世界时
+  记录的值；若无记录，则读取服务器写入世界文件夹中的维度目录，因此重启后同样有效
+  （UltiKits/UltiWorlds#22）。
 - `/world load` now works out a world's environment when it has to, refuses to work it out when
   the world folder is ambiguous, and says in the console which of those happened and what it saw.
   The console line reports what was found; it never tells you what to do, because the module has
@@ -18,16 +28,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     server and move that directory to a path outside the world folder; the world then loads with
     the server's default.
   - **a dimension directory AND a top-level `region` directory** — two worlds' terrain in one
-    folder, which is what the defect below produced. No environment is applied. To load it as the
-    other world, stop the server and **move** the directory you are not keeping to a path outside
-    the world folder — do not delete it: players may have built in either one.
-  - **both `DIM-1` and `DIM1` at the top level** — a single-player save layout. No environment is
-    applied. Move the dimension directory you do not want out of the world folder to reach the
-    first case.
+    folder, which is what `UltiKits/UltiWorlds#22` produced. No environment is applied. To load it
+    as the other world, stop the server and **move** the directory you are not keeping to a path
+    outside the world folder — do not delete it: players may have built in either one. Move the
+    `region` directory out and you are in the first case; move the dimension directory out and you
+    are in the last one.
+  - **both `DIM-1` and `DIM1` at the top level** — a single-player save or a downloaded map, where
+    all three dimensions share one folder. No environment is applied. Stop the server and move the
+    dimension directory you do not want to a path outside the world folder. Where that leaves you
+    depends on what the folder still holds: a single-player save also has the overworld's
+    top-level `region` directory, so you land in the second case above and have to choose there
+    too; a folder with no top-level `region` lands in the first case and is answered.
   - **a dimension entry that is a symbolic link** — the module does not follow links when reading a
-    world folder, so it did not read what the link points at, and no environment is applied.
-    Moving directories out will not change that; either replace the link with a real directory, or
-    leave it and accept the server's default environment.
+    world folder, so it did not read what the link points at, and no environment is applied. This
+    is checked before the other two ambiguous cases, so moving directories out cannot help while
+    the link is still a link. Either replace the link with a real directory — after which the
+    folder is read as one of the cases above, whichever one it then matches — or leave it and
+    accept the server's default environment.
   - **no dimension directory** — the ordinary overworld case. Nothing is worked out, nothing is
     logged, and nothing changes from previous versions (UltiKits/UltiWorlds#22).
 - `/world load` 现在会在需要时推断世界维度；当世界文件夹自相矛盾时则拒绝推断，并在控制台说明发生了
@@ -36,14 +53,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - **有顶层 `DIM-1`（或 `DIM1`）目录且没有顶层 `region`** —— 普通的下界（或末地）世界，会应用该
     维度并在日志中说明。若这不正确，请停服并把该目录移动到世界文件夹之外，该世界随后会按服务器默认
     维度加载。
-  - **同时有维度目录与顶层 `region` 目录** —— 一个文件夹里存着两个世界的地形，正是下面那个缺陷造成
-    的。不应用任何维度。若要按另一个世界加载，请停服并把不保留的那个目录**移动**到世界文件夹之外
-    ——不要删除：两个目录里都可能有玩家建造的地形。
-  - **顶层同时有 `DIM-1` 与 `DIM1`** —— 单人存档式布局。不应用任何维度。把不需要的那个维度目录移出
-    世界文件夹即可回到第一种情况。
+  - **同时有维度目录与顶层 `region` 目录** —— 一个文件夹里存着两个世界的地形，正是
+    `UltiKits/UltiWorlds#22` 造成的。不应用任何维度。若要按另一个世界加载，请停服并把不保留的那个
+    目录**移动**到世界文件夹之外——不要删除：两个目录里都可能有玩家建造的地形。移出 `region` 目录会
+    回到第一种情况；移出维度目录则会变成最后一种情况。
+  - **顶层同时有 `DIM-1` 与 `DIM1`** —— 单人存档或下载的地图，三个维度共用一个文件夹。不应用任何
+    维度。请停服并把不需要的那个维度目录移动到世界文件夹之外。之后会落到哪种情况，取决于文件夹里还
+    剩下什么：单人存档同时还有主世界的顶层 `region` 目录，因此会落到上面的第二种情况，仍需在那里做
+    选择；若没有顶层 `region` 目录，则落到第一种情况并被正常识别。
   - **维度目录是符号链接** —— 本模块读取世界文件夹时不跟随链接，因此没有读取链接指向的内容，也不应用
-    任何维度。移动其他目录不会改变这一点；请改为用真实目录替换该链接，或保持现状并接受服务器默认维度。
+    任何维度。这一项先于另外两种歧义情况判断，因此只要链接还是链接，移动其他目录都无济于事。请改为
+    用真实目录替换该链接——替换后该文件夹会按上面的情况重新判断，具体落到哪一种取决于它当时的内容
+    ——或保持现状并接受服务器默认维度。
   - **没有维度目录** —— 普通主世界，不推断、不输出日志，与旧版本完全一致（UltiKits/UltiWorlds#22）。
+- `/world unload` and `/world delete` now compare the name you typed against `default_world`
+  without regard to letter case. With `default_world: lobby`, `/world unload LOBBY` used to miss
+  the "Cannot unload the default world!" refusal and unload the lobby anyway, after which players
+  ejected from other worlds landed somewhere else; and `/world delete WORLD` could be told it was
+  "listed in protected_worlds" when that list was empty (UltiKits/UltiWorlds#20).
+- `/world unload` 与 `/world delete` 现在在与 `default_world` 比对时忽略字母大小写。此前在
+  `default_world: lobby` 下，`/world unload LOBBY` 不会触发"无法卸载默认世界！"的拒绝，仍会把
+  lobby 卸载，随后从其他世界被移出的玩家会落到别处；`/world delete WORLD` 也可能被告知它"已列入
+  protected_worlds"，而那份列表其实是空的（UltiKits/UltiWorlds#20）。
 - `/world delete` now refuses a world listed in `protected_worlds`, as that key's own comment
   ("Worlds that cannot be auto-unloaded or deleted") always promised. The sender is told
   "World `<name>` is listed in protected_worlds and cannot be deleted!" and nothing is removed —
