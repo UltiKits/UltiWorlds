@@ -54,7 +54,8 @@ public class WorldService {
     // one folder shape and false of another -- see reportNoDecision for why that matters.
     private static final String WHERE_THE_PROCEDURE_LIVES =
         " What each of these folder shapes means, and what can be done about it, is in this"
-            + " version's changelog entry and in UltiKits/UltiWorlds#22.";
+            + " module's CHANGELOG.md changelog entry for this version, and in"
+            + " UltiKits/UltiWorlds#22.";
 
     /**
      * Initialize the service with @PostConstruct.
