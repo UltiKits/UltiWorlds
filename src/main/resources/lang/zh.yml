@@ -3,7 +3,6 @@
 
 # ==================== 插件状态 ====================
 worlds_enabled: "§aUltiWorlds 已启用！"
-worlds_disabled: "§cUltiWorlds 已禁用！"
 
 # ==================== 通用 ====================
 common:

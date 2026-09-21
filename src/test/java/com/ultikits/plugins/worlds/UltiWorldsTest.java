@@ -1,13 +1,13 @@
 package com.ultikits.plugins.worlds;
 
-import com.ultikits.ultitools.UltiTools;
+import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.impl.logger.PluginLogger;
-import com.ultikits.ultitools.manager.ConfigManager;
 
-import org.bukkit.configuration.file.FileConfiguration;
 import org.junit.jupiter.api.*;
-import org.mockito.MockedStatic;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
@@ -40,67 +40,50 @@ class UltiWorldsTest {
             assertThat(result).isTrue();
             verify(logger).info("worlds_enabled");
         }
+    }
+
+    @Nested
+    @DisplayName("Lifecycle contract (UltiKits/UltiWorlds#27)")
+    class LifecycleContract {
 
         @Test
-        @DisplayName("unregisterSelf should log message")
-        void unregisterSelf() throws Exception {
-            UltiWorlds plugin = mock(UltiWorlds.class);
-            PluginLogger logger = mock(PluginLogger.class);
-
-            when(plugin.getLogger()).thenReturn(logger);
-            when(plugin.i18n(anyString())).thenReturn("worlds_disabled");
-            doCallRealMethod().when(plugin).unregisterSelf();
-
-            plugin.unregisterSelf();
-
-            verify(logger).info("worlds_disabled");
-        }
-
-        @Test
-        @DisplayName("unregisterSelf should not fail when called multiple times")
-        void unregisterSelfMultipleTimes() throws Exception {
-            UltiWorlds plugin = mock(UltiWorlds.class);
-            PluginLogger logger = mock(PluginLogger.class);
-
-            when(plugin.getLogger()).thenReturn(logger);
-            when(plugin.i18n(anyString())).thenReturn("worlds_disabled");
-            doCallRealMethod().when(plugin).unregisterSelf();
-
-            plugin.unregisterSelf();
-            plugin.unregisterSelf(); // Call twice
-
-            verify(logger, times(2)).info("worlds_disabled");
-        }
-
-        @Test
-        @DisplayName("reloadSelf should delegate to super.reloadSelf() before logging")
-        void reloadSelf() throws Exception {
-            UltiWorlds plugin = mock(UltiWorlds.class);
-            PluginLogger logger = mock(PluginLogger.class);
-            when(plugin.getLogger()).thenReturn(logger);
-            doCallRealMethod().when(plugin).reloadSelf();
-
-            // reloadSelf() delegates to super.reloadSelf() (UltiWorlds#10 fix) --
-            // getConfigManager()/getConfig() are UltiTools.getInstance() calls, so the static
-            // singleton must resolve to something non-null for the real method body to run.
-            //
-            // Asserting only the log line below does NOT pin this: that statement runs
-            // unconditionally whether or not super.reloadSelf() executed first. The
-            // verify(fakeCore).getConfigManager() call is the one assertion here that only
-            // fires through the real super.reloadSelf() call chain -- removing that call would
-            // turn this assertion red while leaving the log assertion green.
-            try (MockedStatic<UltiTools> ultiToolsStatic = mockStatic(UltiTools.class)) {
-                UltiTools fakeCore = mock(UltiTools.class);
-                when(fakeCore.getConfigManager()).thenReturn(mock(ConfigManager.class));
-                when(fakeCore.getConfig()).thenReturn(mock(FileConfiguration.class));
-                ultiToolsStatic.when(UltiTools::getInstance).thenReturn(fakeCore);
-
-                plugin.reloadSelf();
-
-                verify(fakeCore).getConfigManager();
+        @DisplayName("declares neither framework template method: unload and reload are UltiToolsPlugin's final methods")
+        void declaresNoTemplateMethodOverride() {
+            // Control: the reflection really reads this class's own methods, so an empty result
+            // below cannot pass vacuously.
+            assertThat(Arrays.stream(UltiWorlds.class.getDeclaredMethods()).map(Method::getName))
+                .contains("registerSelf", "supported");
+            for (Method method : UltiWorlds.class.getDeclaredMethods()) {
+                assertThat(method.getName())
+                    .as("UltiWorlds must not declare %s", method)
+                    .isNotIn("unregisterSelf", "reloadSelf");
             }
+        }
 
-            verify(logger).info("UltiWorlds configuration reloaded!");
+        @Test
+        @DisplayName("declares no onUnregister()/onReload() hook: the log-only overrides were deleted, not renamed")
+        void declaresNoLifecycleHook() {
+            // When UltiWorlds gains real unload or reload work, delete this test in the same change
+            // that adds the hook, together with a behaviour test for that hook -- do not weaken it.
+            for (Method method : UltiWorlds.class.getDeclaredMethods()) {
+                assertThat(method.getName())
+                    .as("UltiWorlds has no unload or reload work of its own, so must not declare %s", method)
+                    .isNotIn("onUnregister", "onReload");
+            }
+        }
+
+        @Test
+        @DisplayName("unregisterSelf and reloadSelf resolve to UltiToolsPlugin's final methods")
+        void templateMethodsResolveToFrameworkFinalMethods() throws Exception {
+            for (String name : new String[] {"unregisterSelf", "reloadSelf"}) {
+                Method method = UltiWorlds.class.getMethod(name);
+                assertThat(method.getDeclaringClass())
+                    .as("%s must be inherited from the framework", name)
+                    .isEqualTo(UltiToolsPlugin.class);
+                assertThat(Modifier.isFinal(method.getModifiers()))
+                    .as("%s must be final in the framework", name)
+                    .isTrue();
+            }
         }
     }
 
