@@ -390,7 +390,10 @@ public class WorldService {
         }
 
         WorldCreator creator = new WorldCreator(name);
-        creator.environment(resolveEnvironment(name, worldFolder));
+        World.Environment environment = resolveEnvironment(name, worldFolder);
+        if (environment != null) {
+            creator.environment(environment);
+        }
         World world = creator.createWorld();
 
         if (world != null) {
@@ -402,57 +405,148 @@ public class WorldService {
     }
 
     /**
-     * The environment to rebuild {@code name} with: whatever this service last recorded for it,
-     * and failing that whatever its world folder says.
+     * The environment to rebuild {@code name} with, or {@code null} to say nothing and let the
+     * server apply its own default -- which is exactly what this module did before it restored
+     * environments at all, so declining is never a regression.
      *
-     * <p>The recorded value wins because it is first-hand -- this service saw the live world report
-     * it -- and because a world created but never yet saved may not have written its dimension
-     * folder. The folder is the fallback that survives a restart, which the in-memory record does
-     * not. A resolved fallback is recorded, so the disk is read once per world per session.
+     * <p>A value this service recorded itself wins outright and is used silently: it is first-hand,
+     * the service watched a live world report it, and it is not a guess. Only when there is no
+     * record does the world folder get read, and that reading is deliberately unwilling -- see
+     * {@link #inferEnvironmentFromWorldFolder(String, File)}.
      */
     private World.Environment resolveEnvironment(String name, File worldFolder) {
         World.Environment recorded = knownEnvironments.get(name);
         if (recorded != null) {
             return recorded;
         }
-        World.Environment inferred = inferEnvironmentFromWorldFolder(worldFolder);
+        return inferEnvironmentFromWorldFolder(name, worldFolder);
+    }
+
+    /**
+     * Reads a world's environment off the dimension sub-folder the server writes inside its world
+     * folder -- {@code DIM-1} for {@link World.Environment#NETHER}, {@code DIM1} for
+     * {@link World.Environment#THE_END} -- and refuses to answer whenever that evidence is
+     * ambiguous or untrustworthy, returning {@code null} instead.
+     *
+     * <p><b>Why it refuses rather than picking the likelier answer.</b> This runs unattended, at
+     * every server start, for every world in {@code load_worlds_on_start} (see {@link #init()}). A
+     * wrong answer here does not throw and does not corrupt anything -- it silently points the
+     * server at a different set of region files, so everything players built in the other set stops
+     * existing from their point of view. The population that installs this fix is, by definition,
+     * servers that hit {@code UltiKits/UltiWorlds#22}: their nether world was reloaded as an
+     * overworld, and overworld terrain was then generated into the world folder's <em>top-level</em>
+     * {@code region} directory, beside the original nether data in {@code DIM-1}. Such a folder is
+     * real and exists in this project's own evidence tree: of the 7 {@code DIM-1} directories under
+     * the test-server tree, exactly 1 sits beside a top-level {@code region} directory, and that one
+     * carries nether region files written at 02:01 and overworld region files written at 02:21 --
+     * the physical footprint of the defect. The folder alone cannot say which of those two worlds
+     * the operator wants back, so this method does not decide it.
+     *
+     * <p>The rules, in order:
+     * <ol>
+     *   <li>No {@code DIM-1} and no {@code DIM1}: no evidence, no inference, and no log. This is
+     *       every ordinary overworld on every boot, and the outcome is identical to the previous
+     *       behaviour, so a WARNING here would be noise that trains operators to ignore the ones
+     *       that matter.</li>
+     *   <li>A dimension entry that is a symbolic link: refuse. {@link #deleteFolder(File)} in this
+     *       same class deliberately does not follow links, and a link can point anywhere, including
+     *       outside the world -- so it is not evidence about this world.</li>
+     *   <li>Both {@code DIM-1} and {@code DIM1}: refuse. That is the layout of a single-player save
+     *       or a downloaded map, where all three dimensions share one folder, not of a server
+     *       world.</li>
+     *   <li>A dimension entry beside a top-level {@code region} directory: refuse, as above.</li>
+     *   <li>Otherwise: answer, and say so at WARNING.</li>
+     * </ol>
+     *
+     * <p>Only direct children are considered. A folder named like a dimension deeper inside the
+     * world's own data (a datapack dimension, for instance) does not change the world's own
+     * environment and must not be read as if it did.
+     *
+     * <p>Note the asymmetry rule 1 encodes: the absence of {@code region} is <em>not</em> taken as
+     * evidence of a dimension. A freshly created world that has never saved a chunk has no
+     * {@code region} directory either -- one such world sits in the test-server tree -- so
+     * "no region, therefore nether" would be wrong.
+     *
+     * @return the inferred environment, or {@code null} when this method declines to infer one
+     */
+    private World.Environment inferEnvironmentFromWorldFolder(String name, File worldFolder) {
+        boolean nether = isDirectChildDirectory(worldFolder, "DIM-1");
+        boolean theEnd = isDirectChildDirectory(worldFolder, "DIM1");
+        if (!nether && !theEnd) {
+            return null;
+        }
+
+        if (isSymbolicLink(worldFolder, "DIM-1") || isSymbolicLink(worldFolder, "DIM1")) {
+            declineToInfer(name, "its dimension entry is a symbolic link, which this module does"
+                + " not follow when reading a world folder");
+            return null;
+        }
+        if (nether && theEnd) {
+            declineToInfer(name, "it contains both a top-level 'DIM-1' and a top-level 'DIM1'"
+                + " directory, which is the layout of a single-player save rather than of a server"
+                + " world");
+            return null;
+        }
+        String marker = nether ? "DIM-1" : "DIM1";
+        if (isDirectChildDirectory(worldFolder, "region")) {
+            declineToInfer(name, "it contains both a top-level '" + marker + "' directory and a"
+                + " top-level 'region' directory, so it has been served as two different worlds at"
+                + " different times -- the footprint of UltiKits/UltiWorlds#22");
+            return null;
+        }
+
+        World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
+        plugin.getLogger().warn(
+            "World '" + name + "' has no recorded environment, so it is being loaded as " + inferred
+                + " because its world folder contains a top-level '" + marker + "' directory."
+                + " If that is wrong, stop the server, move that directory out of the world folder,"
+                + " and start again -- the world will then load with the server's default"
+                + " environment."
+        );
         recordEnvironment(name, inferred);
         return inferred;
     }
 
     /**
-     * Reads a world's environment off the dimension sub-folder the server writes inside its world
-     * folder: {@code DIM-1} for {@link World.Environment#NETHER}, {@code DIM1} for
-     * {@link World.Environment#THE_END}, neither for {@link World.Environment#NORMAL}, whose region
-     * data sits directly in the world folder instead.
-     *
-     * <p>Measured across the 19 world folders on this project's own Paper test servers: all 5
-     * nether worlds carry a top-level {@code DIM-1} and no top-level {@code region}, all 5 end
-     * worlds carry {@code DIM1}, and the remaining 9 carry neither -- including one freshly created
-     * world that had never saved a chunk and so had no {@code region} folder either, which is why
-     * this reads the dimension folders rather than the absence of {@code region}.
-     *
-     * <p>Only direct children are considered. A folder named like a dimension deeper inside the
-     * world's own data (a datapack dimension, for instance) does not change the world's own
-     * environment and must not be read as if it did.
+     * Says at WARNING that no environment was inferred for {@code name}, why, and what the operator
+     * can do about it. Never silent: a boot-time decision about which region files a world reads is
+     * not something an operator should have to discover from missing buildings.
      */
-    static World.Environment inferEnvironmentFromWorldFolder(File worldFolder) {
-        if (new File(worldFolder, "DIM-1").isDirectory()) {
-            return World.Environment.NETHER;
-        }
-        if (new File(worldFolder, "DIM1").isDirectory()) {
-            return World.Environment.THE_END;
-        }
-        return World.Environment.NORMAL;
+    private void declineToInfer(String name, String reason) {
+        plugin.getLogger().warn(
+            "World '" + name + "' has no recorded environment and its world folder does not say"
+                + " which environment it is, because " + reason + ". It is being loaded with the"
+                + " server's default environment -- the same as before this version -- rather than"
+                + " guessing. If it should be a nether or end world, stop the server, leave only"
+                + " that dimension's own directory in the world folder, and start again."
+        );
+    }
+
+    /** Whether {@code child} is a directory directly inside {@code parent}. */
+    private static boolean isDirectChildDirectory(File parent, String child) {
+        return new File(parent, child).isDirectory();
+    }
+
+    /** Whether {@code child} inside {@code parent} exists and is a symbolic link. */
+    private static boolean isSymbolicLink(File parent, String child) {
+        return Files.isSymbolicLink(new File(parent, child).toPath());
     }
 
     /**
-     * Records a world's environment, ignoring a null one. Bukkit never reports a null environment
-     * for a live world, but a caller holding a partially initialised world could, and
-     * {@link ConcurrentHashMap} rejects null values with an exception rather than storing them.
+     * Records a world's environment, ignoring anything this module could not hand back to
+     * {@link WorldCreator#environment(World.Environment)}.
+     *
+     * <p>Two values are dropped. {@code null}, because {@link ConcurrentHashMap} throws on a null
+     * value rather than storing it. And {@link World.Environment#CUSTOM}, because
+     * {@code CraftServer#createWorld} switches on the environment and its default arm throws
+     * {@link IllegalArgumentException} -- recording a CUSTOM world here would turn a later
+     * {@code /world load} from "loads with the wrong environment" into "throws out of the command",
+     * which is worse than the defect this fix removes.
      */
     private void recordEnvironment(String name, World.Environment environment) {
-        if (environment != null) {
+        if (environment == World.Environment.NORMAL
+                || environment == World.Environment.NETHER
+                || environment == World.Environment.THE_END) {
             knownEnvironments.put(name, environment);
         }
     }
