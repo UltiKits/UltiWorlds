@@ -49,6 +49,13 @@ public class WorldService {
     // unloads one. Read back by loadWorld, which would otherwise rebuild the world as NORMAL.
     private final Map<String, World.Environment> knownEnvironments = new ConcurrentHashMap<>();
 
+    // Closes every line this service prints about a world's environment. It points at the
+    // procedure instead of inlining one, and it does not vary by branch, so it cannot be true of
+    // one folder shape and false of another -- see reportNoDecision for why that matters.
+    private static final String WHERE_THE_PROCEDURE_LIVES =
+        " What each of these folder shapes means, and what can be done about it, is in this"
+            + " version's changelog entry and in UltiKits/UltiWorlds#22.";
+
     /**
      * Initialize the service with @PostConstruct.
      */
@@ -475,61 +482,68 @@ public class WorldService {
         }
 
         if (isSymbolicLink(worldFolder, "DIM-1") || isSymbolicLink(worldFolder, "DIM1")) {
-            declineToInfer(name, "its dimension entry is a symbolic link, which this module does"
-                + " not follow when reading a world folder");
+            reportNoDecision(name, "its dimension entry is a symbolic link, and this module does"
+                + " not follow links when reading a world folder, so whatever the link points at"
+                + " was not read");
             return null;
         }
         if (nether && theEnd) {
-            declineToInfer(name, "it contains both a top-level 'DIM-1' and a top-level 'DIM1'"
-                + " directory, which is the layout of a single-player save rather than of a server"
-                + " world");
+            reportNoDecision(name, "its folder contains both a top-level 'DIM-1' directory and a"
+                + " top-level 'DIM1' directory");
             return null;
         }
         String marker = nether ? "DIM-1" : "DIM1";
         if (isDirectChildDirectory(worldFolder, "region")) {
-            declineToInfer(name, "it holds two worlds' terrain at once: a top-level '" + marker
-                + "' directory and a top-level 'region' directory. That is what"
-                + " UltiKits/UltiWorlds#22 produced -- '" + marker + "' holds the terrain from"
-                + " before the world was reloaded as an overworld, 'region' holds the overworld"
-                + " terrain generated since. Players may have built in either one");
+            reportNoDecision(name, "its folder contains a top-level '" + marker + "' directory"
+                + " and a top-level 'region' directory, each holding a different world's terrain");
             return null;
         }
 
         World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
         plugin.getLogger().warn(
-            "World '" + name + "' has no recorded environment, so it is being loaded as " + inferred
-                + " because its world folder contains a top-level '" + marker + "' directory."
-                + " If that is wrong, stop the server, move that directory out of the world folder,"
-                + " and start again -- the world will then load with the server's default"
-                + " environment."
+            "World '" + name + "' had no recorded environment and was loaded as " + inferred
+                + ", because its folder contains a top-level '" + marker + "' directory and no"
+                + " top-level 'region' directory." + WHERE_THE_PROCEDURE_LIVES
         );
         recordEnvironment(name, inferred);
         return inferred;
     }
 
     /**
-     * Says at WARNING that no environment was inferred for {@code name}, why, and what the operator
-     * can do about it. Announced once per world per session -- a boot-time decision about which
-     * region files a world reads is not something an operator should have to discover from missing
-     * buildings. (Once per session rather than once per load: after declining, {@code loadWorld}
-     * records what the server actually produced, so a second load in the same session takes the
-     * recorded branch, which is silent because it is no longer a guess.)
+     * States at WARNING that no environment was applied to {@code name} and what was observed about
+     * its folder, and points at where the procedure is written down. Announced once per world per
+     * session -- a boot-time decision about which region files a world reads is not something an
+     * operator should have to discover from missing buildings. (Once per session rather than once
+     * per load: after this, {@code loadWorld} records what the server actually produced, so a
+     * second load in the same session takes the recorded branch, which is silent because it is no
+     * longer a guess.)
      *
-     * <p>The remedy this prints must never be "delete". The operator reading it has real terrain in
-     * BOTH directories -- that is what made the folder ambiguous -- so an instruction that ends in
-     * a removal would destroy whichever world they are not currently thinking about. Moving a
-     * directory out is reversible; deleting it is not, and the recoverability of the other world is
-     * the whole reason this method refuses instead of guessing.
+     * <p><b>This reports an observation. It does not prescribe a remedy, and neither does the
+     * answering path.</b> That is a deliberate change of shape, made after a remedy sentence here
+     * was wrong twice in a row: first it told the operator to delete the other world's terrain, and
+     * then, once corrected for the folder shape it was written for, it was wrong for the other two
+     * branches -- on the symbolic-link branch there need not be an "other directory" at all, and
+     * moving one out cannot reach an answer while the link is still a link. One sentence cannot
+     * give a correct procedure for three structurally different situations, and each repair made it
+     * right for one branch and left it wrong for the others.
+     *
+     * <p>The deeper reason is that the instruction contradicted the guard that prints it:
+     * prescribing a remedy for a folder this method has just declared it cannot read is itself the
+     * guess the method exists to refuse. A statement of what was observed cannot be wrong for a
+     * different branch, because each branch states its own observation -- so the failure mode
+     * shrinks from "an instruction that is wrong about a situation" to "a sentence that is wrong
+     * about its own observation", which a test can pin, and each branch's observation is pinned by
+     * one.
+     *
+     * @param name the world
+     * @param observation what was found in the folder, stated as fact and owned by the caller
      */
-    private void declineToInfer(String name, String reason) {
+    private void reportNoDecision(String name, String observation) {
         plugin.getLogger().warn(
-            "World '" + name + "' has no recorded environment and its world folder does not say"
-                + " which environment it is, because " + reason + ". It is being loaded with the"
-                + " server's default environment -- the same as before this version -- rather than"
-                + " guessing. To load it as a nether or end world instead, stop the server and move"
-                + " the OTHER directory out of the world folder, to a path outside it. Do not delete"
-                + " it: it holds a real world's terrain, and whichever directory you move out is the"
-                + " one whose blocks stop being visible."
+            "World '" + name + "': no environment was applied, because " + observation + "."
+                + " This module does not guess an environment it cannot read from the folder, so"
+                + " the world was loaded with the server's own default environment -- the same as"
+                + " before this version." + WHERE_THE_PROCEDURE_LIVES
         );
     }
 
