@@ -6,6 +6,7 @@ import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.DataOperator;
 import com.ultikits.ultitools.interfaces.Query;
+import com.ultikits.ultitools.interfaces.impl.logger.PluginLogger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -27,9 +28,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -280,8 +284,8 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("loadWorld infers NORMAL for an overworld folder, which carries region/ and no dimension folder")
-    void loadInfersNormalForAnOverworldFolder() throws IOException {
+    @DisplayName("loadWorld says nothing at all for an ordinary overworld folder, and logs nothing")
+    void loadIsSilentForAnOrdinaryOverworldFolder() throws IOException {
         File container = newContainer();
         newWorldFolder(container, "disknorm", "region", "entities", "data");
 
@@ -293,7 +297,12 @@ class WorldServiceLoadEnvironmentTest {
 
             assertThat(worldService.loadWorld("disknorm")).isTrue();
 
+            // No dimension marker means no evidence, so nothing is inferred and the server's own
+            // default applies -- exactly what this module did before it restored environments.
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+            // ...and it must be silent. This runs for every ordinary world on every boot; a
+            // WARNING here would train operators to ignore the ones that matter.
+            verify(UltiWorldsTestHelper.getMockLogger(), never()).warn(anyString());
         } finally {
             deleteRecursively(container);
         }
@@ -355,6 +364,185 @@ class WorldServiceLoadEnvironmentTest {
 
             assertThat(worldService.loadWorld("reusedw")).isTrue();
 
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Gate-1 WR-01: the folder heuristic runs unattended at boot (init() loops over
+    // load_worlds_on_start), and a wrong answer silently points the server at a different set of
+    // region files, so everything players built in the other set stops existing for them. These
+    // tests pin the rule that it must decline rather than pick whenever the folder is ambiguous,
+    // and that it is never silent when it does answer.
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("loadWorld declines to infer when a dimension folder sits beside a top-level region folder")
+    void loadDeclinesWhenADimensionFolderSitsBesideATopLevelRegionFolder() throws IOException {
+        File container = newContainer();
+        // The physical footprint of UltiWorlds#22 itself: nether data in DIM-1 from before the
+        // defect, overworld data at the top level written after a reload turned it NORMAL. Such a
+        // folder exists in this project's own evidence tree (1 of the 7 DIM-1 directories under
+        // the test-server tree sits beside a top-level region/).
+        newWorldFolder(container, "bothw", "DIM-1", "region");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("bothw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("bothw")).isTrue();
+
+            // NOT NETHER: the folder cannot say which of the two worlds the operator wants, so the
+            // server's own default applies -- the same outcome this module produced before it
+            // restored environments at all, which is why declining is not a regression.
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+
+            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
+            verify(logger).warn(contains("bothw"));
+            verify(logger).warn(contains("region"));
+            verify(logger).warn(contains("rather than"));
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("loadWorld declines to infer for a single-player save layout carrying both dimension folders")
+    void loadDeclinesForASingleplayerSaveLayout() throws IOException {
+        File container = newContainer();
+        newWorldFolder(container, "savew", "DIM-1", "DIM1");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("savew")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("savew")).isTrue();
+
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(contains("savew"));
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("loadWorld declines to infer from a dimension entry that is a symbolic link")
+    void loadDeclinesWhenTheDimensionEntryIsASymbolicLink() throws IOException {
+        File container = newContainer();
+        File worldFolder = newWorldFolder(container, "linkw");
+        File realDimension = new File(container, "elsewhere");
+        assertThat(realDimension.mkdirs()).isTrue();
+        java.nio.file.Files.createSymbolicLink(
+                new File(worldFolder, "DIM-1").toPath(), realDimension.toPath());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("linkw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            // Pre-assertion: the link really does read as a directory, so this test is exercising
+            // the symlink rule and not merely a missing folder.
+            assertThat(new File(worldFolder, "DIM-1").isDirectory()).isTrue();
+
+            assertThat(worldService.loadWorld("linkw")).isTrue();
+
+            // deleteFolder in this same class deliberately does not follow links; reading one as
+            // evidence about this world would be a second, contradictory policy on links.
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(contains("symbolic link"));
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("loadWorld logs at WARNING what it inferred, from what, and what to do if it is wrong")
+    void loadLogsWhatItInferredAndFromWhat() throws IOException {
+        File container = newContainer();
+        newWorldFolder(container, "loudw", "DIM-1");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("loudw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("loudw")).isTrue();
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
+
+            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
+            verify(logger).warn(contains("loudw"));
+            verify(logger).warn(contains("NETHER"));
+            verify(logger).warn(contains("DIM-1"));
+            verify(logger).warn(contains("stop the server"));
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("loadWorld uses a recorded environment silently, because a record is not a guess")
+    void loadUsesARecordedEnvironmentSilently() throws IOException {
+        File container = newContainer();
+        newWorldFolder(container, "quietw");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER));
+            World defaultWorld = mockWorld(World.Environment.NORMAL);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+
+            bukkit.when(() -> Bukkit.getWorld("quietw")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.unloadWorld("quietw", true)).isTrue();
+            live.set(null);
+            assertThat(worldService.loadWorld("quietw")).isTrue();
+
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
+            verify(UltiWorldsTestHelper.getMockLogger(), never()).warn(anyString());
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("an environment the server cannot rebuild is never recorded (gate-1 IN-01)")
+    void aCustomEnvironmentIsNeverRecorded() throws IOException {
+        File container = newContainer();
+        newWorldFolder(container, "customw");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.CUSTOM));
+            World defaultWorld = mockWorld(World.Environment.NORMAL);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+
+            bukkit.when(() -> Bukkit.getWorld("customw")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.unloadWorld("customw", true)).isTrue();
+            live.set(null);
+            assertThat(worldService.loadWorld("customw")).isTrue();
+
+            // CraftServer#createWorld throws IllegalArgumentException on CUSTOM, so handing it back
+            // would turn "loads with the wrong environment" into "throws out of the command".
+            assertThat(captured.get().environment()).isNotEqualTo(World.Environment.CUSTOM);
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
         } finally {
             deleteRecursively(container);
