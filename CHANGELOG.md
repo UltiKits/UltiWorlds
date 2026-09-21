@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
+  Reloading such a world previously reported success while rebinding it to the `NORMAL`
+  environment, so overworld terrain generated over the stored world. The environment comes from
+  what the module recorded when it last created, loaded or unloaded that world, and failing that
+  from the dimension folder the server writes inside the world folder, so it also survives a
+  restart (UltiKits/UltiWorlds#22).
+- `/world load` 现在会把下界或末地世界按其原本维度载入，而不再变为主世界。此前重新载入这类世界会提示成功，
+  却把世界改绑到 `NORMAL` 维度，导致主世界地形覆盖原有世界。维度取自本模块上次创建、载入或卸载该世界时
+  记录的值；若无记录，则读取服务器写入世界文件夹中的维度目录，因此重启后同样有效
+  （UltiKits/UltiWorlds#22）。
 - `/world delete` now refuses a world listed in `protected_worlds`, as that key's own comment
   ("Worlds that cannot be auto-unloaded or deleted") always promised. The sender is told
   "World `<name>` is listed in protected_worlds and cannot be deleted!" and nothing is removed —
