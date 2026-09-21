@@ -170,6 +170,7 @@ world:
 
   delete:
     default: "§cCannot delete the default world!"
+    protected: "§cWorld {WORLD} is listed in protected_worlds and cannot be deleted!"
     deleting: "§6Deleting world {WORLD}, please wait..."
     success: "§cWorld {WORLD} has been deleted!"
     failed: "§cFailed to delete the world!"

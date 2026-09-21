@@ -81,7 +81,7 @@ public class WorldService {
             WorldSettings settings = getOrCreateSettings(worldName);
 
             // Skip if world should not auto-unload
-            if (!settings.isAutoUnload() || config.getProtectedWorlds().contains(worldName)) {
+            if (!settings.isAutoUnload() || isInProtectedWorlds(worldName)) {
                 emptyWorldTimers.remove(worldName);
                 continue;
             }
@@ -412,14 +412,28 @@ public class WorldService {
     /**
      * Delete a world (unload and delete files).
      *
+     * <p>A world the operator marked as protected is refused here, in the service, rather than in
+     * any one caller: {@link com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage} calls this
+     * method directly, so a guard living only in {@code WorldCommand} would leave that path -- and
+     * every future one -- able to delete a protected world. See {@link #isDeleteProtected(String)}.
+     *
      * @return true only if a loaded world was unloaded and, when an on-disk folder existed, that
-     *         folder was actually removed; false if there was nothing to delete, if unloading a
-     *         loaded world failed (in which case nothing is removed from disk), or if the folder
-     *         still exists after the deletion attempt (in which case the settings row is kept so
-     *         the world can be retried or inspected).
+     *         folder was actually removed; false if the world is protected from deletion (in which
+     *         case nothing at all is removed, not even the settings row), if there was nothing to
+     *         delete, if unloading a loaded world failed (in which case nothing is removed from
+     *         disk), or if the folder still exists after the deletion attempt (in which case the
+     *         settings row is kept so the world can be retried or inspected).
      */
     public boolean deleteWorld(String name) {
         if (!isFilesystemSafeWorldName(name)) {
+            return false;
+        }
+
+        if (isDeleteProtected(name)) {
+            plugin.getLogger().warn(
+                "Refused to delete world " + name + ": it is the configured default_world or is"
+                    + " listed in protected_worlds."
+            );
             return false;
         }
 
@@ -451,6 +465,47 @@ public class WorldService {
         settingsCache.remove(name);
 
         return wasLoaded || folderExisted;
+    }
+
+    /**
+     * Whether {@code name} names a world this module refuses to delete: the configured
+     * {@code default_world}, or any entry of {@code protected_worlds}, whose own declared comment
+     * reads "Worlds that cannot be auto-unloaded or deleted".
+     *
+     * <p>The comparison is case-insensitive, which is deliberately stricter than the exact
+     * {@code contains} check this list was originally read with. Bukkit resolves a world name
+     * case-insensitively, and on a case-insensitive filesystem (Windows, macOS) so does the
+     * {@code new File(worldContainer, name)} this class builds, so an exact-match guard would be
+     * bypassable by typing the same world's name in a different case. Two loaded worlds cannot
+     * differ only by case, so the wider match cannot refuse a world the operator did not mean to
+     * protect.
+     *
+     * @param name the world name as typed by the caller
+     * @return true if deleting this world must be refused
+     */
+    public boolean isDeleteProtected(String name) {
+        if (name == null) {
+            return false;
+        }
+        return name.equalsIgnoreCase(config.getDefaultWorld()) || isInProtectedWorlds(name);
+    }
+
+    /**
+     * Case-insensitive membership test against {@code protected_worlds}. Shared by
+     * {@link #isDeleteProtected(String)} and {@link #checkAutoUnloadEmptyWorlds()} so the two
+     * halves of that key's declared promise cannot drift apart again.
+     */
+    private boolean isInProtectedWorlds(String name) {
+        List<String> protectedWorlds = config.getProtectedWorlds();
+        if (protectedWorlds == null) {
+            return false;
+        }
+        for (String protectedWorld : protectedWorlds) {
+            if (name.equalsIgnoreCase(protectedWorld)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

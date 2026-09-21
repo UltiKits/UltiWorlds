@@ -194,6 +194,13 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
+        // WorldService#deleteWorld refuses this on its own -- asking here only decides WHICH
+        // message the sender gets, so that a protected world is not reported as a generic failure.
+        if (worldService.isDeleteProtected(name)) {
+            player.sendMessage(i18n("world.delete.protected").replace("{WORLD}", name));
+            return;
+        }
+
         player.sendMessage(i18n("world.delete.deleting").replace("{WORLD}", name));
         
         if (worldService.deleteWorld(name)) {
