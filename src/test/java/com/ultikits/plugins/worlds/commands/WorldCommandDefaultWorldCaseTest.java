@@ -130,7 +130,16 @@ class WorldCommandDefaultWorldCaseTest {
         assertThat(worldFolder.mkdirs()).isTrue();
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            bukkit.when(() -> Bukkit.getWorld("WORLD")).thenReturn(mock(World.class));
+            World loaded = mock(World.class);
+            when(loaded.getPlayers()).thenReturn(Collections.<Player>emptyList());
+            World fallback = mock(World.class);
+            when(fallback.getSpawnLocation()).thenReturn(mock(org.bukkit.Location.class));
+            // Everything the unguarded deletion needs is stubbed, so the pre-fix path runs to
+            // completion and this test fails on the message and the surviving folder -- not on an
+            // incidental unstubbed call, and not by being aborted into a "skipped" verdict.
+            bukkit.when(() -> Bukkit.getWorld("WORLD")).thenReturn(loaded);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(fallback);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
             bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
             when(mockConfig.getDefaultWorld()).thenReturn("world");
             // Deliberately empty, so "listed in protected_worlds" would be a false statement about
