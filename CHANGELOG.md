@@ -9,44 +9,41 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- `/world load` now says in the console what it is doing when it has to work out a world's
-  environment from the world folder, and refuses to work it out at all when the folder is
-  ambiguous. A folder holding both a top-level `DIM-1` (or `DIM1`) and a top-level `region`
-  directory holds two worlds' terrain at once — which is what the defect below produced — and the
-  folder cannot say which one you want back, so the world is loaded with the server's default
-  environment, exactly as before this version, and a WARNING names the world and what to do about
-  it. If you decide to load it as the other world instead, **move** the directory you are not
-  keeping out of the world folder rather than deleting it: both directories hold terrain players
-  may have built in. The same applies to a single-player save layout carrying both dimension
-  directories, and to a dimension entry that is a symbolic link. An ordinary world with no
-  dimension directory is unaffected and logs nothing (UltiKits/UltiWorlds#22).
-- `/world load` 在需要从世界文件夹推断维度时，现在会在控制台说明它做了什么；当文件夹证据自相矛盾时，
-  则不再推断。同时含有顶层 `DIM-1`（或 `DIM1`）与顶层 `region` 目录的文件夹，同时保存着两个世界的
-  地形——这正是下面那个缺陷造成的——文件夹本身无法说明你想要哪一个，因此该世界会按服务器默认维度加载
-  （与升级前完全一致），并输出一条指明世界名与处理方式的 WARNING。若你决定改为按另一个世界加载，请把
-  不保留的那个目录**移动**到世界文件夹之外，而不要删除：两个目录里都可能有玩家建造的地形。单人存档式
-  （同时含两个维度目录）以及维度目录为符号链接的情况同样如此。没有维度目录的普通世界不受影响，也不会
-  输出任何日志（UltiKits/UltiWorlds#22）。
-- `/world unload` and `/world delete` now compare the name you typed against `default_world`
-  without regard to letter case. With `default_world: lobby`, `/world unload LOBBY` used to miss
-  the "Cannot unload the default world!" refusal and unload the lobby anyway, after which players
-  ejected from other worlds landed somewhere else; and `/world delete WORLD` could be told it was
-  "listed in protected_worlds" when that list was empty (UltiKits/UltiWorlds#20).
-- `/world unload` 与 `/world delete` 现在在与 `default_world` 比对时忽略字母大小写。此前在
-  `default_world: lobby` 下，`/world unload LOBBY` 不会触发"无法卸载默认世界！"的拒绝，仍会把
-  lobby 卸载，随后从其他世界被移出的玩家会落到别处；`/world delete WORLD` 也可能被告知它"已列入
-  protected_worlds"，而那份列表其实是空的（UltiKits/UltiWorlds#20）。
-
-- `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
-  Reloading such a world previously reported success while rebinding it to the `NORMAL`
-  environment, so overworld terrain generated over the stored world. The environment comes from
-  what the module recorded when it last created, loaded or unloaded that world, and failing that
-  from the dimension folder the server writes inside the world folder, so it also survives a
-  restart (UltiKits/UltiWorlds#22).
-- `/world load` 现在会把下界或末地世界按其原本维度载入，而不再变为主世界。此前重新载入这类世界会提示成功，
-  却把世界改绑到 `NORMAL` 维度，导致主世界地形覆盖原有世界。维度取自本模块上次创建、载入或卸载该世界时
-  记录的值；若无记录，则读取服务器写入世界文件夹中的维度目录，因此重启后同样有效
-  （UltiKits/UltiWorlds#22）。
+- `/world load` now works out a world's environment when it has to, refuses to work it out when
+  the world folder is ambiguous, and says in the console which of those happened and what it saw.
+  The console line reports what was found; it never tells you what to do, because the module has
+  just said it cannot read the folder. What each shape means:
+  - **a top-level `DIM-1` (or `DIM1`) directory and no top-level `region`** — an ordinary nether
+    (or end) world. The environment is applied and the line says so. If that is wrong, stop the
+    server and move that directory to a path outside the world folder; the world then loads with
+    the server's default.
+  - **a dimension directory AND a top-level `region` directory** — two worlds' terrain in one
+    folder, which is what the defect below produced. No environment is applied. To load it as the
+    other world, stop the server and **move** the directory you are not keeping to a path outside
+    the world folder — do not delete it: players may have built in either one.
+  - **both `DIM-1` and `DIM1` at the top level** — a single-player save layout. No environment is
+    applied. Move the dimension directory you do not want out of the world folder to reach the
+    first case.
+  - **a dimension entry that is a symbolic link** — the module does not follow links when reading a
+    world folder, so it did not read what the link points at, and no environment is applied.
+    Moving directories out will not change that; either replace the link with a real directory, or
+    leave it and accept the server's default environment.
+  - **no dimension directory** — the ordinary overworld case. Nothing is worked out, nothing is
+    logged, and nothing changes from previous versions (UltiKits/UltiWorlds#22).
+- `/world load` 现在会在需要时推断世界维度；当世界文件夹自相矛盾时则拒绝推断，并在控制台说明发生了
+  哪一种情况、以及它看到了什么。该控制台行只陈述观察到的事实，不会告诉你该怎么做——因为模块刚刚声明
+  自己无法读懂这个文件夹。各种形态的含义：
+  - **有顶层 `DIM-1`（或 `DIM1`）目录且没有顶层 `region`** —— 普通的下界（或末地）世界，会应用该
+    维度并在日志中说明。若这不正确，请停服并把该目录移动到世界文件夹之外，该世界随后会按服务器默认
+    维度加载。
+  - **同时有维度目录与顶层 `region` 目录** —— 一个文件夹里存着两个世界的地形，正是下面那个缺陷造成
+    的。不应用任何维度。若要按另一个世界加载，请停服并把不保留的那个目录**移动**到世界文件夹之外
+    ——不要删除：两个目录里都可能有玩家建造的地形。
+  - **顶层同时有 `DIM-1` 与 `DIM1`** —— 单人存档式布局。不应用任何维度。把不需要的那个维度目录移出
+    世界文件夹即可回到第一种情况。
+  - **维度目录是符号链接** —— 本模块读取世界文件夹时不跟随链接，因此没有读取链接指向的内容，也不应用
+    任何维度。移动其他目录不会改变这一点；请改为用真实目录替换该链接，或保持现状并接受服务器默认维度。
+  - **没有维度目录** —— 普通主世界，不推断、不输出日志，与旧版本完全一致（UltiKits/UltiWorlds#22）。
 - `/world delete` now refuses a world listed in `protected_worlds`, as that key's own comment
   ("Worlds that cannot be auto-unloaded or deleted") always promised. The sender is told
   "World `<name>` is listed in protected_worlds and cannot be deleted!" and nothing is removed —
