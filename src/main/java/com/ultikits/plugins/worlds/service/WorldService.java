@@ -435,12 +435,11 @@ public class WorldService {
      * existing from their point of view. The population that installs this fix is, by definition,
      * servers that hit {@code UltiKits/UltiWorlds#22}: their nether world was reloaded as an
      * overworld, and overworld terrain was then generated into the world folder's <em>top-level</em>
-     * {@code region} directory, beside the original nether data in {@code DIM-1}. Such a folder is
-     * real and exists in this project's own evidence tree: of the 7 {@code DIM-1} directories under
-     * the test-server tree, exactly 1 sits beside a top-level {@code region} directory, and that one
-     * carries nether region files written at 02:01 and overworld region files written at 02:21 --
-     * the physical footprint of the defect. The folder alone cannot say which of those two worlds
-     * the operator wants back, so this method does not decide it.
+     * {@code region} directory, beside the original nether data in {@code DIM-1}. A world folder
+     * can therefore carry a dimension directory and a top-level {@code region} directory at the
+     * same time, each holding a different world's terrain, and that shape is exactly what the
+     * defect produced. The folder alone cannot say which of those two worlds the operator wants
+     * back, so this method does not decide it.
      *
      * <p>The rules, in order:
      * <ol>
@@ -463,9 +462,8 @@ public class WorldService {
      * environment and must not be read as if it did.
      *
      * <p>Note the asymmetry rule 1 encodes: the absence of {@code region} is <em>not</em> taken as
-     * evidence of a dimension. A freshly created world that has never saved a chunk has no
-     * {@code region} directory either -- one such world sits in the test-server tree -- so
-     * "no region, therefore nether" would be wrong.
+     * evidence of a dimension. A world that has been created but has never saved a chunk has no
+     * {@code region} directory either, so "no region, therefore nether" would be wrong.
      *
      * @return the inferred environment, or {@code null} when this method declines to infer one
      */
@@ -489,9 +487,11 @@ public class WorldService {
         }
         String marker = nether ? "DIM-1" : "DIM1";
         if (isDirectChildDirectory(worldFolder, "region")) {
-            declineToInfer(name, "it contains both a top-level '" + marker + "' directory and a"
-                + " top-level 'region' directory, so it has been served as two different worlds at"
-                + " different times -- the footprint of UltiKits/UltiWorlds#22");
+            declineToInfer(name, "it holds two worlds' terrain at once: a top-level '" + marker
+                + "' directory and a top-level 'region' directory. That is what"
+                + " UltiKits/UltiWorlds#22 produced -- '" + marker + "' holds the terrain from"
+                + " before the world was reloaded as an overworld, 'region' holds the overworld"
+                + " terrain generated since. Players may have built in either one");
             return null;
         }
 
@@ -509,16 +509,27 @@ public class WorldService {
 
     /**
      * Says at WARNING that no environment was inferred for {@code name}, why, and what the operator
-     * can do about it. Never silent: a boot-time decision about which region files a world reads is
-     * not something an operator should have to discover from missing buildings.
+     * can do about it. Announced once per world per session -- a boot-time decision about which
+     * region files a world reads is not something an operator should have to discover from missing
+     * buildings. (Once per session rather than once per load: after declining, {@code loadWorld}
+     * records what the server actually produced, so a second load in the same session takes the
+     * recorded branch, which is silent because it is no longer a guess.)
+     *
+     * <p>The remedy this prints must never be "delete". The operator reading it has real terrain in
+     * BOTH directories -- that is what made the folder ambiguous -- so an instruction that ends in
+     * a removal would destroy whichever world they are not currently thinking about. Moving a
+     * directory out is reversible; deleting it is not, and the recoverability of the other world is
+     * the whole reason this method refuses instead of guessing.
      */
     private void declineToInfer(String name, String reason) {
         plugin.getLogger().warn(
             "World '" + name + "' has no recorded environment and its world folder does not say"
                 + " which environment it is, because " + reason + ". It is being loaded with the"
                 + " server's default environment -- the same as before this version -- rather than"
-                + " guessing. If it should be a nether or end world, stop the server, leave only"
-                + " that dimension's own directory in the world folder, and start again."
+                + " guessing. To load it as a nether or end world instead, stop the server and move"
+                + " the OTHER directory out of the world folder, to a path outside it. Do not delete"
+                + " it: it holds a real world's terrain, and whichever directory you move out is the"
+                + " one whose blocks stop being visible."
         );
     }
 
