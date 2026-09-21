@@ -120,6 +120,29 @@ class WorldServiceLoadEnvironmentTest {
         file.delete();
     }
 
+    /**
+     * Every refusal says the same two things, whichever branch produced it: that no environment was
+     * applied, and where the procedure is written down. Gate-1 R3-WR-09: the line must point at the
+     * procedure rather than inline one, because one sentence cannot give a correct procedure for
+     * three structurally different folder shapes -- the shared instruction it replaced was wrong on
+     * two of the three.
+     */
+    private void assertNoDecisionReported(PluginLogger logger) {
+        verify(logger).warn(contains("no environment was applied"));
+        verify(logger).warn(contains("server's own default environment"));
+        assertNoInstruction(logger);
+    }
+
+    /** The log states what it observed; it never tells the operator what to do about it. */
+    private void assertNoInstruction(PluginLogger logger) {
+        verify(logger).warn(contains("changelog entry"));
+        verify(logger).warn(contains("UltiKits/UltiWorlds#22"));
+        verify(logger, never()).warn(contains("stop the server"));
+        verify(logger, never()).warn(contains("move"));
+        verify(logger, never()).warn(contains("leave only"));
+        verify(logger, never()).warn(contains("Do not delete"));
+    }
+
     private World mockWorld(World.Environment environment) {
         World world = mock(World.class);
         when(world.getEnvironment()).thenReturn(environment);
@@ -402,16 +425,12 @@ class WorldServiceLoadEnvironmentTest {
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
 
             PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
+            // This branch's OWN observation: two directories, each holding a world's terrain.
             verify(logger).warn(contains("bothw"));
-            verify(logger).warn(contains("region"));
-            verify(logger).warn(contains("rather than"));
-            // Gate-1 R2-WR-05. The operator reading this line has real terrain in BOTH
-            // directories -- that is what made the folder ambiguous -- so the remedy must be
-            // "move out", never "leave only", which reads as "delete the other one". An earlier
-            // wording said exactly that, and no assertion noticed.
-            verify(logger).warn(contains("move"));
-            verify(logger).warn(contains("Do not delete"));
-            verify(logger, never()).warn(contains("leave only"));
+            verify(logger).warn(contains("top-level 'DIM-1' directory"));
+            verify(logger).warn(contains("top-level 'region' directory"));
+            verify(logger).warn(contains("each holding a different world's terrain"));
+            assertNoDecisionReported(logger);
         } finally {
             deleteRecursively(container);
         }
@@ -434,7 +453,8 @@ class WorldServiceLoadEnvironmentTest {
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
             PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
             verify(logger).warn(contains("savew"));
-            verify(logger).warn(contains("Do not delete"));
+            verify(logger).warn(contains("both a top-level 'DIM-1' directory and a top-level 'DIM1' directory"));
+            assertNoDecisionReported(logger);
         } finally {
             deleteRecursively(container);
         }
@@ -465,7 +485,15 @@ class WorldServiceLoadEnvironmentTest {
             // deleteFolder in this same class deliberately does not follow links; reading one as
             // evidence about this world would be a second, contradictory policy on links.
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
-            verify(UltiWorldsTestHelper.getMockLogger()).warn(contains("symbolic link"));
+            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
+            verify(logger).warn(contains("linkw"));
+            verify(logger).warn(contains("symbolic link"));
+            verify(logger).warn(contains("whatever the link points at was not read"));
+            // `linkw` contains nothing but the link, so any sentence promising an "other
+            // directory" that "holds a real world's terrain" would be describing something that
+            // does not exist. That is what an instruction shared across branches did.
+            verify(logger, never()).warn(contains("OTHER directory"));
+            assertNoDecisionReported(logger);
         } finally {
             deleteRecursively(container);
         }
@@ -490,7 +518,8 @@ class WorldServiceLoadEnvironmentTest {
             verify(logger).warn(contains("loudw"));
             verify(logger).warn(contains("NETHER"));
             verify(logger).warn(contains("DIM-1"));
-            verify(logger).warn(contains("stop the server"));
+            verify(logger).warn(contains("no top-level 'region' directory"));
+            assertNoInstruction(logger);
         } finally {
             deleteRecursively(container);
         }
