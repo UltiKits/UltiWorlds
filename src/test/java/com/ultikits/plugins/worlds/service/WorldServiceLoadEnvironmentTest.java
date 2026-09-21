@@ -405,6 +405,13 @@ class WorldServiceLoadEnvironmentTest {
             verify(logger).warn(contains("bothw"));
             verify(logger).warn(contains("region"));
             verify(logger).warn(contains("rather than"));
+            // Gate-1 R2-WR-05. The operator reading this line has real terrain in BOTH
+            // directories -- that is what made the folder ambiguous -- so the remedy must be
+            // "move out", never "leave only", which reads as "delete the other one". An earlier
+            // wording said exactly that, and no assertion noticed.
+            verify(logger).warn(contains("move"));
+            verify(logger).warn(contains("Do not delete"));
+            verify(logger, never()).warn(contains("leave only"));
         } finally {
             deleteRecursively(container);
         }
@@ -425,7 +432,9 @@ class WorldServiceLoadEnvironmentTest {
             assertThat(worldService.loadWorld("savew")).isTrue();
 
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
-            verify(UltiWorldsTestHelper.getMockLogger()).warn(contains("savew"));
+            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
+            verify(logger).warn(contains("savew"));
+            verify(logger).warn(contains("Do not delete"));
         } finally {
             deleteRecursively(container);
         }
