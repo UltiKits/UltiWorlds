@@ -12,16 +12,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `/world load` now says in the console what it is doing when it has to work out a world's
   environment from the world folder, and refuses to work it out at all when the folder is
   ambiguous. A folder holding both a top-level `DIM-1` (or `DIM1`) and a top-level `region`
-  directory has been served as two different worlds at different times — the footprint of the
-  defect below — and the folder cannot say which one you want back, so the world is loaded with the
-  server's default environment, exactly as before this version, and a WARNING names the world and
-  what to do about it. The same applies to a single-player save layout carrying both dimension
+  directory holds two worlds' terrain at once — which is what the defect below produced — and the
+  folder cannot say which one you want back, so the world is loaded with the server's default
+  environment, exactly as before this version, and a WARNING names the world and what to do about
+  it. If you decide to load it as the other world instead, **move** the directory you are not
+  keeping out of the world folder rather than deleting it: both directories hold terrain players
+  may have built in. The same applies to a single-player save layout carrying both dimension
   directories, and to a dimension entry that is a symbolic link. An ordinary world with no
   dimension directory is unaffected and logs nothing (UltiKits/UltiWorlds#22).
 - `/world load` 在需要从世界文件夹推断维度时，现在会在控制台说明它做了什么；当文件夹证据自相矛盾时，
-  则不再推断。同时含有顶层 `DIM-1`（或 `DIM1`）与顶层 `region` 目录的文件夹，说明它在不同时期被当作
-  两个不同的世界加载过——这正是下面那个缺陷留下的痕迹——文件夹本身无法说明你想要哪一个，因此该世界会
-  按服务器默认维度加载（与升级前完全一致），并输出一条指明世界名与处理方式的 WARNING。单人存档式
+  则不再推断。同时含有顶层 `DIM-1`（或 `DIM1`）与顶层 `region` 目录的文件夹，同时保存着两个世界的
+  地形——这正是下面那个缺陷造成的——文件夹本身无法说明你想要哪一个，因此该世界会按服务器默认维度加载
+  （与升级前完全一致），并输出一条指明世界名与处理方式的 WARNING。若你决定改为按另一个世界加载，请把
+  不保留的那个目录**移动**到世界文件夹之外，而不要删除：两个目录里都可能有玩家建造的地形。单人存档式
   （同时含两个维度目录）以及维度目录为符号链接的情况同样如此。没有维度目录的普通世界不受影响，也不会
   输出任何日志（UltiKits/UltiWorlds#22）。
 - `/world unload` and `/world delete` now compare the name you typed against `default_world`
