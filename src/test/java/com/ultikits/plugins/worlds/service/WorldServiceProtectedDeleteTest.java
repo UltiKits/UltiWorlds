@@ -283,4 +283,67 @@ class WorldServiceProtectedDeleteTest {
             deleteRecursively(worldFolder);
         }
     }
+
+    @Test
+    @DisplayName("a world folder that is itself a link loses the link, never what it points at")
+    void deleteRemovesOnlyTheLinkWhenTheWorldFolderItselfIsALink() throws IOException {
+        File target = createWorldFolderWithContent("p17_link_target_");
+        File link = new File(target.getParentFile(), "p17alias" + System.nanoTime());
+        Files.createSymbolicLink(link.toPath(), target.toPath());
+        String aliasName = link.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            bukkit.when(() -> Bukkit.getWorld(aliasName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(target.getParentFile());
+            stubQueryChain();
+
+            boolean result = worldService.deleteWorld(aliasName);
+
+            // The module already holds that a linked directory is not part of the world folder, so
+            // only the link entry is removed. That rule was written for a link found among the
+            // children and did not hold for a link in the root position: listFiles() follows it,
+            // and everything the link points at was deleted through it. A rule about links has to
+            // hold wherever the link is, or it is a rule about one position.
+            assertThat(result).isTrue();
+            assertThat(link).doesNotExist();
+            assertThat(target).exists();
+            assertThat(new File(new File(target, "region"), "r.0.0.mca")).exists();
+        } finally {
+            link.delete();
+            deleteRecursively(target);
+        }
+    }
+
+    @Test
+    @DisplayName("a protected world's data survives deleting an unprotected link that points at it")
+    void aProtectedWorldsDataSurvivesDeletingALinkToIt() throws IOException {
+        File guarded = createWorldFolderWithContent("p17_guarded_");
+        File backdoor = new File(guarded.getParentFile(), "p17backdoor" + System.nanoTime());
+        Files.createSymbolicLink(backdoor.toPath(), guarded.toPath());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList(guarded.getName()));
+            bukkit.when(() -> Bukkit.getWorld(backdoor.getName())).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(guarded.getParentFile());
+            stubQueryChain();
+
+            worldService.deleteWorld(backdoor.getName());
+
+            // `protected_worlds` is a list of names, and a link's name is not the name of what it
+            // points at, so a name-based guard cannot see this one coming however it is spelled.
+            // It does not have to: a deletion that never traverses a link cannot reach the
+            // protected world's data under any name. Resolving the link and re-checking the guard
+            // would close this one path and leave every link to an UNprotected world still
+            // destructive, which is the same defect with a smaller audience.
+            assertThat(guarded).exists();
+            assertThat(new File(new File(guarded, "region"), "r.0.0.mca")).exists();
+        } finally {
+            backdoor.delete();
+            deleteRecursively(guarded);
+        }
+    }
+
 }
