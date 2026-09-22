@@ -164,19 +164,20 @@ class WorldServiceLoadEnvironmentTest {
     /** The whole refusal line, for a branch whose own observation is {@code observation}. */
     private void assertRefusedWith(PluginLogger logger, String world, String observation) {
         assertThat(onlyLineLoggedBy(logger)).isEqualTo(
-                "World '" + world + "': no environment was applied, because " + observation + "."
-                        + " This module does not guess an environment it cannot read from the"
-                        + " folder, so the world was loaded with the server's own default"
-                        + " environment -- the same as before this version." + POINTER);
+                "World '" + world + "': this module supplies no environment, because "
+                        + observation + ". It does not guess an environment it cannot read from"
+                        + " the folder, so the server's own default applies -- the same as before"
+                        + " this version." + POINTER);
     }
 
     /** The whole answering line. */
     private void assertAnsweredWith(PluginLogger logger, String world,
                                     World.Environment environment, String marker) {
         assertThat(onlyLineLoggedBy(logger)).isEqualTo(
-                "World '" + world + "' was loaded as " + environment
-                        + ", because its folder contains a top-level '" + marker + "' directory and"
-                        + " no top-level 'region' directory." + POINTER);
+                "World '" + world + "': this module supplies " + environment
+                        + " as the environment to load with, because its folder contains a"
+                        + " top-level '" + marker + "' directory and no top-level 'region'"
+                        + " directory." + POINTER);
     }
 
     private World mockWorld(World.Environment environment) {
@@ -883,4 +884,34 @@ class WorldServiceLoadEnvironmentTest {
             deleteRecursively(container);
         }
     }
+
+    @Test
+    @DisplayName("a load the server refuses is not announced as a load that happened")
+    void aFailedCreationIsNotAnnouncedAsALoad() throws IOException {
+        File container = newContainer();
+        newWorldFolder(container, "failw", "DIM-1");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("failw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            captureCreator(bukkit);
+            // The server declines to build it -- a corrupt level.dat, a locked folder, a generator
+            // that will not resolve. loadWorld returns false.
+            bukkit.when(() -> Bukkit.createWorld(any(WorldCreator.class))).thenReturn(null);
+
+            assertThat(worldService.loadWorld("failw")).isFalse();
+
+            // The line is printed while the environment is being decided, which is BEFORE the
+            // server is asked to build anything, so it cannot report what the load did. Written in
+            // the past tense it told the operator the world "was loaded as NETHER" and the command
+            // then failed -- two contradictory diagnostics for one command. It now states what this
+            // module supplies, which is true at the moment it is printed whatever happens next.
+            assertAnsweredWith(UltiWorldsTestHelper.getMockLogger(), "failw",
+                    World.Environment.NETHER, "DIM-1");
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
 }
