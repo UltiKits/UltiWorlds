@@ -490,9 +490,10 @@ public class WorldService {
 
         World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
         plugin.getLogger().warn(
-            "World '" + name + "' was loaded as " + inferred
-                + ", because its folder contains a top-level '" + marker + "' directory and no"
-                + " top-level 'region' directory." + WHERE_THE_PROCEDURE_LIVES
+            "World '" + name + "': this module supplies " + inferred
+                + " as the environment to load with, because its folder contains a top-level '"
+                + marker + "' directory and no top-level 'region' directory."
+                + WHERE_THE_PROCEDURE_LIVES
         );
         return inferred;
     }
@@ -527,11 +528,16 @@ public class WorldService {
      * @param observation what was found in the folder, stated as fact and owned by the caller
      */
     private void reportNoDecision(String name, String observation) {
+        // Present tense throughout, and deliberately. This runs while the environment is being
+        // decided -- before the server has been asked to build anything -- so a past tense here
+        // states an outcome that has not happened and may not: `createWorld` can return null, and
+        // the operator would then hold one line saying the world was loaded and another saying the
+        // command failed. What is true at this moment is what this module supplies.
         plugin.getLogger().warn(
-            "World '" + name + "': no environment was applied, because " + observation + "."
-                + " This module does not guess an environment it cannot read from the folder, so"
-                + " the world was loaded with the server's own default environment -- the same as"
-                + " before this version." + WHERE_THE_PROCEDURE_LIVES
+            "World '" + name + "': this module supplies no environment, because " + observation
+                + ". It does not guess an environment it cannot read from the folder, so the"
+                + " server's own default applies -- the same as before this version."
+                + WHERE_THE_PROCEDURE_LIVES
         );
     }
 
