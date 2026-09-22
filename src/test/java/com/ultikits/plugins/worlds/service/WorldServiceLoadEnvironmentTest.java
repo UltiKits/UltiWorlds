@@ -174,7 +174,7 @@ class WorldServiceLoadEnvironmentTest {
     private void assertAnsweredWith(PluginLogger logger, String world,
                                     World.Environment environment, String marker) {
         assertThat(onlyLineLoggedBy(logger)).isEqualTo(
-                "World '" + world + "' had no recorded environment and was loaded as " + environment
+                "World '" + world + "' was loaded as " + environment
                         + ", because its folder contains a top-level '" + marker + "' directory and"
                         + " no top-level 'region' directory." + POINTER);
     }
@@ -223,11 +223,12 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("loadWorld restores the NETHER environment recorded when the world was unloaded")
-    void loadRestoresTheEnvironmentRecordedAtUnload() throws IOException {
+    @DisplayName("loadWorld puts a NETHER world back as NETHER across an unload")
+    void loadRestoresNetherAcrossAnUnload() throws IOException {
         File container = newContainer();
-        // No dimension folder at all, so only the recorded value can supply NETHER here.
-        newWorldFolder(container, "netherw");
+        // The marker a real server writes for a nether world: every dimension stores its data under
+        // its own dimension path, so `DIM-1` exists from creation, before anyone enters the world.
+        newWorldFolder(container, "netherw", "DIM-1");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER, "netherw"));
@@ -255,10 +256,10 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("loadWorld restores the THE_END environment recorded when the world was unloaded")
-    void loadRestoresTheEndEnvironmentRecordedAtUnload() throws IOException {
+    @DisplayName("loadWorld puts a THE_END world back as THE_END across an unload")
+    void loadRestoresTheEndAcrossAnUnload() throws IOException {
         File container = newContainer();
-        newWorldFolder(container, "endw");
+        newWorldFolder(container, "endw", "DIM1");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.THE_END, "endw"));
@@ -285,8 +286,8 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("loadWorld restores the environment a world was created with, across an unload")
-    void loadRestoresTheEnvironmentRecordedAtCreation() throws IOException {
+    @DisplayName("a world created as NETHER comes back as NETHER after an unload")
+    void loadRestoresTheEnvironmentAWorldWasCreatedWith() throws IOException {
         File container = newContainer();
         File worldFolder = new File(container, "madew");
 
@@ -301,9 +302,9 @@ class WorldServiceLoadEnvironmentTest {
                     .isTrue();
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
 
-            // The server writes the folder as part of creating the world; the fixture stands in
-            // for that, WITHOUT a dimension folder, so only the recorded value can supply NETHER.
-            assertThat(worldFolder.mkdirs()).isTrue();
+            // The server writes the folder as part of creating the world, including the
+            // dimension path each dimension stores its data under; the fixture stands in for that.
+            assertThat(new File(worldFolder, "DIM-1").mkdirs()).isTrue();
             captured.set(null);
 
             assertThat(worldService.loadWorld("madew")).isTrue();
@@ -408,8 +409,8 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("repairing an ambiguous folder works in the same session: a declined load is not recorded")
-    void aDeclinedLoadIsNotRecordedAsThoughItWereAnAnswer() throws IOException {
+    @DisplayName("repairing an ambiguous folder works in the same session: the folder is read again")
+    void theRepairedFolderIsReadAgainInTheSameSession() throws IOException {
         File container = newContainer();
         // Ambiguous: the shape the changelog tells an operator to repair by moving `region` out.
         File worldFolder = newWorldFolder(container, "repairw", "DIM-1", "region");
@@ -441,8 +442,8 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("a declined load does not poison the record by way of a later unload either")
-    void aDeclinedLoadIsNotRecordedByWayOfUnload() throws IOException {
+    @DisplayName("an unload in between does not change what the repaired folder says")
+    void anUnloadInBetweenDoesNotChangeWhatTheRepairedFolderSays() throws IOException {
         File container = newContainer();
         File worldFolder = newWorldFolder(container, "repairu", "DIM-1", "region");
 
@@ -474,24 +475,17 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("the recorded environment is found again whatever case the world name is typed in")
-    void theRecordIsFoundWhateverCaseTheNameIsTypedIn() throws IOException {
+    @DisplayName("a second load while the world is loaded cannot change what a later load decides")
+    void aSecondLoadWhileLoadedCannotChangeWhatALaterLoadDecides() throws IOException {
         File container = newContainer();
-        // The world's real name, and its folder, are lower case; the operator typed the name in
-        // another case at unload, which Bukkit resolves. The folder is created under the real name
-        // so this does not depend on how the filesystem treats case -- the platform behaviour under
-        // test is Bukkit's name resolution, not the filesystem's.
-        // No dimension entry, so only the record can supply NETHER; the folder cannot.
-        newWorldFolder(container, "netherworld");
+        // Ambiguous, so the first load declines and the server applies its own default.
+        File worldFolder = newWorldFolder(container, "fastpathw", "DIM-1", "region");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live =
-                    new AtomicReference<World>(mockWorld(World.Environment.NETHER, "netherworld"));
+            AtomicReference<World> live = new AtomicReference<World>(null);
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
-            bukkit.when(() -> Bukkit.getWorld("NetherWorld")).thenAnswer(invocation -> live.get());
-            // Bukkit resolves a world name case-insensitively, so both spellings reach one world.
-            bukkit.when(() -> Bukkit.getWorld("netherworld")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("fastpathw")).thenAnswer(invocation -> live.get());
             bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
             bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
             bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
@@ -499,13 +493,26 @@ class WorldServiceLoadEnvironmentTest {
             stubQueryChain();
             AtomicReference<WorldCreator> captured = captureCreator(bukkit);
 
-            assertThat(worldService.unloadWorld("NetherWorld", true)).isTrue();
+            assertThat(worldService.loadWorld("fastpathw")).isTrue();
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+            live.set(mockWorld(World.Environment.NORMAL, "fastpathw"));
+
+            // The operator types the command a second time while the world is still loaded -- the
+            // ordinary "is it up yet?" reflex, and a no-op as far as they can tell.
+            assertThat(worldService.loadWorld("fastpathw")).isTrue();
+
+            // They then repair the folder exactly as the published procedure says, and cycle it.
+            assertThat(new File(worldFolder, "region").delete()).isTrue();
+            assertThat(worldService.unloadWorld("fastpathw", true)).isTrue();
             live.set(null);
+            captured.set(null);
 
-            assertThat(worldService.loadWorld("netherworld")).isTrue();
+            assertThat(worldService.loadWorld("fastpathw")).isTrue();
 
-            // A case-sensitive map key misses the record, the folder has nothing to infer from, and
-            // the world is rebuilt NORMAL -- the very terrain problem this change exists to stop.
+            // Anything carried between calls makes that harmless second command consequential: it
+            // is the step that captures the server's own default as though this module had chosen
+            // it, and the repaired folder is then never read. Reading the folder at the point of
+            // use has no state for a repeated command to disturb.
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
         } finally {
             deleteRecursively(container);
@@ -513,14 +520,76 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("two case-differing folders that are genuinely different worlds keep separate records")
-    void twoCaseDifferingFoldersKeepSeparateRecords() throws IOException {
+    @DisplayName("a folder that becomes ambiguous is not answered from memory of when it was not")
+    void aFolderThatBecomesAmbiguousIsNotAnsweredFromMemory() throws IOException {
         File container = newContainer();
-        // On a case-sensitive filesystem these are two different worlds. Bukkit will not load both
-        // at once, but both folders exist, and the environment of one must never be applied to the
-        // other. Neither carries a dimension entry, so a record is the only thing that could.
-        newWorldFolder(container, "Arena");
-        newWorldFolder(container, "arena");
+        File worldFolder = newWorldFolder(container, "driftw", "DIM-1");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            AtomicReference<World> live = new AtomicReference<World>(null);
+            World defaultWorld = mockWorld(World.Environment.NORMAL);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+            bukkit.when(() -> Bukkit.getWorld("driftw")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("driftw")).isTrue();
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
+            live.set(mockWorld(World.Environment.NETHER, "driftw"));
+            assertThat(worldService.unloadWorld("driftw", true)).isTrue();
+            live.set(null);
+
+            // Someone restores a backup, or copies a save in, and the folder is now ambiguous.
+            assertThat(new File(worldFolder, "region").mkdirs()).isTrue();
+            captured.set(null);
+
+            assertThat(worldService.loadWorld("driftw")).isTrue();
+
+            // The repair tests above pin the direction where the folder gets better. This is the
+            // direction where it gets worse, and it is the same rule: the folder is mutable
+            // between two commands, so the answer has to be read when the question is asked. A
+            // remembered NETHER here points the server at DIM-1/region while a top-level region/
+            // sits beside it, which is precisely the ambiguity the module refuses to resolve.
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+
+    // ---------------------------------------------------------------------------------------
+    // Retired with the environment record (see CHANGELOG.md for this version). Two tests pinned
+    // behaviour that only a remembered value could deliver, and are gone with it:
+    //
+    //   theRecordIsFoundWhateverCaseTheNameIsTypedIn -- a NETHER world whose folder carries NO
+    //   dimension marker, unloaded and reloaded inside one session. Measured against real world
+    //   folders, the server does not produce that shape: every dimension stores its data under its
+    //   own dimension path, so a nether world has `DIM-1/data/` from creation. A world created and
+    //   never entered (32K, no region/, no entities/, no poi/) still has its dimension data
+    //   written. A marker-less folder that is genuinely not an overworld is an operator-made
+    //   shape, and for operator-made shapes the repair tests above are the governing rule: the
+    //   folder is read again, it is not answered from memory.
+    //
+    //   loadUsesARecordedEnvironmentSilently -- there is no silent answering path left to pin.
+    //   Silence for an ordinary overworld folder is pinned by loadIsSilentForAnOrdinaryOverworldFolder;
+    //   every other answer now comes from the folder and says so.
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("two case-differing folders that are genuinely different worlds each answer for themselves")
+    void twoCaseDifferingFoldersEachAnswerForThemselves() throws IOException {
+        File container = newContainer();
+        // On a case-sensitive filesystem these are two different worlds. Bukkit will not load
+        // both at once, but both folders exist, and the environment of one must never be applied
+        // to the other. `Arena` is a nether world and says so; `arena` is an overworld and says so.
+        // Giving `Arena` the marker is what keeps this test from passing vacuously -- with no
+        // marker anywhere, every shape of this service answers NORMAL for `arena` regardless.
+        newWorldFolder(container, "Arena", "DIM-1");
+        newWorldFolder(container, "arena", "region");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             World liveArena = mockWorld(World.Environment.NETHER);
@@ -543,10 +612,10 @@ class WorldServiceLoadEnvironmentTest {
 
             assertThat(worldService.loadWorld("arena")).isTrue();
 
-            // A record keyed on a lower-cased name collapses these two worlds into one, and `arena`
-            // -- an overworld -- is rebuilt as the NETHER that belonged to `Arena`. Identity has to
-            // come from the thing that owns it: the registry while a world is loaded, and the
-            // filesystem when it is not. Normalising a string is an approximation of both.
+            // Anything that carries a world's environment from one call to the next, keyed by a
+            // name, collapses these two into one and rebuilds `arena` -- an overworld -- as the
+            // NETHER that belongs to `Arena`. Reading each world's own folder at the point of use
+            // cannot make that mistake, because there is no key and nothing carried.
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
         } finally {
             deleteRecursively(container);
@@ -554,10 +623,10 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("deleteWorld forgets the recorded environment, so a later world of the same name is not mislabelled")
-    void deleteForgetsTheRecordedEnvironment() throws IOException {
+    @DisplayName("a later world of the same name is not mislabelled by the deleted one")
+    void aLaterWorldOfTheSameNameIsNotMislabelled() throws IOException {
         File container = newContainer();
-        File worldFolder = newWorldFolder(container, "reusedw");
+        File worldFolder = newWorldFolder(container, "reusedw", "DIM-1");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER, "reusedw"));
@@ -780,43 +849,12 @@ class WorldServiceLoadEnvironmentTest {
         }
     }
 
-    @Test
-    @DisplayName("loadWorld uses a recorded environment silently, because a record is not a guess")
-    void loadUsesARecordedEnvironmentSilently() throws IOException {
-        File container = newContainer();
-        newWorldFolder(container, "quietw");
-
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER, "quietw"));
-            World defaultWorld = mockWorld(World.Environment.NORMAL);
-            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
-
-            bukkit.when(() -> Bukkit.getWorld("quietw")).thenAnswer(invocation -> live.get());
-            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
-            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
-            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
-            when(mockConfig.getDefaultWorld()).thenReturn("world");
-            stubQueryChain();
-            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
-
-            assertThat(worldService.unloadWorld("quietw", true)).isTrue();
-            live.set(null);
-            assertThat(worldService.loadWorld("quietw")).isTrue();
-
-            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
-            verify(UltiWorldsTestHelper.getMockLogger(), never()).warn(anyString());
-            // ...and nothing through any other method on the same logger either.
-            verifyNoMoreInteractions(UltiWorldsTestHelper.getMockLogger());
-        } finally {
-            deleteRecursively(container);
-        }
-    }
 
     @Test
-    @DisplayName("an environment the server cannot rebuild is never recorded (gate-1 IN-01)")
-    void aCustomEnvironmentIsNeverRecorded() throws IOException {
+    @DisplayName("an environment the server cannot rebuild never reaches the creator (gate-1 IN-01)")
+    void aCustomEnvironmentNeverReachesTheCreator() throws IOException {
         File container = newContainer();
-        newWorldFolder(container, "customw");
+        newWorldFolder(container, "customw", "DIM-1");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.CUSTOM, "customw"));
@@ -835,10 +873,12 @@ class WorldServiceLoadEnvironmentTest {
             live.set(null);
             assertThat(worldService.loadWorld("customw")).isTrue();
 
-            // CraftServer#createWorld throws IllegalArgumentException on CUSTOM, so handing it back
-            // would turn "loads with the wrong environment" into "throws out of the command".
+            // CraftServer#createWorld throws IllegalArgumentException on CUSTOM, so handing it
+            // back would turn "loads with the wrong environment" into "throws out of the command".
+            // The live world reports CUSTOM and its folder reports NETHER: the answer must come
+            // from the folder, which can only ever name an environment the server can rebuild.
             assertThat(captured.get().environment()).isNotEqualTo(World.Environment.CUSTOM);
-            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
         } finally {
             deleteRecursively(container);
         }
