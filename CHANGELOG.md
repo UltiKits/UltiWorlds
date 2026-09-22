@@ -11,14 +11,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
   Reloading such a world previously reported success while rebinding it to the `NORMAL`
-  environment, so overworld terrain generated over the stored world. The environment comes from
-  what the module recorded when it last created, loaded or unloaded that world, and failing that
-  from the dimension folder the server writes inside the world folder, so it also survives a
-  restart (UltiKits/UltiWorlds#22).
+  environment, so overworld terrain generated over the stored world. The environment is read from
+  the dimension folder the server writes inside the world folder, and it is read again every time
+  the command runs -- so it survives a restart, and it describes the folder as it is now rather
+  than as it was earlier in the session. That is what makes the `move X out ->` column below
+  something you can act on without restarting the server (UltiKits/UltiWorlds#22).
 - `/world load` 现在会把下界或末地世界按其原本维度载入，而不再变为主世界。此前重新载入这类世界会提示成功，
-  却把世界改绑到 `NORMAL` 维度，导致主世界地形覆盖原有世界。维度取自本模块上次创建、载入或卸载该世界时
-  记录的值；若无记录，则读取服务器写入世界文件夹中的维度目录，因此重启后同样有效
-  （UltiKits/UltiWorlds#22）。
+  却把世界改绑到 `NORMAL` 维度，导致主世界地形覆盖原有世界。维度读取自服务器写入世界文件夹中的维度目录，
+  且每次执行该命令时都会重新读取——因此重启后同样有效，并且反映文件夹当前的状态，而不是本次会话中较早时
+  的状态。这也是下方 `move X out ->` 一列无需重启服务器即可生效的原因（UltiKits/UltiWorlds#22）。
 - `/world load` now works out a world's environment when it has to, refuses to work it out when
   the world folder is ambiguous, and says in the console which of those happened and what it saw.
   The console line reports what was found; it never tells you what to do, because the module has
