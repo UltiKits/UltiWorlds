@@ -523,6 +523,38 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
+    @DisplayName("when a folder matches two refusal rules, the earlier rule is the one reported")
+    void theEarlierRefusalRuleIsTheOneReported() throws IOException {
+        File container = newContainer();
+        File worldFolder = newWorldFolder(container, "orderw", "region");
+        File target = new File(container, "elsewhere");
+        assertThat(target.mkdirs()).isTrue();
+        java.nio.file.Files.createSymbolicLink(
+                new File(worldFolder, "DIM-1").toPath(), target.toPath());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("orderw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("orderw")).isTrue();
+
+            // Both the symlink rule and the region rule match this folder and BOTH refuse, so the
+            // environment is the same either way and only the reported observation can tell them
+            // apart. The published procedure for the symlink shape rests on that rule winning --
+            // it is why "moving directories out cannot help" is true -- so the order has to be
+            // asserted on the line, not on the outcome. The outcome table cannot see it.
+            assertRefusedWith(UltiWorldsTestHelper.getMockLogger(), "orderw",
+                    "its dimension entry is a symbolic link, and this module does not follow links"
+                            + " when reading a world folder, so whatever the link points at was not"
+                            + " read");
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
     @DisplayName("loadWorld reports a dangling dimension link instead of passing over it in silence")
     void loadReportsADanglingDimensionLink() throws IOException {
         File container = newContainer();
