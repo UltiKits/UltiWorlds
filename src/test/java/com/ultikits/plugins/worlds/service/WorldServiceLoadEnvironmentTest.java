@@ -180,9 +180,22 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     private World mockWorld(World.Environment environment) {
+        return mockWorld(environment, null);
+    }
+
+    /**
+     * A live world that knows its own name. The name matters: the service records an environment
+     * against the identity the server reports for a loaded world, not against the spelling the
+     * caller happened to type, so a fixture whose `getName()` is unstubbed is not a live world --
+     * it is a world with no identity, and it made every such test error rather than fail.
+     */
+    private World mockWorld(World.Environment environment, String name) {
         World world = mock(World.class);
         when(world.getEnvironment()).thenReturn(environment);
         when(world.getPlayers()).thenReturn(Collections.<Player>emptyList());
+        if (name != null) {
+            when(world.getName()).thenReturn(name);
+        }
         return world;
     }
 
@@ -217,7 +230,7 @@ class WorldServiceLoadEnvironmentTest {
         newWorldFolder(container, "netherw");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER));
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER, "netherw"));
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
 
@@ -248,7 +261,7 @@ class WorldServiceLoadEnvironmentTest {
         newWorldFolder(container, "endw");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.THE_END));
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.THE_END, "endw"));
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
 
@@ -472,7 +485,8 @@ class WorldServiceLoadEnvironmentTest {
         newWorldFolder(container, "netherworld");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER));
+            AtomicReference<World> live =
+                    new AtomicReference<World>(mockWorld(World.Environment.NETHER, "netherworld"));
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
             bukkit.when(() -> Bukkit.getWorld("NetherWorld")).thenAnswer(invocation -> live.get());
@@ -546,7 +560,7 @@ class WorldServiceLoadEnvironmentTest {
         File worldFolder = newWorldFolder(container, "reusedw");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER));
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER, "reusedw"));
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
 
@@ -773,7 +787,7 @@ class WorldServiceLoadEnvironmentTest {
         newWorldFolder(container, "quietw");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER));
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER, "quietw"));
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
 
@@ -805,7 +819,7 @@ class WorldServiceLoadEnvironmentTest {
         newWorldFolder(container, "customw");
 
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.CUSTOM));
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.CUSTOM, "customw"));
             World defaultWorld = mockWorld(World.Environment.NORMAL);
             when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
 

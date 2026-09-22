@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.Difficulty;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -417,7 +418,7 @@ public class WorldService {
                 // recorded branch and never have the repaired folder read. Drop any stale record,
                 // but KEEP the note that this world was declined -- otherwise the unload that
                 // follows would record the server's default and put the bad value back.
-                knownEnvironments.remove(key(name));
+                knownEnvironments.remove(identity(name));
             } else {
                 recordEnvironment(name, world.getEnvironment());
             }
@@ -438,7 +439,7 @@ public class WorldService {
      * {@link #inferEnvironmentFromWorldFolder(String, File)}.
      */
     private World.Environment resolveEnvironment(String name, File worldFolder) {
-        World.Environment recorded = knownEnvironments.get(key(name));
+        World.Environment recorded = knownEnvironments.get(identity(name));
         if (recorded != null) {
             return recorded;
         }
@@ -565,7 +566,7 @@ public class WorldService {
      * @param observation what was found in the folder, stated as fact and owned by the caller
      */
     private void reportNoDecision(String name, String observation) {
-        declinedEnvironments.add(key(name));
+        declinedEnvironments.add(identity(name));
         plugin.getLogger().warn(
             "World '" + name + "': no environment was applied, because " + observation + "."
                 + " This module does not guess an environment it cannot read from the folder, so"
@@ -575,24 +576,54 @@ public class WorldService {
     }
 
     /**
-     * The canonical key for a world name.
+     * The identity a world's environment is recorded against.
      *
-     * <p>{@code CraftServer#getWorld} resolves a world name as {@code name.toLowerCase(Locale.ROOT)},
-     * so two spellings of one world reach the same world and must reach the same record. Keying on
-     * the caller's spelling meant that unloading {@code NetherWorld} filed its environment under
-     * that spelling while loading {@code netherworld} missed it, and the world was rebuilt as an
-     * overworld through the cache rather than through the creator. {@link Locale#ROOT} is explicit
-     * for the reason the deletion guard uses {@link String#equalsIgnoreCase(String)}: a
-     * locale-sensitive fold turns a dotted I into something else in a Turkish locale.
+     * <p>Two spellings of one world must reach one record, and two worlds that merely resemble each
+     * other must not. A normalised string cannot do both: lower-casing makes {@code NetherWorld} and
+     * {@code netherworld} agree, which is right when they are one world and wrong when a
+     * case-sensitive filesystem holds {@code Arena} and {@code arena} as two. So this does not
+     * normalise. It asks whoever owns the identity:
+     *
+     * <ul>
+     *   <li>while the world is loaded, the server's registry owns it —
+     *       {@code CraftServer#getWorld} resolves any spelling to one {@link World}, and that
+     *       world's own {@link World#getName()} is the single name it answers to;</li>
+     *   <li>when it is not loaded, the filesystem owns it — canonicalising the folder is the only
+     *       thing that can say whether two spellings name one directory, and it answers differently
+     *       on a case-sensitive filesystem than on a case-insensitive one, which is correct, because
+     *       that is exactly where the two cases differ.</li>
+     * </ul>
+     *
+     * <p>Falling back to the given name when neither can answer is safe: a world that is neither
+     * loaded nor on disk has nothing to load and nothing to record.
      */
-    private static String key(String name) {
-        return name == null ? "" : name.toLowerCase(Locale.ROOT);
+    private static String identity(String name) {
+        if (name == null) {
+            return "";
+        }
+        World live = Bukkit.getWorld(name);
+        if (live != null) {
+            // The registry owns the identity of a loaded world, so nothing here may reach the
+            // filesystem: a caller that failed to unload a world must not cause a disk lookup,
+            // which `deleteWorld` relies on and a test asserts. A world that reports no name at all
+            // is degenerate; the given name is the safe answer, and still not a disk lookup.
+            String liveName = live.getName();
+            return liveName != null ? liveName : name;
+        }
+        try {
+            File folder = new File(Bukkit.getWorldContainer(), name);
+            return folder.exists() ? folder.getCanonicalFile().getName() : name;
+        } catch (IOException | RuntimeException e) {
+            // A container the server will not talk about, or a path it cannot canonicalise. The
+            // given name is no worse than what this method replaced.
+            return name;
+        }
     }
 
     /** Forgets any recorded environment for {@code name}, and any note that it was declined. */
     private void forgetEnvironment(String name) {
-        knownEnvironments.remove(key(name));
-        declinedEnvironments.remove(key(name));
+        knownEnvironments.remove(identity(name));
+        declinedEnvironments.remove(identity(name));
     }
 
     /** Whether {@code child} is a directory directly inside {@code parent}. */
@@ -636,8 +667,8 @@ public class WorldService {
         if (environment == World.Environment.NORMAL
                 || environment == World.Environment.NETHER
                 || environment == World.Environment.THE_END) {
-            knownEnvironments.put(key(name), environment);
-            declinedEnvironments.remove(key(name));
+            knownEnvironments.put(identity(name), environment);
+            declinedEnvironments.remove(identity(name));
         }
     }
     
@@ -654,7 +685,7 @@ public class WorldService {
             return false;
         }
 
-        if (!declinedEnvironments.contains(key(name))) {
+        if (!declinedEnvironments.contains(identity(name))) {
             recordEnvironment(name, world.getEnvironment());
         }
 
