@@ -49,6 +49,11 @@ public class WorldService {
     // unloads one. Read back by loadWorld, which would otherwise rebuild the world as NORMAL.
     private final Map<String, World.Environment> knownEnvironments = new ConcurrentHashMap<>();
 
+    // Worlds this service declined to choose an environment for in this session. Their loaded
+    // environment is whatever the server defaulted to, not something this module decided, so itは
+    // must never be recorded -- see recordEnvironment.
+    private final Set<String> declinedEnvironments = ConcurrentHashMap.newKeySet();
+
     // Closes every line this service prints about a world's environment. It points at the
     // procedure instead of inlining one, and it does not vary by branch, so it cannot be true of
     // one folder shape and false of another -- see reportNoDecision for why that matters.
@@ -405,7 +410,17 @@ public class WorldService {
         World world = creator.createWorld();
 
         if (world != null) {
-            recordEnvironment(name, world.getEnvironment());
+            if (environment == null) {
+                // The server supplied the environment, not this module. Recording it would turn a
+                // value nobody chose into the answer to the next question: an operator who repairs
+                // the folder as the changelog says and reloads in the same session would take the
+                // recorded branch and never have the repaired folder read. Drop any stale record,
+                // but KEEP the note that this world was declined -- otherwise the unload that
+                // follows would record the server's default and put the bad value back.
+                knownEnvironments.remove(key(name));
+            } else {
+                recordEnvironment(name, world.getEnvironment());
+            }
             getOrCreateSettings(name);
             return true;
         }
@@ -423,7 +438,7 @@ public class WorldService {
      * {@link #inferEnvironmentFromWorldFolder(String, File)}.
      */
     private World.Environment resolveEnvironment(String name, File worldFolder) {
-        World.Environment recorded = knownEnvironments.get(name);
+        World.Environment recorded = knownEnvironments.get(key(name));
         if (recorded != null) {
             return recorded;
         }
@@ -550,12 +565,34 @@ public class WorldService {
      * @param observation what was found in the folder, stated as fact and owned by the caller
      */
     private void reportNoDecision(String name, String observation) {
+        declinedEnvironments.add(key(name));
         plugin.getLogger().warn(
             "World '" + name + "': no environment was applied, because " + observation + "."
                 + " This module does not guess an environment it cannot read from the folder, so"
                 + " the world was loaded with the server's own default environment -- the same as"
                 + " before this version." + WHERE_THE_PROCEDURE_LIVES
         );
+    }
+
+    /**
+     * The canonical key for a world name.
+     *
+     * <p>{@code CraftServer#getWorld} resolves a world name as {@code name.toLowerCase(Locale.ROOT)},
+     * so two spellings of one world reach the same world and must reach the same record. Keying on
+     * the caller's spelling meant that unloading {@code NetherWorld} filed its environment under
+     * that spelling while loading {@code netherworld} missed it, and the world was rebuilt as an
+     * overworld through the cache rather than through the creator. {@link Locale#ROOT} is explicit
+     * for the reason the deletion guard uses {@link String#equalsIgnoreCase(String)}: a
+     * locale-sensitive fold turns a dotted I into something else in a Turkish locale.
+     */
+    private static String key(String name) {
+        return name == null ? "" : name.toLowerCase(Locale.ROOT);
+    }
+
+    /** Forgets any recorded environment for {@code name}, and any note that it was declined. */
+    private void forgetEnvironment(String name) {
+        knownEnvironments.remove(key(name));
+        declinedEnvironments.remove(key(name));
     }
 
     /** Whether {@code child} is a directory directly inside {@code parent}. */
@@ -599,7 +636,8 @@ public class WorldService {
         if (environment == World.Environment.NORMAL
                 || environment == World.Environment.NETHER
                 || environment == World.Environment.THE_END) {
-            knownEnvironments.put(name, environment);
+            knownEnvironments.put(key(name), environment);
+            declinedEnvironments.remove(key(name));
         }
     }
     
@@ -616,7 +654,9 @@ public class WorldService {
             return false;
         }
 
-        recordEnvironment(name, world.getEnvironment());
+        if (!declinedEnvironments.contains(key(name))) {
+            recordEnvironment(name, world.getEnvironment());
+        }
 
         // Move players to default world first
         World defaultWorld = Bukkit.getWorld(config.getDefaultWorld());
@@ -688,7 +728,7 @@ public class WorldService {
         settingsCache.remove(name);
         // Forget the environment too: a later world created under the same name may be a different
         // one, and a stale record would outrank what its own folder says.
-        knownEnvironments.remove(name);
+        forgetEnvironment(name);
 
         return wasLoaded || folderExisted;
     }
