@@ -15,7 +15,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.Difficulty;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,15 +44,6 @@ public class WorldService {
 
     // Empty world timer (tracks how long a world has been empty)
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
-
-    // Last known environment per world name, recorded whenever this service creates, loads or
-    // unloads one. Read back by loadWorld, which would otherwise rebuild the world as NORMAL.
-    private final Map<String, World.Environment> knownEnvironments = new ConcurrentHashMap<>();
-
-    // Worlds this service declined to choose an environment for in this session. Their loaded
-    // environment is whatever the server defaulted to, not something this module decided, so itは
-    // must never be recorded -- see recordEnvironment.
-    private final Set<String> declinedEnvironments = ConcurrentHashMap.newKeySet();
 
     // Closes every line this service prints about a world's environment. It points at the
     // procedure instead of inlining one, and it does not vary by branch, so it cannot be true of
@@ -344,7 +334,6 @@ public class WorldService {
         
         World world = creator.createWorld();
         if (world != null) {
-            recordEnvironment(name, world.getEnvironment());
             getOrCreateSettings(name);
         }
         return world;
@@ -372,7 +361,6 @@ public class WorldService {
         
         World world = creator.createWorld();
         if (world != null) {
-            recordEnvironment(name, world.getEnvironment());
             getOrCreateSettings(name);
             return true;
         }
@@ -384,8 +372,10 @@ public class WorldService {
      *
      * <p>A bare {@link WorldCreator} defaults to {@link World.Environment#NORMAL}, so rebuilding an
      * unloaded world without saying which environment it belongs to silently turns a nether or an
-     * end world into an overworld, over the same stored region files. The environment comes from
-     * {@link #resolveEnvironment(String, File)}.
+     * end world into an overworld, over the same stored region files. The environment is read from
+     * the world's own folder by {@link #inferEnvironmentFromWorldFolder(String, File)}, every time
+     * this method is called: a world folder is mutable between two commands, so an answer derived
+     * from it is only true of the moment it was derived.
      */
     public boolean loadWorld(String name) {
         if (!isFilesystemSafeWorldName(name)) {
@@ -394,7 +384,6 @@ public class WorldService {
 
         World loaded = Bukkit.getWorld(name);
         if (loaded != null) {
-            recordEnvironment(name, loaded.getEnvironment());
             return true; // Already loaded
         }
 
@@ -404,47 +393,19 @@ public class WorldService {
         }
 
         WorldCreator creator = new WorldCreator(name);
-        World.Environment environment = resolveEnvironment(name, worldFolder);
+        World.Environment environment = inferEnvironmentFromWorldFolder(name, worldFolder);
         if (environment != null) {
             creator.environment(environment);
         }
         World world = creator.createWorld();
 
         if (world != null) {
-            if (environment == null) {
-                // The server supplied the environment, not this module. Recording it would turn a
-                // value nobody chose into the answer to the next question: an operator who repairs
-                // the folder as the changelog says and reloads in the same session would take the
-                // recorded branch and never have the repaired folder read. Drop any stale record,
-                // but KEEP the note that this world was declined -- otherwise the unload that
-                // follows would record the server's default and put the bad value back.
-                knownEnvironments.remove(identity(name));
-            } else {
-                recordEnvironment(name, world.getEnvironment());
-            }
             getOrCreateSettings(name);
             return true;
         }
         return false;
     }
 
-    /**
-     * The environment to rebuild {@code name} with, or {@code null} to say nothing and let the
-     * server apply its own default -- which is exactly what this module did before it restored
-     * environments at all, so declining is never a regression.
-     *
-     * <p>A value this service recorded itself wins outright and is used silently: it is first-hand,
-     * the service watched a live world report it, and it is not a guess. Only when there is no
-     * record does the world folder get read, and that reading is deliberately unwilling -- see
-     * {@link #inferEnvironmentFromWorldFolder(String, File)}.
-     */
-    private World.Environment resolveEnvironment(String name, File worldFolder) {
-        World.Environment recorded = knownEnvironments.get(identity(name));
-        if (recorded != null) {
-            return recorded;
-        }
-        return inferEnvironmentFromWorldFolder(name, worldFolder);
-    }
 
     /**
      * Reads a world's environment off the dimension sub-folder the server writes inside its world
@@ -528,11 +489,10 @@ public class WorldService {
 
         World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
         plugin.getLogger().warn(
-            "World '" + name + "' had no recorded environment and was loaded as " + inferred
+            "World '" + name + "' was loaded as " + inferred
                 + ", because its folder contains a top-level '" + marker + "' directory and no"
                 + " top-level 'region' directory." + WHERE_THE_PROCEDURE_LIVES
         );
-        recordEnvironment(name, inferred);
         return inferred;
     }
 
@@ -566,7 +526,6 @@ public class WorldService {
      * @param observation what was found in the folder, stated as fact and owned by the caller
      */
     private void reportNoDecision(String name, String observation) {
-        declinedEnvironments.add(identity(name));
         plugin.getLogger().warn(
             "World '" + name + "': no environment was applied, because " + observation + "."
                 + " This module does not guess an environment it cannot read from the folder, so"
@@ -575,56 +534,7 @@ public class WorldService {
         );
     }
 
-    /**
-     * The identity a world's environment is recorded against.
-     *
-     * <p>Two spellings of one world must reach one record, and two worlds that merely resemble each
-     * other must not. A normalised string cannot do both: lower-casing makes {@code NetherWorld} and
-     * {@code netherworld} agree, which is right when they are one world and wrong when a
-     * case-sensitive filesystem holds {@code Arena} and {@code arena} as two. So this does not
-     * normalise. It asks whoever owns the identity:
-     *
-     * <ul>
-     *   <li>while the world is loaded, the server's registry owns it —
-     *       {@code CraftServer#getWorld} resolves any spelling to one {@link World}, and that
-     *       world's own {@link World#getName()} is the single name it answers to;</li>
-     *   <li>when it is not loaded, the filesystem owns it — canonicalising the folder is the only
-     *       thing that can say whether two spellings name one directory, and it answers differently
-     *       on a case-sensitive filesystem than on a case-insensitive one, which is correct, because
-     *       that is exactly where the two cases differ.</li>
-     * </ul>
-     *
-     * <p>Falling back to the given name when neither can answer is safe: a world that is neither
-     * loaded nor on disk has nothing to load and nothing to record.
-     */
-    private static String identity(String name) {
-        if (name == null) {
-            return "";
-        }
-        World live = Bukkit.getWorld(name);
-        if (live != null) {
-            // The registry owns the identity of a loaded world, so nothing here may reach the
-            // filesystem: a caller that failed to unload a world must not cause a disk lookup,
-            // which `deleteWorld` relies on and a test asserts. A world that reports no name at all
-            // is degenerate; the given name is the safe answer, and still not a disk lookup.
-            String liveName = live.getName();
-            return liveName != null ? liveName : name;
-        }
-        try {
-            File folder = new File(Bukkit.getWorldContainer(), name);
-            return folder.exists() ? folder.getCanonicalFile().getName() : name;
-        } catch (IOException | RuntimeException e) {
-            // A container the server will not talk about, or a path it cannot canonicalise. The
-            // given name is no worse than what this method replaced.
-            return name;
-        }
-    }
 
-    /** Forgets any recorded environment for {@code name}, and any note that it was declined. */
-    private void forgetEnvironment(String name) {
-        knownEnvironments.remove(identity(name));
-        declinedEnvironments.remove(identity(name));
-    }
 
     /** Whether {@code child} is a directory directly inside {@code parent}. */
     private static boolean isDirectChildDirectory(File parent, String child) {
@@ -652,41 +562,15 @@ public class WorldService {
         return Files.isSymbolicLink(new File(parent, child).toPath());
     }
 
-    /**
-     * Records a world's environment, ignoring anything this module could not hand back to
-     * {@link WorldCreator#environment(World.Environment)}.
-     *
-     * <p>Two values are dropped. {@code null}, because {@link ConcurrentHashMap} throws on a null
-     * value rather than storing it. And {@link World.Environment#CUSTOM}, because
-     * {@code CraftServer#createWorld} switches on the environment and its default arm throws
-     * {@link IllegalArgumentException} -- recording a CUSTOM world here would turn a later
-     * {@code /world load} from "loads with the wrong environment" into "throws out of the command",
-     * which is worse than the defect this fix removes.
-     */
-    private void recordEnvironment(String name, World.Environment environment) {
-        if (environment == World.Environment.NORMAL
-                || environment == World.Environment.NETHER
-                || environment == World.Environment.THE_END) {
-            knownEnvironments.put(identity(name), environment);
-            declinedEnvironments.remove(identity(name));
-        }
-    }
     
     /**
      * Unload a world.
      *
-     * <p>The world's environment is recorded on the way out, while the live world can still be
-     * asked for it -- that recording is what lets {@link #loadWorld(String)} put a nether or end
-     * world back as itself rather than as an overworld.
      */
     public boolean unloadWorld(String name, boolean save) {
         World world = Bukkit.getWorld(name);
         if (world == null) {
             return false;
-        }
-
-        if (!declinedEnvironments.contains(identity(name))) {
-            recordEnvironment(name, world.getEnvironment());
         }
 
         // Move players to default world first
@@ -757,9 +641,6 @@ public class WorldService {
             .where("world_name").eq(name)
             .delete();
         settingsCache.remove(name);
-        // Forget the environment too: a later world created under the same name may be a different
-        // one, and a stale record would outrank what its own folder says.
-        forgetEnvironment(name);
 
         return wasLoaded || folderExisted;
     }
