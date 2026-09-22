@@ -317,7 +317,8 @@ class WorldServiceProtectedDeleteTest {
             // tests in this selector, which is how the gap was found rather than argued.
             verify(UltiWorldsTestHelper.getMockLogger()).warn(
                     "World '" + aliasName + "' is a symbolic link, not a world folder. Only the link"
-                            + " entry was removed; nothing it points at was read or deleted.");
+                            + " entry is subject to this command; nothing it points at is read or"
+                            + " deleted.");
         } finally {
             link.delete();
             deleteRecursively(target);
@@ -351,6 +352,56 @@ class WorldServiceProtectedDeleteTest {
         } finally {
             backdoor.delete();
             deleteRecursively(guarded);
+        }
+    }
+
+
+    @Test
+    @DisplayName("when the link cannot be removed, no line claims that it was")
+    void aFailedLinkRemovalIsNotAnnouncedAsASuccess() throws IOException {
+        File target = createWorldFolderWithContent("p17_locked_target_");
+        File container = Files.createTempDirectory("p17_locked_container_").toFile();
+        File link = new File(container, "p17locked" + System.nanoTime());
+        Files.createSymbolicLink(link.toPath(), target.toPath());
+        String aliasName = link.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            // Deny write on the container, so unlinking the entry inside it fails. Asserted rather
+            // than assumed: as root this has no effect, and a test that cannot create the condition
+            // it tests must fail loudly rather than pass or skip.
+            assertThat(container.setWritable(false, false)).isTrue();
+            assertThat(container.canWrite()).isFalse();
+
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            bukkit.when(() -> Bukkit.getWorld(aliasName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+
+            boolean result = worldService.deleteWorld(aliasName);
+
+            // The announcement was written in the past tense and printed BEFORE the deletion was
+            // attempted, so on this path it claimed the link "was removed" while the link is still
+            // there -- and the failure line that follows it called the link a folder holding files.
+            // Two lines, contradicting each other and both wrong. Each now states something true
+            // whenever it is printed: the first describes the command's scope, the second reports
+            // what actually remains.
+            assertThat(result).isFalse();
+            assertThat(link).exists();
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(
+                    "World '" + aliasName + "' is a symbolic link, not a world folder. Only the link"
+                            + " entry is subject to this command; nothing it points at is read or"
+                            + " deleted.");
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(
+                    "Failed to remove the symbolic link for world " + aliasName
+                            + "; the link is still in the world container. Settings for this world"
+                            + " were kept.");
+            assertThat(new File(new File(target, "region"), "r.0.0.mca")).exists();
+        } finally {
+            container.setWritable(true, false);
+            link.delete();
+            container.delete();
+            deleteRecursively(target);
         }
     }
 
