@@ -479,6 +479,16 @@ public class WorldService {
         boolean nether = isDirectChildDirectory(worldFolder, "DIM-1");
         boolean theEnd = isDirectChildDirectory(worldFolder, "DIM1");
         if (!nether && !theEnd) {
+            // A link whose target is gone -- an unmounted volume, a moved directory -- reads as
+            // "not a directory", so without this the folder is indistinguishable from an ordinary
+            // overworld and the world is served as NORMAL in silence. That is the defect this
+            // method exists to prevent, happening on the one input it could not see.
+            String dangling = danglingDimensionLink(worldFolder);
+            if (dangling != null) {
+                reportNoDecision(name, "its '" + dangling + "' entry is a symbolic link that does"
+                    + " not lead to a directory, so the folder cannot be read as the world it may"
+                    + " belong to");
+            }
             return null;
         }
 
@@ -551,6 +561,22 @@ public class WorldService {
     /** Whether {@code child} is a directory directly inside {@code parent}. */
     private static boolean isDirectChildDirectory(File parent, String child) {
         return new File(parent, child).isDirectory();
+    }
+
+    /**
+     * The name of a dimension entry that is a symbolic link but does not lead to a directory, or
+     * {@code null} if neither is. {@code DIM-1} is reported in preference to {@code DIM1} only so
+     * that the observation names one entry rather than a list; either is enough to stop the folder
+     * being read.
+     */
+    private static String danglingDimensionLink(File worldFolder) {
+        if (isSymbolicLink(worldFolder, "DIM-1")) {
+            return "DIM-1";
+        }
+        if (isSymbolicLink(worldFolder, "DIM1")) {
+            return "DIM1";
+        }
+        return null;
     }
 
     /** Whether {@code child} inside {@code parent} exists and is a symbolic link. */
