@@ -22,7 +22,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `/world load` now works out a world's environment when it has to, refuses to work it out when
   the world folder is ambiguous, and says in the console which of those happened and what it saw.
   The console line reports what was found; it never tells you what to do, because the module has
-  just said it cannot read the folder. What each shape is:
+  just said it cannot read the folder. The shapes below are tried in the order they are listed
+  and the first one that matches decides, so a folder answering to more than one description
+  — both dimension directories and no `region`, say — is the earlier shape:
   - **shape 1 — a dimension directory and no top-level `region`** — an ordinary nether (or end)
     world.
   - **shape 2 — a dimension directory AND a top-level `region` directory** — two worlds' terrain in
@@ -63,7 +65,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (UltiKits/UltiWorlds#22)
 - `/world load` 在需要时推断世界维度；当世界文件夹自相矛盾时则拒绝推断，并在控制台说明发生了哪一种
   情况、以及它看到了什么。该控制台行只陈述观察到的事实，不会告诉你该怎么做——因为模块刚刚声明自己无法
-  读懂这个文件夹。各形态的含义：
+  读懂这个文件夹。下列形态按所列顺序依次判断，第一个匹配的形态即为结果；因此同时符合多条描述的
+  文件夹（例如两个维度目录都在、又没有 `region`）按靠前的那一条处理：
   - **形态 1 —— 有维度目录且没有顶层 `region`** —— 普通的下界（或末地）世界。
   - **形态 2 —— 同时有维度目录与顶层 `region` 目录** —— 一个文件夹里存着两个世界的地形，正是
     `UltiKits/UltiWorlds#22` 造成的。无论移出哪一个目录，都请**移动**而不要删除：两个目录里都可能
