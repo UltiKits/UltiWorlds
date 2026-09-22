@@ -395,6 +395,110 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
+    @DisplayName("repairing an ambiguous folder works in the same session: a declined load is not recorded")
+    void aDeclinedLoadIsNotRecordedAsThoughItWereAnAnswer() throws IOException {
+        File container = newContainer();
+        // Ambiguous: the shape the changelog tells an operator to repair by moving `region` out.
+        File worldFolder = newWorldFolder(container, "repairw", "DIM-1", "region");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("repairw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("repairw")).isTrue();
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+
+            // The operator now does exactly what the published procedure says, and reloads --
+            // without restarting the server, which the procedure does not ask them to do.
+            assertThat(new File(worldFolder, "region").delete()).isTrue();
+            captured.set(null);
+
+            assertThat(worldService.loadWorld("repairw")).isTrue();
+
+            // Before this was fixed, the NORMAL the server defaulted to during the AMBIGUOUS load
+            // had been recorded as though the module had decided it, so the repaired folder was
+            // never looked at again and the world came back NORMAL a second time. A value the
+            // module did not choose must not become the answer to the next question.
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("a declined load does not poison the record by way of a later unload either")
+    void aDeclinedLoadIsNotRecordedByWayOfUnload() throws IOException {
+        File container = newContainer();
+        File worldFolder = newWorldFolder(container, "repairu", "DIM-1", "region");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            AtomicReference<World> live = new AtomicReference<World>(null);
+            World defaultWorld = mockWorld(World.Environment.NORMAL);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+            bukkit.when(() -> Bukkit.getWorld("repairu")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.loadWorld("repairu")).isTrue();
+            live.set(mockWorld(World.Environment.NORMAL));
+            assertThat(worldService.unloadWorld("repairu", true)).isTrue();
+            live.set(null);
+
+            assertThat(new File(worldFolder, "region").delete()).isTrue();
+            captured.set(null);
+
+            assertThat(worldService.loadWorld("repairu")).isTrue();
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("the recorded environment is found again whatever case the world name is typed in")
+    void theRecordIsFoundWhateverCaseTheNameIsTypedIn() throws IOException {
+        File container = newContainer();
+        // The world's real name, and its folder, are lower case; the operator typed the name in
+        // another case at unload, which Bukkit resolves. The folder is created under the real name
+        // so this does not depend on how the filesystem treats case -- the platform behaviour under
+        // test is Bukkit's name resolution, not the filesystem's.
+        // No dimension entry, so only the record can supply NETHER; the folder cannot.
+        newWorldFolder(container, "netherworld");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            AtomicReference<World> live = new AtomicReference<World>(mockWorld(World.Environment.NETHER));
+            World defaultWorld = mockWorld(World.Environment.NORMAL);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+            bukkit.when(() -> Bukkit.getWorld("NetherWorld")).thenAnswer(invocation -> live.get());
+            // Bukkit resolves a world name case-insensitively, so both spellings reach one world.
+            bukkit.when(() -> Bukkit.getWorld("netherworld")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.unloadWorld("NetherWorld", true)).isTrue();
+            live.set(null);
+
+            assertThat(worldService.loadWorld("netherworld")).isTrue();
+
+            // A case-sensitive map key misses the record, the folder has nothing to infer from, and
+            // the world is rebuilt NORMAL -- the very terrain problem this change exists to stop.
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
     @DisplayName("deleteWorld forgets the recorded environment, so a later world of the same name is not mislabelled")
     void deleteForgetsTheRecordedEnvironment() throws IOException {
         File container = newContainer();
