@@ -626,20 +626,30 @@ public class WorldService {
         File worldFolder = new File(Bukkit.getWorldContainer(), name);
         boolean folderExisted = worldFolder.exists();
         if (folderExisted) {
-            if (Files.isSymbolicLink(worldFolder.toPath())) {
-                // Worth saying out loud: the operator asked to delete a world and what was removed
-                // was a link. Nothing on the other side of it was touched, so if they meant the
-                // world itself, it is still there under the name its own folder carries.
+            boolean isLink = Files.isSymbolicLink(worldFolder.toPath());
+            if (isLink) {
+                // Worth saying out loud: the operator asked to delete a world, and what this
+                // command can reach is a link. The sentence describes the command's SCOPE rather
+                // than reporting an outcome, because it is printed before the attempt -- a past
+                // tense here is a claim about something that has not happened yet and may fail.
                 plugin.getLogger().warn(
                     "World '" + name + "' is a symbolic link, not a world folder. Only the link"
-                        + " entry was removed; nothing it points at was read or deleted."
+                        + " entry is subject to this command; nothing it points at is read or"
+                        + " deleted."
                 );
             }
             boolean allEntriesDeleted = deleteFolder(worldFolder);
             if (!allEntriesDeleted || worldFolder.exists()) {
+                // A link that could not be unlinked leaves a link, not files in a folder, and
+                // saying "some files remain on disk" of a world whose data was never in this place
+                // contradicts the line above it.
                 plugin.getLogger().warn(
-                    "Failed to fully delete the folder for world " + name
-                        + "; some files remain on disk. Settings for this world were kept."
+                    isLink
+                        ? "Failed to remove the symbolic link for world " + name
+                            + "; the link is still in the world container. Settings for this world"
+                            + " were kept."
+                        : "Failed to fully delete the folder for world " + name
+                            + "; some files remain on disk. Settings for this world were kept."
                 );
                 return false;
             }
