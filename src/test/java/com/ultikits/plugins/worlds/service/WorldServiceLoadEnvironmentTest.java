@@ -124,48 +124,52 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     /**
-     * Every refusal says the same two things, whichever branch produced it: that no environment was
-     * applied, and where the procedure is written down. Gate-1 R3-WR-09: the line must point at the
-     * procedure rather than inline one, because one sentence cannot give a correct procedure for
-     * three structurally different folder shapes -- the shared instruction it replaced was wrong on
-     * two of the three.
+     * The exact sentence that closes every line this module prints about a world's environment.
+     * Stated here independently of production: the pin is that the two agree.
      */
-    private void assertNoDecisionReported(PluginLogger logger) {
-        verify(logger).warn(contains("no environment was applied"));
-        verify(logger).warn(contains("server's own default environment"));
-        assertNoInstruction(logger);
-    }
+    private static final String POINTER =
+            " What each of these folder shapes means, and what can be done about it, is in this"
+                    + " module's CHANGELOG.md changelog entry for this version, and in"
+                    + " UltiKits/UltiWorlds#22.";
 
     /**
-     * The log states what it observed; it never tells the operator what to do about it.
+     * The one line the logger was given, asserted to be exactly one.
      *
-     * <p>The forbidden half is matched case-insensitively, over every line the logger was given.
-     * Mockito's {@code contains} is case-sensitive, and an instruction appended as a new sentence
-     * starts with a capital -- a mutation that appended "Leave only that dimension's own
-     * directory" walked straight past a {@code never().warn(contains("leave only"))} guard. A
-     * guard that can be evaded by capitalising the first letter is not a guard.
+     * <p>Gate-1 R5-WR-17. What replaced this was a blacklist -- a list of phrasings the line must
+     * not contain -- and a blacklist constrains only what its author thought of. Measured, the
+     * previous list was evadable by a double space, by capitalising and dropping an article, and
+     * by omitting the verb it keyed on; and because it listed the NEGATED form "do not delete", it
+     * did not catch an affirmative "delete", which is the round-1 defect it was written to pin.
+     *
+     * <p>So the assertions below state what the line must BE. Anything appended, reworded or
+     * inserted fails, whatever it says, because it is not the expected form -- and that covers the
+     * phrasings nobody has thought of yet, which is the half a blacklist can never reach.
      */
-    private void assertNoInstruction(PluginLogger logger) {
-        verify(logger).warn(contains("changelog entry"));
-        verify(logger).warn(contains("UltiKits/UltiWorlds#22"));
-        // Gate-1 R4-IN-18: the console line carries no version string, so "this version's
-        // changelog entry" is not findable from the console alone. The delegation is only as
-        // good as the pointer, so the pointer names the file.
-        verify(logger).warn(contains("CHANGELOG.md"));
-
+    private String onlyLineLoggedBy(PluginLogger logger) {
         ArgumentCaptor<String> lines = ArgumentCaptor.forClass(String.class);
         verify(logger, atLeastOnce()).warn(lines.capture());
-        for (String line : lines.getAllValues()) {
-            assertThat(line.toLowerCase(Locale.ROOT))
-                    .as("a line the module printed must not instruct: %s", line)
-                    .doesNotContain("stop the server")
-                    .doesNotContain("leave only")
-                    .doesNotContain("do not delete")
-                    .doesNotContain("move the")
-                    .doesNotContain("move that")
-                    .doesNotContain("you should")
-                    .doesNotContain("please ");
-        }
+        assertThat(lines.getAllValues())
+                .as("the module must print exactly one line about a world's environment")
+                .hasSize(1);
+        return lines.getAllValues().get(0);
+    }
+
+    /** The whole refusal line, for a branch whose own observation is {@code observation}. */
+    private void assertRefusedWith(PluginLogger logger, String world, String observation) {
+        assertThat(onlyLineLoggedBy(logger)).isEqualTo(
+                "World '" + world + "': no environment was applied, because " + observation + "."
+                        + " This module does not guess an environment it cannot read from the"
+                        + " folder, so the world was loaded with the server's own default"
+                        + " environment -- the same as before this version." + POINTER);
+    }
+
+    /** The whole answering line. */
+    private void assertAnsweredWith(PluginLogger logger, String world,
+                                    World.Environment environment, String marker) {
+        assertThat(onlyLineLoggedBy(logger)).isEqualTo(
+                "World '" + world + "' had no recorded environment and was loaded as " + environment
+                        + ", because its folder contains a top-level '" + marker + "' directory and"
+                        + " no top-level 'region' directory." + POINTER);
     }
 
     private World mockWorld(World.Environment environment) {
@@ -449,13 +453,10 @@ class WorldServiceLoadEnvironmentTest {
             // restored environments at all, which is why declining is not a regression.
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
 
-            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
-            // This branch's OWN observation: two directories, each holding a world's terrain.
-            verify(logger).warn(contains("bothw"));
-            verify(logger).warn(contains("top-level 'DIM-1' directory"));
-            verify(logger).warn(contains("top-level 'region' directory"));
-            verify(logger).warn(contains("each holding a different world's terrain"));
-            assertNoDecisionReported(logger);
+            // This branch's OWN observation, as the whole line and nothing else.
+            assertRefusedWith(UltiWorldsTestHelper.getMockLogger(), "bothw",
+                    "its folder contains a top-level 'DIM-1' directory and a top-level 'region'"
+                            + " directory, each holding a different world's terrain");
         } finally {
             deleteRecursively(container);
         }
@@ -476,10 +477,9 @@ class WorldServiceLoadEnvironmentTest {
             assertThat(worldService.loadWorld("savew")).isTrue();
 
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
-            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
-            verify(logger).warn(contains("savew"));
-            verify(logger).warn(contains("both a top-level 'DIM-1' directory and a top-level 'DIM1' directory"));
-            assertNoDecisionReported(logger);
+            assertRefusedWith(UltiWorldsTestHelper.getMockLogger(), "savew",
+                    "its folder contains both a top-level 'DIM-1' directory and a top-level 'DIM1'"
+                            + " directory");
         } finally {
             deleteRecursively(container);
         }
@@ -510,15 +510,49 @@ class WorldServiceLoadEnvironmentTest {
             // deleteFolder in this same class deliberately does not follow links; reading one as
             // evidence about this world would be a second, contradictory policy on links.
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
-            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
-            verify(logger).warn(contains("linkw"));
-            verify(logger).warn(contains("symbolic link"));
-            verify(logger).warn(contains("whatever the link points at was not read"));
-            // `linkw` contains nothing but the link, so any sentence promising an "other
-            // directory" that "holds a real world's terrain" would be describing something that
-            // does not exist. That is what an instruction shared across branches did.
-            verify(logger, never()).warn(contains("OTHER directory"));
-            assertNoDecisionReported(logger);
+            // `linkw` contains nothing but the link, so a sentence promising an "other directory"
+            // that "holds a real world's terrain" would describe something that does not exist.
+            // The whole-line form rules that out without having to list it.
+            assertRefusedWith(UltiWorldsTestHelper.getMockLogger(), "linkw",
+                    "its dimension entry is a symbolic link, and this module does not follow links"
+                            + " when reading a world folder, so whatever the link points at was not"
+                            + " read");
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
+    @DisplayName("loadWorld reports a dangling dimension link instead of passing over it in silence")
+    void loadReportsADanglingDimensionLink() throws IOException {
+        File container = newContainer();
+        File worldFolder = newWorldFolder(container, "danglw");
+        // A nether world whose DIM-1 lives on a volume that is not mounted. The link is there; what
+        // it points at is not. `File#isDirectory()` follows the link and answers false, so before
+        // this was fixed the folder looked like an ordinary overworld: nothing inferred, NOTHING
+        // LOGGED, and the world served as NORMAL -- UltiWorlds#22 happening silently, on the one
+        // input where the module had no way of telling anybody.
+        java.nio.file.Files.createSymbolicLink(
+                new File(worldFolder, "DIM-1").toPath(),
+                new File(container, "not-mounted").toPath());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("danglw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            // Pre-assertion: this really is the dangling case and not a missing entry.
+            assertThat(java.nio.file.Files.isSymbolicLink(new File(worldFolder, "DIM-1").toPath()))
+                    .isTrue();
+            assertThat(new File(worldFolder, "DIM-1").isDirectory()).isFalse();
+
+            assertThat(worldService.loadWorld("danglw")).isTrue();
+
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+            assertRefusedWith(UltiWorldsTestHelper.getMockLogger(), "danglw",
+                    "its 'DIM-1' entry is a symbolic link that does not lead to a directory, so the"
+                            + " folder cannot be read as the world it may belong to");
         } finally {
             deleteRecursively(container);
         }
@@ -539,12 +573,8 @@ class WorldServiceLoadEnvironmentTest {
             assertThat(worldService.loadWorld("loudw")).isTrue();
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
 
-            PluginLogger logger = UltiWorldsTestHelper.getMockLogger();
-            verify(logger).warn(contains("loudw"));
-            verify(logger).warn(contains("NETHER"));
-            verify(logger).warn(contains("DIM-1"));
-            verify(logger).warn(contains("no top-level 'region' directory"));
-            assertNoInstruction(logger);
+            assertAnsweredWith(UltiWorldsTestHelper.getMockLogger(), "loudw",
+                    World.Environment.NETHER, "DIM-1");
         } finally {
             deleteRecursively(container);
         }
