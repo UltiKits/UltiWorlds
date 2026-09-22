@@ -499,6 +499,47 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
+    @DisplayName("two case-differing folders that are genuinely different worlds keep separate records")
+    void twoCaseDifferingFoldersKeepSeparateRecords() throws IOException {
+        File container = newContainer();
+        // On a case-sensitive filesystem these are two different worlds. Bukkit will not load both
+        // at once, but both folders exist, and the environment of one must never be applied to the
+        // other. Neither carries a dimension entry, so a record is the only thing that could.
+        newWorldFolder(container, "Arena");
+        newWorldFolder(container, "arena");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            World liveArena = mockWorld(World.Environment.NETHER);
+            when(liveArena.getName()).thenReturn("Arena");
+            AtomicReference<World> live = new AtomicReference<World>(liveArena);
+            World defaultWorld = mockWorld(World.Environment.NORMAL);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+
+            bukkit.when(() -> Bukkit.getWorld("Arena")).thenAnswer(invocation -> live.get());
+            bukkit.when(() -> Bukkit.getWorld("arena")).thenReturn(null);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(any(World.class), any(Boolean.class))).thenReturn(true);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            stubQueryChain();
+            AtomicReference<WorldCreator> captured = captureCreator(bukkit);
+
+            assertThat(worldService.unloadWorld("Arena", true)).isTrue();
+            live.set(null);
+
+            assertThat(worldService.loadWorld("arena")).isTrue();
+
+            // A record keyed on a lower-cased name collapses these two worlds into one, and `arena`
+            // -- an overworld -- is rebuilt as the NETHER that belonged to `Arena`. Identity has to
+            // come from the thing that owns it: the registry while a world is loaded, and the
+            // filesystem when it is not. Normalising a string is an approximation of both.
+            assertThat(captured.get().environment()).isEqualTo(World.Environment.NORMAL);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
+
+    @Test
     @DisplayName("deleteWorld forgets the recorded environment, so a later world of the same name is not mislabelled")
     void deleteForgetsTheRecordedEnvironment() throws IOException {
         File container = newContainer();
