@@ -16,6 +16,7 @@ import org.bukkit.Difficulty;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -624,9 +625,14 @@ public class WorldService {
         }
 
         File worldFolder = new File(Bukkit.getWorldContainer(), name);
-        boolean folderExisted = worldFolder.exists();
+        boolean isLink = Files.isSymbolicLink(worldFolder.toPath());
+        // Ask what ENTRY is here, not what is at the other end of it. File#exists follows a link,
+        // so for a link whose target is missing -- an unmounted volume, a moved directory -- it
+        // answers about the target and reports "nothing here", leaving the entry in place. That is
+        // the opposite of what deleting is for. Loading asks the other question and rightly keeps
+        // File#exists: a link with no target has nothing to load.
+        boolean folderExisted = Files.exists(worldFolder.toPath(), LinkOption.NOFOLLOW_LINKS);
         if (folderExisted) {
-            boolean isLink = Files.isSymbolicLink(worldFolder.toPath());
             if (isLink) {
                 // Worth saying out loud: the operator asked to delete a world, and what this
                 // command can reach is a link. The sentence describes the command's SCOPE rather
@@ -639,7 +645,8 @@ public class WorldService {
                 );
             }
             boolean allEntriesDeleted = deleteFolder(worldFolder);
-            if (!allEntriesDeleted || worldFolder.exists()) {
+            if (!allEntriesDeleted
+                    || Files.exists(worldFolder.toPath(), LinkOption.NOFOLLOW_LINKS)) {
                 // A link that could not be unlinked leaves a link, not files in a folder, and
                 // saying "some files remain on disk" of a world whose data was never in this place
                 // contradicts the line above it.
