@@ -37,6 +37,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -151,6 +152,12 @@ class WorldServiceLoadEnvironmentTest {
         assertThat(lines.getAllValues())
                 .as("the module must print exactly one line about a world's environment")
                 .hasSize(1);
+        // Gate-1 R6-WR-23. Asserting the content of the warn(String) line leaves the other doors on
+        // the same logger open: the round-1 destructive remedy passed verbatim through
+        // getLogger().info(...), and a remedy through the warn(String, Object...) varargs overload
+        // passed too -- both NO-RED against the whole-line assertions, because neither is a
+        // warn(String). One line closes every route at once, including ones nobody has named.
+        verifyNoMoreInteractions(logger);
         return lines.getAllValues().get(0);
     }
 
@@ -355,6 +362,8 @@ class WorldServiceLoadEnvironmentTest {
             // ...and it must be silent. This runs for every ordinary world on every boot; a
             // WARNING here would train operators to ignore the ones that matter.
             verify(UltiWorldsTestHelper.getMockLogger(), never()).warn(anyString());
+            // ...and nothing through any other method on the same logger either.
+            verifyNoMoreInteractions(UltiWorldsTestHelper.getMockLogger());
         } finally {
             deleteRecursively(container);
         }
@@ -637,6 +646,8 @@ class WorldServiceLoadEnvironmentTest {
 
             assertThat(captured.get().environment()).isEqualTo(World.Environment.NETHER);
             verify(UltiWorldsTestHelper.getMockLogger(), never()).warn(anyString());
+            // ...and nothing through any other method on the same logger either.
+            verifyNoMoreInteractions(UltiWorldsTestHelper.getMockLogger());
         } finally {
             deleteRecursively(container);
         }
