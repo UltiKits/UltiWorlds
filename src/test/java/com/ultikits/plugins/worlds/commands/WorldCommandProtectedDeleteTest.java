@@ -197,4 +197,38 @@ class WorldCommandProtectedDeleteTest {
             deleteRecursively(container);
         }
     }
+
+    @Test
+    @DisplayName("/world delete on a link whose target is missing is not refused as nonexistent")
+    void deleteOnADanglingLinkIsNotRefusedAsNonexistent() throws IOException {
+        File container = Files.createTempDirectory("p17w1dangling").toFile();
+        File link = new File(container, "danglingw");
+        Files.createSymbolicLink(link.toPath(), new File(container, "never_created").toPath());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld("danglingw")).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            stubQueryChain();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+            when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
+
+            command.deleteWorld(player, "danglingw");
+
+            // The command's on-disk check followed the link, so an entry that plainly exists in the
+            // container was reported to the operator as a world that does not exist, and the entry
+            // stayed. Deleting and loading ask different questions of the same path -- "is there an
+            // entry I can remove" against "is there world data I can load" -- and one
+            // link-following call cannot answer both.
+            verify(mockPlugin, never()).i18n("world.not_found");
+            verify(mockPlugin).i18n("world.delete.deleting");
+            assertThat(Files.isSymbolicLink(link.toPath())).isFalse();
+        } finally {
+            link.delete();
+            deleteRecursively(container);
+        }
+    }
+
 }

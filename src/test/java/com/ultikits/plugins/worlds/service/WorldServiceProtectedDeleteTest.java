@@ -405,4 +405,40 @@ class WorldServiceProtectedDeleteTest {
         }
     }
 
+
+    @Test
+    @DisplayName("a link whose target is missing is still an entry, and is still removed")
+    void aDanglingLinkIsAnEntryAndIsRemoved() throws IOException {
+        File container = Files.createTempDirectory("p17_dangling_container_").toFile();
+        File missing = new File(container, "target_that_was_never_created");
+        File link = new File(container, "p17dangling" + System.nanoTime());
+        Files.createSymbolicLink(link.toPath(), missing.toPath());
+        String aliasName = link.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            bukkit.when(() -> Bukkit.getWorld(aliasName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+
+            // The entry is there; what it points at is not. This is the unmounted-volume case, and
+            // it is the one an operator most wants to be able to clear away.
+            assertThat(Files.isSymbolicLink(link.toPath())).isTrue();
+            assertThat(link.exists()).isFalse();
+
+            boolean result = worldService.deleteWorld(aliasName);
+
+            // `File#exists` follows the link, so asking it whether there is anything here answers
+            // about the missing target and returns false -- the entry is then reported as absent
+            // and left in place, while the settings row is removed anyway. Deleting asks about the
+            // ENTRY; only a call that does not follow the link can answer that question.
+            assertThat(result).isTrue();
+            assertThat(Files.isSymbolicLink(link.toPath())).isFalse();
+        } finally {
+            link.delete();
+            container.delete();
+        }
+    }
+
 }
