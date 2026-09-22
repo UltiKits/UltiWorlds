@@ -22,50 +22,64 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `/world load` now works out a world's environment when it has to, refuses to work it out when
   the world folder is ambiguous, and says in the console which of those happened and what it saw.
   The console line reports what was found; it never tells you what to do, because the module has
-  just said it cannot read the folder. What each shape means:
-  - **a top-level `DIM-1` (or `DIM1`) directory and no top-level `region`** — an ordinary nether
-    (or end) world. The environment is applied and the line says so. If that is wrong, stop the
-    server and move that directory to a path outside the world folder; the world then loads with
-    the server's default.
-  - **a dimension directory AND a top-level `region` directory** — two worlds' terrain in one
-    folder, which is what `UltiKits/UltiWorlds#22` produced. No environment is applied. To load it
-    as the other world, stop the server and **move** the directory you are not keeping to a path
-    outside the world folder — do not delete it: players may have built in either one. Move the
-    `region` directory out and you are in the first case; move the dimension directory out and you
-    are in the last one.
-  - **both `DIM-1` and `DIM1` at the top level** — a single-player save or a downloaded map, where
-    all three dimensions share one folder. No environment is applied. Stop the server and move the
-    dimension directory you do not want to a path outside the world folder. Where that leaves you
-    depends on what the folder still holds: a single-player save also has the overworld's
-    top-level `region` directory, so you land in the second case above and have to choose there
-    too; a folder with no top-level `region` lands in the first case and is answered.
-  - **a dimension entry that is a symbolic link** — the module does not follow links when reading a
-    world folder, so it did not read what the link points at, and no environment is applied. This
-    is checked before the other two ambiguous cases, so moving directories out cannot help while
-    the link is still a link. Either replace the link with a real directory — after which the
-    folder is read as one of the cases above, whichever one it then matches — or leave it and
-    accept the server's default environment.
-  - **no dimension directory** — the ordinary overworld case. Nothing is worked out, nothing is
-    logged, and nothing changes from previous versions (UltiKits/UltiWorlds#22).
-- `/world load` 现在会在需要时推断世界维度；当世界文件夹自相矛盾时则拒绝推断，并在控制台说明发生了
-  哪一种情况、以及它看到了什么。该控制台行只陈述观察到的事实，不会告诉你该怎么做——因为模块刚刚声明
-  自己无法读懂这个文件夹。各种形态的含义：
-  - **有顶层 `DIM-1`（或 `DIM1`）目录且没有顶层 `region`** —— 普通的下界（或末地）世界，会应用该
-    维度并在日志中说明。若这不正确，请停服并把该目录移动到世界文件夹之外，该世界随后会按服务器默认
-    维度加载。
-  - **同时有维度目录与顶层 `region` 目录** —— 一个文件夹里存着两个世界的地形，正是
-    `UltiKits/UltiWorlds#22` 造成的。不应用任何维度。若要按另一个世界加载，请停服并把不保留的那个
-    目录**移动**到世界文件夹之外——不要删除：两个目录里都可能有玩家建造的地形。移出 `region` 目录会
-    回到第一种情况；移出维度目录则会变成最后一种情况。
-  - **顶层同时有 `DIM-1` 与 `DIM1`** —— 单人存档或下载的地图，三个维度共用一个文件夹。不应用任何
-    维度。请停服并把不需要的那个维度目录移动到世界文件夹之外。之后会落到哪种情况，取决于文件夹里还
-    剩下什么：单人存档同时还有主世界的顶层 `region` 目录，因此会落到上面的第二种情况，仍需在那里做
-    选择；若没有顶层 `region` 目录，则落到第一种情况并被正常识别。
-  - **维度目录是符号链接** —— 本模块读取世界文件夹时不跟随链接，因此没有读取链接指向的内容，也不应用
-    任何维度。这一项先于另外两种歧义情况判断，因此只要链接还是链接，移动其他目录都无济于事。请改为
-    用真实目录替换该链接——替换后该文件夹会按上面的情况重新判断，具体落到哪一种取决于它当时的内容
-    ——或保持现状并接受服务器默认维度。
-  - **没有维度目录** —— 普通主世界，不推断、不输出日志，与旧版本完全一致（UltiKits/UltiWorlds#22）。
+  just said it cannot read the folder. What each shape is:
+  - **shape 1 — a dimension directory and no top-level `region`** — an ordinary nether (or end)
+    world.
+  - **shape 2 — a dimension directory AND a top-level `region` directory** — two worlds' terrain in
+    one folder, which is what `UltiKits/UltiWorlds#22` produced. Whichever directory you move out,
+    **move** it and do not delete it: players may have built in either one.
+  - **shape 3 — both `DIM-1` and `DIM1` at the top level** — a single-player save or a downloaded
+    map, where all three dimensions share one folder. Such a folder also has the overworld's
+    top-level `region` directory, so moving one dimension directory out leaves you in shape 2 and
+    you have to choose there too.
+  - **shape 4 — a dimension entry that is a symbolic link** — the module does not follow links when
+    reading a world folder, so it did not read what the link points at. This is checked before
+    shapes 2 and 3, so moving directories out cannot help while the link is still a link; replace
+    it with a real directory and the folder is read as whichever shape it then matches.
+  - **shape 5 — a dimension entry that is a link leading nowhere** — an unmounted volume or a moved
+    directory. Restore what the link points at, or replace the link with a real directory.
+  - **shape 6 — no dimension entry at all** — the ordinary overworld case. Nothing is worked out,
+    nothing is logged, and nothing changes from previous versions.
+
+  The outcomes are the table below rather than prose, because a test reads this table and fails if
+  it and the code ever disagree. `folder holds` lists the world folder's top-level entries,
+  `(link)` marking a symbolic link to a directory and `(dangling)` one whose target is missing;
+  `applied` is the environment the server is given, `none` meaning the module supplies none and the
+  server uses its own default; `move X out ->` is what you get after moving that entry to a path
+  outside the world folder.
+
+  | folder holds | applied | move X out -> |
+  |---|---|---|
+  | `DIM-1` | NETHER | `DIM-1` -> none |
+  | `DIM1` | THE_END | `DIM1` -> none |
+  | `DIM-1`, `region` | none | `region` -> NETHER; `DIM-1` -> none |
+  | `DIM1`, `region` | none | `region` -> THE_END; `DIM1` -> none |
+  | `DIM-1`, `DIM1`, `region` | none | `DIM1` -> none; `DIM-1` -> none |
+  | `DIM-1`, `DIM1` | none | `DIM1` -> NETHER; `DIM-1` -> THE_END |
+  | `DIM-1(link)`, `region` | none | `region` -> none |
+  | `DIM-1(dangling)` | none | `DIM-1` -> none |
+  | `region` | none | |
+
+  (UltiKits/UltiWorlds#22)
+- `/world load` 在需要时推断世界维度；当世界文件夹自相矛盾时则拒绝推断，并在控制台说明发生了哪一种
+  情况、以及它看到了什么。该控制台行只陈述观察到的事实，不会告诉你该怎么做——因为模块刚刚声明自己无法
+  读懂这个文件夹。各形态的含义：
+  - **形态 1 —— 有维度目录且没有顶层 `region`** —— 普通的下界（或末地）世界。
+  - **形态 2 —— 同时有维度目录与顶层 `region` 目录** —— 一个文件夹里存着两个世界的地形，正是
+    `UltiKits/UltiWorlds#22` 造成的。无论移出哪一个目录，都请**移动**而不要删除：两个目录里都可能
+    有玩家建造的地形。
+  - **形态 3 —— 顶层同时有 `DIM-1` 与 `DIM1`** —— 单人存档或下载的地图，三个维度共用一个文件夹。
+    这类文件夹同时还有主世界的顶层 `region` 目录，因此移出其中一个维度目录后会落到形态 2，仍需在那里
+    做选择。
+  - **形态 4 —— 维度目录是符号链接** —— 本模块读取世界文件夹时不跟随链接，因此没有读取链接指向的
+    内容。此项先于形态 2、3 判断，所以只要链接还是链接，移动其他目录都无济于事；用真实目录替换该链接
+    后，该文件夹会按它当时匹配的形态重新判断。
+  - **形态 5 —— 维度目录是指向不存在位置的链接** —— 例如卷未挂载或目录被移走。请恢复链接指向的内容，
+    或用真实目录替换该链接。
+  - **形态 6 —— 完全没有维度目录** —— 普通主世界。不推断、不输出日志，与旧版本完全一致。
+
+  各形态的结果见上方英文表格，而不是散在正文里：有一项测试会读取那张表，一旦表与代码不一致即失败
+  （UltiKits/UltiWorlds#22）。
 - `/world unload` and `/world delete` now compare the name you typed against `default_world`
   without regard to letter case. With `default_world: lobby`, `/world unload LOBBY` used to miss
   the "Cannot unload the default world!" refusal and unload the lobby anyway, after which players
