@@ -310,6 +310,14 @@ class WorldServiceProtectedDeleteTest {
             assertThat(link).doesNotExist();
             assertThat(target).exists();
             assertThat(new File(new File(target, "region"), "r.0.0.mca")).exists();
+
+            // "Deleted the world" and "removed a link" are different outcomes and the operator
+            // asked for the first, so the module has to say which one it performed. Asserted as
+            // the whole line: a mutation that simply deleted this announcement passed all fifteen
+            // tests in this selector, which is how the gap was found rather than argued.
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(
+                    "World '" + aliasName + "' is a symbolic link, not a world folder. Only the link"
+                            + " entry was removed; nothing it points at was read or deleted.");
         } finally {
             link.delete();
             deleteRecursively(target);
