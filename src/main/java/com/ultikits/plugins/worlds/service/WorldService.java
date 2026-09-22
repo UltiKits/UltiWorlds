@@ -626,6 +626,15 @@ public class WorldService {
         File worldFolder = new File(Bukkit.getWorldContainer(), name);
         boolean folderExisted = worldFolder.exists();
         if (folderExisted) {
+            if (Files.isSymbolicLink(worldFolder.toPath())) {
+                // Worth saying out loud: the operator asked to delete a world and what was removed
+                // was a link. Nothing on the other side of it was touched, so if they meant the
+                // world itself, it is still there under the name its own folder carries.
+                plugin.getLogger().warn(
+                    "World '" + name + "' is a symbolic link, not a world folder. Only the link"
+                        + " entry was removed; nothing it points at was read or deleted."
+                );
+            }
             boolean allEntriesDeleted = deleteFolder(worldFolder);
             if (!allEntriesDeleted || worldFolder.exists()) {
                 plugin.getLogger().warn(
@@ -727,11 +736,20 @@ public class WorldService {
      * this method never descends into a {@link Files#isSymbolicLink(java.nio.file.Path) symbolic
      * link}, even when it points at a directory. Only real subdirectories are recursed into.
      *
+     * <p>That holds for {@code folder} itself as well as for anything under it. It did not, once:
+     * the rule was written for a link found among the children, and a link in the root position
+     * was followed, because {@link File#listFiles()} resolves it -- so everything under the target
+     * was deleted through the link while only the link entry was reported as the world folder.
+     * A rule about links has to hold wherever the link is, or it is a rule about one position.
+     *
      * @return true if every entry under {@code folder} (and {@code folder} itself) was
      *         successfully removed; false if {@link File#delete()} refused any entry (for example
      *         a permission issue or a lingering lock), in which case some data may remain on disk.
      */
     private boolean deleteFolder(File folder) {
+        if (Files.isSymbolicLink(folder.toPath())) {
+            return folder.delete();
+        }
         File[] files = folder.listFiles();
         boolean allDeleted = true;
         if (files != null) {
