@@ -1,0 +1,444 @@
+package com.ultikits.plugins.worlds.service;
+
+import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
+import com.ultikits.plugins.worlds.config.WorldConfig;
+import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
+import com.ultikits.ultitools.interfaces.DataOperator;
+import com.ultikits.ultitools.interfaces.Query;
+
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Regression guard for {@code UltiKits/UltiWorlds#20}: {@code protected_worlds}' own declared
+ * comment promises "Worlds that cannot be auto-unloaded or deleted", but only the auto-unload half
+ * was enforced -- {@link WorldService#deleteWorld(String)} never consulted the list, so
+ * {@code /world delete world_nether} permanently removed a world the shipped defaults list as
+ * protected.
+ *
+ * <p>Every refusal below is asserted at the <em>service</em> level rather than at the command,
+ * because the command is not the only caller: {@code WorldDeleteConfirmPage#onConfirm} calls
+ * {@link WorldService#deleteWorld(String)} directly. A guard living only in {@code WorldCommand}
+ * would leave that path, and any future one, unprotected.
+ *
+ * <p>Each refusal test asserts an observable that the pre-fix code demonstrably did NOT produce --
+ * a world folder that still exists, or {@link Bukkit#getWorld(String)} never being reached -- so
+ * none of them can pass vacuously against the defect they describe. The final test is the opposite
+ * control: an unprotected world is still deleted, so the guard cannot be "passing" by refusing
+ * everything.
+ *
+ * @author wisdomme
+ * @version 2.0.0
+ */
+@DisplayName("WorldService protected-world deletion (UltiWorlds#20)")
+class WorldServiceProtectedDeleteTest {
+
+    private WorldService worldService;
+    private WorldConfig mockConfig;
+    private DataOperator<WorldSettings> mockDataOperator;
+
+    @BeforeEach
+    @SuppressWarnings("unchecked")
+    void setUp() throws Exception {
+        UltiWorldsTestHelper.setUp();
+        UltiToolsPlugin mockPlugin = UltiWorldsTestHelper.getMockPlugin();
+
+        worldService = new WorldService();
+        mockConfig = UltiWorldsTestHelper.createDefaultConfig();
+        mockDataOperator = mock(DataOperator.class);
+
+        UltiWorldsTestHelper.setField(worldService, "config", mockConfig);
+        UltiWorldsTestHelper.setField(worldService, "dataOperator", mockDataOperator);
+        UltiWorldsTestHelper.setField(worldService, "plugin", mockPlugin);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        UltiWorldsTestHelper.tearDown();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Query<WorldSettings> stubQueryChain() {
+        Query<WorldSettings> mockQuery = mock(Query.class);
+        when(mockDataOperator.query()).thenReturn(mockQuery);
+        when(mockQuery.where(anyString())).thenReturn(mockQuery);
+        when(mockQuery.eq(any())).thenReturn(mockQuery);
+        when(mockQuery.first()).thenReturn(null);
+        when(mockQuery.delete()).thenReturn(0);
+        return mockQuery;
+    }
+
+    /**
+     * Creates a throwaway world folder with one region file inside it, so "the folder survived"
+     * can be asserted on real bytes rather than on an empty directory that a partial delete would
+     * also leave behind.
+     */
+    private File createWorldFolderWithContent(String prefix) throws IOException {
+        File worldFolder = Files.createTempDirectory(prefix).toFile();
+        File region = new File(worldFolder, "region");
+        assertThat(region.mkdir()).isTrue();
+        assertThat(new File(region, "r.0.0.mca").createNewFile()).isTrue();
+        return worldFolder;
+    }
+
+    private void deleteRecursively(File file) {
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                deleteRecursively(child);
+            }
+        }
+        file.delete();
+    }
+
+    @Test
+    @DisplayName("deleteWorld refuses a world listed in protected_worlds and leaves its folder on disk")
+    void deleteRefusesAWorldListedInProtectedWorlds() throws IOException {
+        File worldFolder = createWorldFolderWithContent("p17_protected_world_");
+        File regionFile = new File(new File(worldFolder, "region"), "r.0.0.mca");
+        String worldName = worldFolder.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds())
+                    .thenReturn(Arrays.asList("world", "world_nether", worldName));
+
+            // Unloaded but present on disk -- the exact shape /world delete supports.
+            bukkit.when(() -> Bukkit.getWorld(worldName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+            stubQueryChain();
+
+            // Pre-assertion: the fixture really is on disk before the call, so "still exists"
+            // below cannot pass because it was never there.
+            assertThat(worldFolder).exists();
+            assertThat(regionFile).exists();
+
+            boolean result = worldService.deleteWorld(worldName);
+
+            assertThat(result).isFalse();
+            assertThat(worldFolder).exists();
+            assertThat(regionFile).exists();
+            // The settings row is kept too -- a refusal removes nothing at all.
+            verify(mockDataOperator, never()).query();
+        } finally {
+            deleteRecursively(worldFolder);
+        }
+    }
+
+    @Test
+    @DisplayName("deleteWorld refuses a protected world whose name differs only by case")
+    void deleteRefusesAProtectedWorldNamedInADifferentCase() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList("world_nether"));
+            stubQueryChain();
+
+            boolean result = worldService.deleteWorld("WORLD_Nether");
+
+            assertThat(result).isFalse();
+            // Refused before anything was looked up or removed. Bukkit resolves a world name
+            // case-insensitively and a case-insensitive filesystem resolves the folder the same
+            // way, so an exact-match guard here would be bypassable by typing the name in a
+            // different case.
+            bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            bukkit.verify(Bukkit::getWorldContainer, never());
+            verify(mockDataOperator, never()).query();
+        }
+    }
+
+    @Test
+    @DisplayName("deleteWorld refuses the configured default world even when protected_worlds is empty")
+    void deleteRefusesTheDefaultWorldAtTheServiceLevel() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            stubQueryChain();
+
+            boolean result = worldService.deleteWorld("world");
+
+            assertThat(result).isFalse();
+            bukkit.verify(() -> Bukkit.getWorld(anyString()), never());
+            verify(mockDataOperator, never()).query();
+        }
+    }
+
+    @Test
+    @DisplayName("checkAutoUnloadEmptyWorlds skips a protected world whose name differs only by case")
+    void autoUnloadSkipsAProtectedWorldNamedInADifferentCase() throws InterruptedException {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+            when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(0);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            // The operator wrote the name in a different case than the live world carries.
+            when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList("MyWorld"));
+
+            World emptyWorld = mock(World.class);
+            when(emptyWorld.getName()).thenReturn("myworld");
+            when(emptyWorld.getPlayers()).thenReturn(Collections.<org.bukkit.entity.Player>emptyList());
+
+            World defaultWorld = mock(World.class);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+
+            bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(emptyWorld));
+            bukkit.when(() -> Bukkit.getWorld("myworld")).thenReturn(emptyWorld);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(emptyWorld, true)).thenReturn(true);
+
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("myworld");
+            settings.setAutoUnload(true);
+            Query<WorldSettings> mockQuery = stubQueryChain();
+            when(mockQuery.first()).thenReturn(settings);
+
+            // First pass starts the empty-world timer, second pass sees it expired.
+            worldService.checkAutoUnloadEmptyWorlds();
+            Thread.sleep(5);
+            worldService.checkAutoUnloadEmptyWorlds();
+
+            bukkit.verify(() -> Bukkit.unloadWorld(any(World.class), anyBoolean()), never());
+        }
+    }
+
+    @Test
+    @DisplayName("checkAutoUnloadEmptyWorlds still unloads a world that is not protected")
+    void autoUnloadStillUnloadsAnUnprotectedWorld() throws InterruptedException {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.isAutoUnloadEmptyWorlds()).thenReturn(true);
+            when(mockConfig.getEmptyWorldUnloadAfter()).thenReturn(0);
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList("SomeOtherWorld"));
+
+            World emptyWorld = mock(World.class);
+            when(emptyWorld.getName()).thenReturn("myworld");
+            when(emptyWorld.getPlayers()).thenReturn(Collections.<org.bukkit.entity.Player>emptyList());
+
+            World defaultWorld = mock(World.class);
+            when(defaultWorld.getSpawnLocation()).thenReturn(mock(Location.class));
+
+            bukkit.when(Bukkit::getWorlds).thenReturn(Collections.singletonList(emptyWorld));
+            bukkit.when(() -> Bukkit.getWorld("myworld")).thenReturn(emptyWorld);
+            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+            bukkit.when(() -> Bukkit.unloadWorld(emptyWorld, true)).thenReturn(true);
+
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("myworld");
+            settings.setAutoUnload(true);
+            Query<WorldSettings> mockQuery = stubQueryChain();
+            when(mockQuery.first()).thenReturn(settings);
+
+            worldService.checkAutoUnloadEmptyWorlds();
+            Thread.sleep(5);
+            worldService.checkAutoUnloadEmptyWorlds();
+
+            // Control for the case-insensitive comparison above: it must not start refusing
+            // every world.
+            bukkit.verify(() -> Bukkit.unloadWorld(emptyWorld, true));
+        }
+    }
+
+    @Test
+    @DisplayName("deleteWorld still deletes a world that is not protected")
+    void deleteStillRemovesAnUnprotectedWorld() throws IOException {
+        File worldFolder = createWorldFolderWithContent("p17_unprotected_world_");
+        String worldName = worldFolder.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds())
+                    .thenReturn(Arrays.asList("world", "world_nether", "world_the_end"));
+
+            bukkit.when(() -> Bukkit.getWorld(worldName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(worldFolder.getParentFile());
+            Query<WorldSettings> mockQuery = stubQueryChain();
+
+            assertThat(worldFolder).exists();
+
+            boolean result = worldService.deleteWorld(worldName);
+
+            assertThat(result).isTrue();
+            assertThat(worldFolder).doesNotExist();
+            verify(mockQuery).delete();
+        } finally {
+            deleteRecursively(worldFolder);
+        }
+    }
+
+    @Test
+    @DisplayName("a world folder that is itself a link loses the link, never what it points at")
+    void deleteRemovesOnlyTheLinkWhenTheWorldFolderItselfIsALink() throws IOException {
+        File target = createWorldFolderWithContent("p17_link_target_");
+        File link = new File(target.getParentFile(), "p17alias" + System.nanoTime());
+        Files.createSymbolicLink(link.toPath(), target.toPath());
+        String aliasName = link.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            bukkit.when(() -> Bukkit.getWorld(aliasName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(target.getParentFile());
+            stubQueryChain();
+
+            boolean result = worldService.deleteWorld(aliasName);
+
+            // The module already holds that a linked directory is not part of the world folder, so
+            // only the link entry is removed. That rule was written for a link found among the
+            // children and did not hold for a link in the root position: listFiles() follows it,
+            // and everything the link points at was deleted through it. A rule about links has to
+            // hold wherever the link is, or it is a rule about one position.
+            assertThat(result).isTrue();
+            assertThat(link).doesNotExist();
+            assertThat(target).exists();
+            assertThat(new File(new File(target, "region"), "r.0.0.mca")).exists();
+
+            // "Deleted the world" and "removed a link" are different outcomes and the operator
+            // asked for the first, so the module has to say which one it performed. Asserted as
+            // the whole line: a mutation that simply deleted this announcement passed all fifteen
+            // tests in this selector, which is how the gap was found rather than argued.
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(
+                    "World '" + aliasName + "' is a symbolic link, not a world folder. Only the link"
+                            + " entry is subject to this command; nothing it points at is read or"
+                            + " deleted.");
+        } finally {
+            link.delete();
+            deleteRecursively(target);
+        }
+    }
+
+    @Test
+    @DisplayName("a protected world's data survives deleting an unprotected link that points at it")
+    void aProtectedWorldsDataSurvivesDeletingALinkToIt() throws IOException {
+        File guarded = createWorldFolderWithContent("p17_guarded_");
+        File backdoor = new File(guarded.getParentFile(), "p17backdoor" + System.nanoTime());
+        Files.createSymbolicLink(backdoor.toPath(), guarded.toPath());
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList(guarded.getName()));
+            bukkit.when(() -> Bukkit.getWorld(backdoor.getName())).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(guarded.getParentFile());
+            stubQueryChain();
+
+            worldService.deleteWorld(backdoor.getName());
+
+            // `protected_worlds` is a list of names, and a link's name is not the name of what it
+            // points at, so a name-based guard cannot see this one coming however it is spelled.
+            // It does not have to: a deletion that never traverses a link cannot reach the
+            // protected world's data under any name. Resolving the link and re-checking the guard
+            // would close this one path and leave every link to an UNprotected world still
+            // destructive, which is the same defect with a smaller audience.
+            assertThat(guarded).exists();
+            assertThat(new File(new File(guarded, "region"), "r.0.0.mca")).exists();
+        } finally {
+            backdoor.delete();
+            deleteRecursively(guarded);
+        }
+    }
+
+
+    @Test
+    @DisplayName("when the link cannot be removed, no line claims that it was")
+    void aFailedLinkRemovalIsNotAnnouncedAsASuccess() throws IOException {
+        File target = createWorldFolderWithContent("p17_locked_target_");
+        File container = Files.createTempDirectory("p17_locked_container_").toFile();
+        File link = new File(container, "p17locked" + System.nanoTime());
+        Files.createSymbolicLink(link.toPath(), target.toPath());
+        String aliasName = link.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            // Deny write on the container, so unlinking the entry inside it fails. Asserted rather
+            // than assumed: as root this has no effect, and a test that cannot create the condition
+            // it tests must fail loudly rather than pass or skip.
+            assertThat(container.setWritable(false, false)).isTrue();
+            assertThat(container.canWrite()).isFalse();
+
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            bukkit.when(() -> Bukkit.getWorld(aliasName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+
+            boolean result = worldService.deleteWorld(aliasName);
+
+            // The announcement was written in the past tense and printed BEFORE the deletion was
+            // attempted, so on this path it claimed the link "was removed" while the link is still
+            // there -- and the failure line that follows it called the link a folder holding files.
+            // Two lines, contradicting each other and both wrong. Each now states something true
+            // whenever it is printed: the first describes the command's scope, the second reports
+            // what actually remains.
+            assertThat(result).isFalse();
+            assertThat(link).exists();
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(
+                    "World '" + aliasName + "' is a symbolic link, not a world folder. Only the link"
+                            + " entry is subject to this command; nothing it points at is read or"
+                            + " deleted.");
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(
+                    "Failed to remove the symbolic link for world " + aliasName
+                            + "; the link is still in the world container. Settings for this world"
+                            + " were kept.");
+            assertThat(new File(new File(target, "region"), "r.0.0.mca")).exists();
+        } finally {
+            container.setWritable(true, false);
+            link.delete();
+            container.delete();
+            deleteRecursively(target);
+        }
+    }
+
+
+    @Test
+    @DisplayName("a link whose target is missing is still an entry, and is still removed")
+    void aDanglingLinkIsAnEntryAndIsRemoved() throws IOException {
+        File container = Files.createTempDirectory("p17_dangling_container_").toFile();
+        File missing = new File(container, "target_that_was_never_created");
+        File link = new File(container, "p17dangling" + System.nanoTime());
+        Files.createSymbolicLink(link.toPath(), missing.toPath());
+        String aliasName = link.getName();
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Collections.<String>emptyList());
+            bukkit.when(() -> Bukkit.getWorld(aliasName)).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+
+            // The entry is there; what it points at is not. This is the unmounted-volume case, and
+            // it is the one an operator most wants to be able to clear away.
+            assertThat(Files.isSymbolicLink(link.toPath())).isTrue();
+            assertThat(link.exists()).isFalse();
+
+            boolean result = worldService.deleteWorld(aliasName);
+
+            // `File#exists` follows the link, so asking it whether there is anything here answers
+            // about the missing target and returns false -- the entry is then reported as absent
+            // and left in place, while the settings row is removed anyway. Deleting asks about the
+            // ENTRY; only a call that does not follow the link can answer that question.
+            assertThat(result).isTrue();
+            assertThat(Files.isSymbolicLink(link.toPath())).isFalse();
+        } finally {
+            link.delete();
+            container.delete();
+        }
+    }
+
+}

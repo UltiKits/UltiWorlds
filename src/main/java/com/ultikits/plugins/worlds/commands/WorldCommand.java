@@ -17,6 +17,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -166,7 +168,10 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        if (name.equals(worldService.getConfig().getDefaultWorld())) {
+        // Case-insensitive on purpose: CraftServer#getWorld resolves its argument as
+        // name.toLowerCase(Locale.ROOT), so an exact comparison here lets "/world unload LOBBY"
+        // past the guard and then unloads the real "lobby".
+        if (name.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.unload.default"));
             return;
         }
@@ -189,8 +194,19 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        if (name.equals(worldService.getConfig().getDefaultWorld())) {
+        // Case-insensitive for the same reason as the unload guard above, and additionally so
+        // that "/world delete WORLD" is not told it is "listed in protected_worlds" when the real
+        // reason is that it is the default world -- a statement about the operator's own
+        // configuration has to be true.
+        if (name.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
             player.sendMessage(i18n("world.delete.default"));
+            return;
+        }
+
+        // WorldService#deleteWorld refuses this on its own -- asking here only decides WHICH
+        // message the sender gets, so that a protected world is not reported as a generic failure.
+        if (worldService.isDeleteProtected(name)) {
+            player.sendMessage(i18n("world.delete.protected").replace("{WORLD}", name));
             return;
         }
 
@@ -641,12 +657,34 @@ public class WorldCommand extends BaseCommandExecutor {
     }
 
     /**
-     * Whether {@code worldName} is filesystem-safe and currently exists -- either loaded in Bukkit
-     * or present as an on-disk folder in the world container. Shared by {@link #requireDeletableWorld}
-     * and {@link #requireLoadableWorld}: both accept a world that is on disk but not currently
-     * loaded, unlike {@link #requireWorld} which requires the world to already be loaded.
+     * Whether {@code worldName} is filesystem-safe and names a world that is loaded, or any
+     * ENTRY present in the world container -- a symbolic link included, whether or not the thing
+     * it points at still exists. Used by {@link #requireDeletableWorld}. Like
+     * {@link #requireLoadableWorld} and unlike {@link #requireWorld}, it accepts a world that is on
+     * disk but not currently loaded.
+     *
+     * <p>This and {@link #existsLoadedOrHasWorldDataOnDisk(String)} were one method until gate-2
+     * round 6, and that is what the defect was: deleting and loading ask different questions of the
+     * same path, and one link-following call cannot answer both. {@link File#exists()} resolves a
+     * link, so for a link whose target is missing it answers about the target -- and an entry
+     * plainly present in the container was reported to the operator as a world that does not exist,
+     * then left in place after its settings row had already been removed. Deleting asks about the
+     * entry, so this one does not follow.
      */
-    private static boolean existsLoadedOrOnDisk(String worldName) {
+    private static boolean existsLoadedOrHasAnEntryOnDisk(String worldName) {
+        return WorldService.isFilesystemSafeWorldName(worldName)
+                && (Bukkit.getWorld(worldName) != null
+                    || Files.exists(new File(Bukkit.getWorldContainer(), worldName).toPath(),
+                                    LinkOption.NOFOLLOW_LINKS));
+    }
+
+    /**
+     * Whether {@code worldName} is filesystem-safe and names a world that is loaded, or one whose
+     * world DATA is on disk. Used by {@link #requireLoadableWorld}, and deliberately follows a
+     * symbolic link: a link whose target is missing has nothing to load, so refusing it here gives
+     * the operator a clearer message than the service's generic load failure would.
+     */
+    private static boolean existsLoadedOrHasWorldDataOnDisk(String worldName) {
         return WorldService.isFilesystemSafeWorldName(worldName)
                 && (Bukkit.getWorld(worldName) != null
                     || new File(Bukkit.getWorldContainer(), worldName).exists());
@@ -663,7 +701,7 @@ public class WorldCommand extends BaseCommandExecutor {
      * @return true if the caller should continue, false if a refusal was already sent
      */
     private boolean requireDeletableWorld(Player player, String worldName) {
-        if (!existsLoadedOrOnDisk(worldName)) {
+        if (!existsLoadedOrHasAnEntryOnDisk(worldName)) {
             player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
             return false;
         }
@@ -680,7 +718,7 @@ public class WorldCommand extends BaseCommandExecutor {
      * @return true if the caller should continue, false if a refusal was already sent
      */
     private boolean requireLoadableWorld(Player player, String worldName) {
-        if (!existsLoadedOrOnDisk(worldName)) {
+        if (!existsLoadedOrHasWorldDataOnDisk(worldName)) {
             player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
             return false;
         }
