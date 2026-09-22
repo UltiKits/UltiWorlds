@@ -114,14 +114,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   entirely. The module already held that a linked directory is not part of a world folder and that
   only the link entry is removed — that rule covered a link found inside a world folder and not one
   standing in the world folder's own position, and it now covers both. A link whose own name is not
-  in `protected_worlds` is therefore not a route to a protected world's data, and the console says
-  so when what was removed was a link rather than a world (UltiKits/UltiWorlds#20).
+  in `protected_worlds` is therefore not a route to a protected world's data. The console says when
+  the thing named is a link, and says it as a statement of what the command can reach rather than of
+  what it has already done, so the line stays true even when the link cannot be removed; a link that
+  could not be removed is reported as a link left in place, not as files left in a folder
+  (UltiKits/UltiWorlds#20).
 - `/world delete` 不再沿符号链接删除。当世界文件夹本身就是一个链接时，该链接此前会被跟随：链接指向的
   目录下的全部内容都会被删除，而被移除的只有链接本身，于是命令为一份存放在别处的数据报告了成功。本模块
   一向认为链接目录不属于世界文件夹、只移除链接条目——此前该规则只覆盖世界文件夹内部的链接，不覆盖处于
   世界文件夹自身位置的链接，现在两者都覆盖。因此，名称本身不在 `protected_worlds` 中的链接，也不再是
-  通往受保护世界数据的通路；并且当被移除的是链接而不是世界时，控制台会明确说明
-  （UltiKits/UltiWorlds#20）。
+  通往受保护世界数据的通路。当目标是链接时，控制台会说明这一点，并且以「本命令能触及什么」而非
+  「已经做了什么」的方式陈述，因此即使链接删除失败，该行依然成立；删除失败时报告的是「链接仍留在世界
+  容器中」，而不是「文件夹中还有文件残留」（UltiKits/UltiWorlds#20）。
 - `protected_worlds` is now matched without regard to letter case, both when refusing a deletion and
   when the empty-world auto-unload task skips a world. A world listed as `MyWorld` while the server
   calls it `myworld` is now covered by both; previously only an exact spelling matched
