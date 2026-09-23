@@ -2,6 +2,7 @@ package com.ultikits.plugins.worlds.gui;
 
 import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
 import com.ultikits.plugins.worlds.config.WorldConfig;
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 
@@ -44,19 +45,16 @@ class WorldDeleteConfirmPageGuardsTest {
     private WorldService worldService;
     private UltiToolsPlugin plugin;
     private Player player;
-    private java.io.File container;
-    private org.mockito.MockedStatic<org.bukkit.Bukkit> bukkit;
 
     @BeforeEach
     void setUp() throws Exception {
         UltiWorldsTestHelper.setUp();
-        container = java.nio.file.Files.createTempDirectory("p17w2guards").toFile();
-        bukkit = DeleteConfirmPageDriver.worldContainerIn(container);
         plugin = UltiWorldsTestHelper.getMockPlugin();
         worldService = mock(WorldService.class);
         WorldConfig config = mock(WorldConfig.class);
         when(config.getDefaultWorld()).thenReturn("world");
         when(worldService.getConfig()).thenReturn(config);
+        when(worldService.getDeleteConfirmationWindow()).thenReturn(new DeleteConfirmationWindow());
         when(worldService.isDeleteProtected(anyString())).thenReturn(false);
         when(worldService.deleteWorld("scratchw")).thenReturn(true);
         player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
@@ -64,8 +62,6 @@ class WorldDeleteConfirmPageGuardsTest {
 
     @AfterEach
     void tearDown() throws Exception {
-        bukkit.close();
-        container.delete();
         UltiWorldsTestHelper.tearDown();
     }
 

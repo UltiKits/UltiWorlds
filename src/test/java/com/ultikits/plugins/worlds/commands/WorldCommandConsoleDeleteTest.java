@@ -5,6 +5,7 @@ import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.plugins.worlds.gui.DeleteConfirmPageDriver;
 import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.DataOperator;
@@ -28,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.LongSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,6 +61,7 @@ class WorldCommandConsoleDeleteTest {
     private static final String OTHER = "otherw";
 
     private WorldCommand command;
+    private WorldService worldService;
     private WorldConfig mockConfig;
     private UltiToolsPlugin mockPlugin;
     private File container;
@@ -88,7 +89,7 @@ class WorldCommandConsoleDeleteTest {
         when(query.first()).thenReturn(null);
         when(query.delete()).thenReturn(0);
 
-        WorldService worldService = new WorldService();
+        worldService = new WorldService();
         UltiWorldsTestHelper.setField(worldService, "config", mockConfig);
         UltiWorldsTestHelper.setField(worldService, "dataOperator", dataOperator);
         UltiWorldsTestHelper.setField(worldService, "plugin", mockPlugin);
@@ -96,7 +97,8 @@ class WorldCommandConsoleDeleteTest {
         command = new WorldCommand();
         UltiWorldsTestHelper.setField(command, "worldService", worldService);
         UltiWorldsTestHelper.setField(command, "plugin", mockPlugin);
-        UltiWorldsTestHelper.setField(command, "clock", (LongSupplier) now::get);
+        UltiWorldsTestHelper.setField(worldService, "deleteConfirmationWindow",
+                new DeleteConfirmationWindow(now::get));
 
         container = Files.createTempDirectory("p17w2console").toFile();
         worldFolder = new File(container, WORLD);
@@ -201,25 +203,25 @@ class WorldCommandConsoleDeleteTest {
     }
 
     @Test
-    @DisplayName("a world deleted and recreated under the same name between request and repeat is not deleted")
-    void aWorldReplacedBetweenRequestAndRepeatIsNotDeleted() throws Exception {
-        WorldCommandDeleteConfirmationTest.writeUid(worldFolder, java.util.UUID.randomUUID());
+    @DisplayName("a repeat after this module deleted the world for another request deletes nothing and starts a new request")
+    void aRepeatAfterAnInModuleDeletionDeletesNothing() throws Exception {
         delete(console, WORLD);
 
-        deleteRecursively(worldFolder);
+        // Another request deletes the world through this module; then a different world is
+        // created under the same name.
+        assertThat(worldService.deleteWorld(WORLD)).isTrue();
         assertThat(new File(worldFolder, "region").mkdirs()).isTrue();
-        WorldCommandDeleteConfirmationTest.writeUid(worldFolder, java.util.UUID.randomUUID());
         File marker = new File(worldFolder, "replacement.marker");
         assertThat(marker.createNewFile()).isTrue();
         now.addAndGet(5_000L);
         delete(console, WORLD);
 
-        assertThat(marker).as("the replacement world survives the repeat").exists();
+        assertThat(marker).as("the world created afterwards survives the repeat").exists();
         assertThat(sentTo(console)).containsExactly(
-                "world.delete.confirm_console", "world.delete.changed", "world.delete.confirm_console");
+                "world.delete.confirm_console", "world.delete.invalidated", "world.delete.confirm_console");
 
-        // The changed repeat was recorded as a new request for the replacement: repeating it now
-        // confirms that one, which is the world the console has just been told about.
+        // Control: the voided repeat was recorded as a new request for the world there now, and
+        // repeating it inside the window confirms that one.
         now.addAndGet(5_000L);
         delete(console, WORLD);
         assertThat(worldFolder).doesNotExist();

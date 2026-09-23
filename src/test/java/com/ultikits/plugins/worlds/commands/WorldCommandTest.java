@@ -48,6 +48,8 @@ class WorldCommandTest {
         UltiWorldsTestHelper.setField(command, "plugin", mockPlugin);
 
         when(mockWorldService.getConfig()).thenReturn(mockConfig);
+        lenient().when(mockWorldService.getDeleteConfirmationWindow())
+                .thenReturn(new com.ultikits.plugins.worlds.service.DeleteConfirmationWindow());
     }
 
     @AfterEach

@@ -5,6 +5,7 @@ import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.plugins.worlds.gui.DeleteConfirmPageDriver;
 import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.DataOperator;
@@ -62,6 +63,7 @@ class WorldCommandDeleteConfirmationTest {
     private File container;
     private File worldFolder;
     private Player player;
+    private final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000L);
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -85,6 +87,9 @@ class WorldCommandDeleteConfirmationTest {
         UltiWorldsTestHelper.setField(worldService, "config", mockConfig);
         UltiWorldsTestHelper.setField(worldService, "dataOperator", mockDataOperator);
         UltiWorldsTestHelper.setField(worldService, "plugin", mockPlugin);
+
+        UltiWorldsTestHelper.setField(worldService, "deleteConfirmationWindow",
+                new DeleteConfirmationWindow(now::get));
 
         command = new WorldCommand();
         UltiWorldsTestHelper.setField(command, "worldService", worldService);
@@ -214,81 +219,102 @@ class WorldCommandDeleteConfirmationTest {
         }
     }
 
-    /** Write a Bukkit-style {@code uid.dat} (two big-endian longs) into a world folder. */
-    static void writeUid(File folder, UUID uid) throws java.io.IOException {
-        try (java.io.DataOutputStream out = new java.io.DataOutputStream(
-                new java.io.FileOutputStream(new File(folder, "uid.dat")))) {
-            out.writeLong(uid.getMostSignificantBits());
-            out.writeLong(uid.getLeastSignificantBits());
-        }
-    }
-
-    /** Delete the world folder and create a different world under the same name. */
-    private File replaceWorldFolder() throws java.io.IOException {
+    /**
+     * Delete the world folder and create a different world under the same name, the way another
+     * plugin or an operator by hand would -- not through this module.
+     */
+    private File recreateWorldFolderOutsideTheModule() throws java.io.IOException {
         deleteRecursively(worldFolder);
         assertThat(new File(worldFolder, "region").mkdirs()).isTrue();
-        writeUid(worldFolder, UUID.randomUUID());
         File marker = new File(worldFolder, "replacement.marker");
         assertThat(marker.createNewFile()).isTrue();
         return marker;
     }
 
-    @Test
-    @DisplayName("a world deleted and recreated under the same name while the page is open is not deleted on confirm")
-    void aWorldReplacedWhileThePageIsOpenIsNotDeleted() throws Exception {
-        writeUid(worldFolder, UUID.randomUUID());
-        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
-            WorldDeleteConfirmPage page = openThePage(bukkit);
-            File marker = replaceWorldFolder();
-
-            DeleteConfirmPageDriver.confirm(page);
-
-            assertThat(marker).as("the replacement world survives").exists();
-            verify(mockPlugin).i18n("world.delete.changed");
-            verify(mockPlugin, never()).i18n("command.delete.success");
-        }
-    }
+    // ---- The 30-second window (maintainer decision 2026-09-24: bind to time, not identity) ----
 
     @Test
-    @DisplayName("a loaded world replaced by another loaded world of the same name is not deleted on confirm")
-    void aLoadedWorldReplacedWhileThePageIsOpenIsNotDeleted() throws Exception {
-        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
-            org.bukkit.World first = mock(org.bukkit.World.class);
-            when(first.getUID()).thenReturn(UUID.randomUUID());
-            bukkit.when(() -> Bukkit.getWorld(WORLD)).thenReturn(first);
-            WorldDeleteConfirmPage page = openThePage(bukkit);
-
-            org.bukkit.World second = mock(org.bukkit.World.class);
-            when(second.getUID()).thenReturn(UUID.randomUUID());
-            when(second.getPlayers()).thenReturn(java.util.Collections.<Player>emptyList());
-            bukkit.when(() -> Bukkit.getWorld(WORLD)).thenReturn(second);
-            // Everything an unguarded deletion of the replacement needs is stubbed, so without the
-            // identity check this test fails on the surviving folder, not on an unstubbed call.
-            org.bukkit.World fallback = mock(org.bukkit.World.class);
-            when(fallback.getSpawnLocation()).thenReturn(mock(org.bukkit.Location.class));
-            bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(fallback);
-            bukkit.when(Bukkit::getWorlds).thenReturn(java.util.Collections.singletonList(fallback));
-            bukkit.when(() -> Bukkit.unloadWorld(any(org.bukkit.World.class), any(Boolean.class))).thenReturn(true);
-            DeleteConfirmPageDriver.confirm(page);
-
-            assertThat(worldFolder).exists();
-            verify(mockPlugin).i18n("world.delete.changed");
-            verify(mockPlugin, never()).i18n("command.delete.success");
-        }
-    }
-
-    @Test
-    @DisplayName("control: a world with its uid.dat unchanged is deleted on confirm")
-    void aWorldWhoseIdentityIsUnchangedIsDeleted() throws Exception {
-        writeUid(worldFolder, UUID.randomUUID());
+    @DisplayName("OK 29 seconds after the page opened deletes")
+    void anOkInsideTheWindowDeletes() {
         try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
             WorldDeleteConfirmPage page = openThePage(bukkit);
+            now.addAndGet(29_000L);
 
             DeleteConfirmPageDriver.confirm(page);
 
             assertThat(worldFolder).doesNotExist();
-            verify(mockPlugin, never()).i18n("world.delete.changed");
             verify(mockPlugin).i18n("command.delete.success");
+        }
+    }
+
+    @Test
+    @DisplayName("OK exactly 30 seconds after the page opened still deletes, as the console's repeat does")
+    void anOkAtTheBoundaryDeletes() {
+        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
+            WorldDeleteConfirmPage page = openThePage(bukkit);
+            now.addAndGet(30_000L);
+
+            DeleteConfirmPageDriver.confirm(page);
+
+            assertThat(worldFolder).doesNotExist();
+        }
+    }
+
+    @Test
+    @DisplayName("OK more than 30 seconds after the page opened deletes nothing and says to run the command again")
+    void anOkAfterTheWindowDeletesNothing() {
+        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
+            WorldDeleteConfirmPage page = openThePage(bukkit);
+            now.addAndGet(30_001L);
+
+            DeleteConfirmPageDriver.confirm(page);
+
+            assertThat(worldFolder).exists();
+            assertThat(new File(worldFolder, "region")).exists();
+            verify(mockPlugin).i18n("world.delete.expired");
+            verify(mockPlugin, never()).i18n("command.delete.success");
+        }
+    }
+
+    // ---- Invalidation by an in-module deletion (replaces round 1's identity tests) ----
+
+    @Test
+    @DisplayName("a page opened before another request deleted the world through this module deletes nothing on OK")
+    void aPageVoidedByAnInModuleDeletionDeletesNothing() throws Exception {
+        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
+            WorldDeleteConfirmPage first = openThePage(bukkit);
+            WorldDeleteConfirmPage second = openThePage(bukkit);
+            DeleteConfirmPageDriver.confirm(second);
+            assertThat(worldFolder).as("the second request deleted the world").doesNotExist();
+            File marker = recreateWorldFolderOutsideTheModule();
+            now.addAndGet(5_000L);
+
+            DeleteConfirmPageDriver.confirm(first);
+
+            assertThat(marker).as("the world created afterwards survives the stale page").exists();
+            verify(mockPlugin).i18n("world.delete.invalidated");
+
+            // Control: a page opened now, for the world that is there now, deletes it.
+            WorldDeleteConfirmPage fresh = openThePage(bukkit);
+            DeleteConfirmPageDriver.confirm(fresh);
+            assertThat(worldFolder).doesNotExist();
+        }
+    }
+
+    @Test
+    @DisplayName("known limit: a world replaced outside this module within the window is deleted by the earlier page")
+    void aWorldReplacedOutsideTheModuleWithinTheWindowIsDeleted() throws Exception {
+        // Documented, accepted limit (maintainer decision 2026-09-24): the confirmation does not
+        // try to recognise "the same world". If this ever starts failing because the limit was
+        // removed, update the CHANGELOG and FEATURES statements of the limit with it.
+        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
+            WorldDeleteConfirmPage page = openThePage(bukkit);
+            recreateWorldFolderOutsideTheModule();
+            now.addAndGet(5_000L);
+
+            DeleteConfirmPageDriver.confirm(page);
+
+            assertThat(worldFolder).doesNotExist();
         }
     }
 
