@@ -330,6 +330,32 @@ class WorldCommandConsoleDeleteTest {
     }
 
     @Test
+    @DisplayName("RCON is refused and deletes nothing, while the console with the same steps is asked to confirm")
+    void rconIsRefused() {
+        // Maintainer decision 2026-09-24 (question 14, third follow-up): RCON stays refused.
+        // RemoteConsoleCommandSender is not a ConsoleCommandSender, so it never reaches the
+        // confirmation table (gate-1 WR-04).
+        org.bukkit.command.RemoteConsoleCommandSender rcon =
+                mock(org.bukkit.command.RemoteConsoleCommandSender.class);
+        when(rcon.hasPermission(anyString())).thenReturn(true);
+        when(rcon.getName()).thenReturn("Rcon");
+
+        delete(rcon, WORLD);
+        now.addAndGet(1_000L);
+        delete(rcon, WORLD);
+
+        assertThat(worldFolder).exists();
+        assertThat(sentTo(rcon)).containsExactly(
+                "world.delete.sender_not_allowed", "world.delete.sender_not_allowed");
+
+        // Control: the console, same world, same steps, is admitted and asked to confirm; and the
+        // refused RCON requests left nothing for the console's first request to confirm.
+        delete(console, WORLD);
+        assertThat(worldFolder).exists();
+        assertThat(sentTo(console)).containsExactly("world.delete.confirm_console");
+    }
+
+    @Test
     @DisplayName("control: a player still gets the window, never the console confirmation")
     void aPlayerStillGetsTheWindow() {
         org.bukkit.entity.Player player =
