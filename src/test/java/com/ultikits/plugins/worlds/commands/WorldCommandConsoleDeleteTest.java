@@ -201,6 +201,31 @@ class WorldCommandConsoleDeleteTest {
     }
 
     @Test
+    @DisplayName("a world deleted and recreated under the same name between request and repeat is not deleted")
+    void aWorldReplacedBetweenRequestAndRepeatIsNotDeleted() throws Exception {
+        WorldCommandDeleteConfirmationTest.writeUid(worldFolder, java.util.UUID.randomUUID());
+        delete(console, WORLD);
+
+        deleteRecursively(worldFolder);
+        assertThat(new File(worldFolder, "region").mkdirs()).isTrue();
+        WorldCommandDeleteConfirmationTest.writeUid(worldFolder, java.util.UUID.randomUUID());
+        File marker = new File(worldFolder, "replacement.marker");
+        assertThat(marker.createNewFile()).isTrue();
+        now.addAndGet(5_000L);
+        delete(console, WORLD);
+
+        assertThat(marker).as("the replacement world survives the repeat").exists();
+        assertThat(sentTo(console)).containsExactly(
+                "world.delete.confirm_console", "world.delete.changed", "world.delete.confirm_console");
+
+        // The changed repeat was recorded as a new request for the replacement: repeating it now
+        // confirms that one, which is the world the console has just been told about.
+        now.addAndGet(5_000L);
+        delete(console, WORLD);
+        assertThat(worldFolder).doesNotExist();
+    }
+
+    @Test
     @DisplayName("a clock that steps backwards between request and repeat does not confirm")
     void aBackwardsClockDoesNotConfirm() {
         delete(console, WORLD);
