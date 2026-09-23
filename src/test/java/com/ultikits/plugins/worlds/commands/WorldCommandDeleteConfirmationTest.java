@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -298,6 +299,32 @@ class WorldCommandDeleteConfirmationTest {
             WorldDeleteConfirmPage fresh = openThePage(bukkit);
             DeleteConfirmPageDriver.confirm(fresh);
             assertThat(worldFolder).doesNotExist();
+        }
+    }
+
+    @Test
+    @DisplayName("a deletion whose database cleanup throws still voids a page opened before it")
+    @SuppressWarnings("unchecked")
+    void aDeletionThatFailsAfterRemovingTheWorldStillVoidsEarlierPages() throws Exception {
+        try (MockedStatic<Bukkit> bukkit = bukkitWithContainer()) {
+            WorldDeleteConfirmPage first = openThePage(bukkit);
+            WorldDeleteConfirmPage second = openThePage(bukkit);
+            Query<WorldSettings> failingQuery = mock(Query.class);
+            when(mockDataOperator.query()).thenReturn(failingQuery);
+            when(failingQuery.where(anyString())).thenReturn(failingQuery);
+            when(failingQuery.eq(any())).thenReturn(failingQuery);
+            when(failingQuery.delete()).thenThrow(new IllegalStateException("database unavailable"));
+
+            assertThatThrownBy(() -> DeleteConfirmPageDriver.confirm(second))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThat(worldFolder).as("the folder went before the database step failed").doesNotExist();
+            File marker = recreateWorldFolderOutsideTheModule();
+            now.addAndGet(5_000L);
+
+            DeleteConfirmPageDriver.confirm(first);
+
+            assertThat(marker).as("the world created afterwards survives the stale page").exists();
+            verify(mockPlugin).i18n("world.delete.invalidated");
         }
     }
 

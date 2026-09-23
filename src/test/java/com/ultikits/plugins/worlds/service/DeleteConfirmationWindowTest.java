@@ -58,14 +58,42 @@ class DeleteConfirmationWindowTest {
     @Test
     @DisplayName("a deletion voids confirmations for that name in any letter case, and no other name")
     void invalidationIsPerNameAndCaseInsensitive() {
-        DeleteConfirmationWindow window = new DeleteConfirmationWindow(new AtomicLong()::get);
-        long arena = window.deletions("arena");
-        long lobby = window.deletions("lobby");
+        AtomicLong now = new AtomicLong(1_000L);
+        DeleteConfirmationWindow window = new DeleteConfirmationWindow(now::get);
+        long requestedAt = window.now();
+        now.addAndGet(1_000L);
 
         window.invalidate("Arena");
 
-        assertThat(window.deletions("arena")).isNotEqualTo(arena);
-        assertThat(window.deletions("ARENA")).isEqualTo(window.deletions("arena"));
-        assertThat(window.deletions("lobby")).isEqualTo(lobby);
+        assertThat(window.deletedSince("arena", requestedAt)).isTrue();
+        assertThat(window.deletedSince("ARENA", requestedAt)).isTrue();
+        assertThat(window.deletedSince("lobby", requestedAt)).isFalse();
+    }
+
+    @Test
+    @DisplayName("a confirmation requested after the deletion is not voided by it")
+    void aLaterRequestIsNotVoidedByAnEarlierDeletion() {
+        AtomicLong now = new AtomicLong(1_000L);
+        DeleteConfirmationWindow window = new DeleteConfirmationWindow(now::get);
+        window.invalidate("arena");
+        now.addAndGet(1L);
+
+        assertThat(window.deletedSince("arena", window.now())).isFalse();
+    }
+
+    @Test
+    @DisplayName("deletion records older than the window are dropped, so uniquely named worlds do not accumulate")
+    void deletionRecordsDoNotAccumulate() {
+        AtomicLong now = new AtomicLong(1_000L);
+        DeleteConfirmationWindow window = new DeleteConfirmationWindow(now::get);
+        for (int i = 0; i < 1_000; i++) {
+            window.invalidate("temp_world_" + i);
+        }
+        assertThat(window.recordedNames()).isEqualTo(1_000);
+
+        now.addAndGet(DeleteConfirmationWindow.WINDOW_MILLIS + 1L);
+        window.invalidate("another");
+
+        assertThat(window.recordedNames()).isEqualTo(1);
     }
 }
