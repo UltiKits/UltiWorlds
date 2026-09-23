@@ -15,6 +15,7 @@ import org.bukkit.Difficulty;
 import org.bukkit.World;
 import org.bukkit.WorldType;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import java.io.File;
@@ -22,16 +23,22 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 /**
  * World management command executor.
  * Migrated to BaseCommandExecutor with improved annotations.
  *
+ * <p>Sender restriction: the class admits both players and the console only so that
+ * {@code /world delete} can reach the console (UltiKits/UltiWorlds#19). Every other mapping carries
+ * its own {@code @CmdTarget(PLAYER)} and so stays player-only, exactly as it was when the whole
+ * class was player-only. A new mapping must carry one too unless the console is meant to reach it.
+ *
  * @author wisdomme
  * @version 2.0.0
  */
-@CmdTarget(CmdTarget.CmdTargetType.PLAYER)
+@CmdTarget(CmdTarget.CmdTargetType.BOTH)
 @CmdExecutor(
     alias = {"world", "worlds", "w"},
     permission = "ultiworlds.use",
@@ -51,13 +58,21 @@ public class WorldCommand extends BaseCommandExecutor {
     @Autowired
     private WorldService worldService;
 
+    /** Time source for the console's delete confirmation window; replaced in tests. */
+    private LongSupplier clock = System::currentTimeMillis;
+
+    /** The console's pending {@code /world delete} requests (UltiKits/UltiWorlds#19). */
+    private final ConsoleDeleteConfirmations consoleDeleteConfirmations = new ConsoleDeleteConfirmations();
+
     // ==================== Basic Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "")
     public void openWorldList(@CmdSender Player player) {
         new WorldListPage(player, worldService, plugin).open();
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "list")
     public void listWorlds(@CmdSender Player player) {
         List<World> worlds = worldService.getAllWorlds();
@@ -72,6 +87,7 @@ public class WorldCommand extends BaseCommandExecutor {
         }
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "tp <world>")
     @CmdCD(5)
     public void teleportToWorld(@CmdSender Player player, @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
@@ -85,6 +101,7 @@ public class WorldCommand extends BaseCommandExecutor {
     
     // ==================== Create Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "wizard")
     public void startWizard(@CmdSender Player player) {
         if (!player.hasPermission("ultiworlds.admin.create")) {
@@ -95,6 +112,7 @@ public class WorldCommand extends BaseCommandExecutor {
         WorldCreateConversation.start(player, worldService, plugin);
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "create <name>")
     public void createWorld(@CmdSender Player player, @CmdParam("name") String name) {
         if (!player.hasPermission("ultiworlds.admin.create")) {
@@ -116,6 +134,7 @@ public class WorldCommand extends BaseCommandExecutor {
         }
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "create <name> <type>")
     public void createWorldWithType(@CmdSender Player player,
                                     @CmdParam("name") String name,
@@ -144,6 +163,7 @@ public class WorldCommand extends BaseCommandExecutor {
     
     // ==================== Load/Unload Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "load <name>")
     public void loadWorld(@CmdSender Player player, @CmdParam("name") String name) {
         if (!player.hasPermission("ultiworlds.admin.load")) {
@@ -162,6 +182,7 @@ public class WorldCommand extends BaseCommandExecutor {
         }
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "unload <name>")
     public void unloadWorld(@CmdSender Player player, @CmdParam(value = "name", suggest = "suggestWorlds") String name) {
         if (!player.hasPermission("ultiworlds.admin.unload")) {
@@ -185,14 +206,65 @@ public class WorldCommand extends BaseCommandExecutor {
     }
     
     @CmdMapping(format = "delete <name>")
-    public void deleteWorld(@CmdSender Player player, @CmdParam(value = "name", suggest = "suggestWorlds") String name) {
-        if (!player.hasPermission("ultiworlds.admin.delete")) {
-            player.sendMessage(i18n("error.no_permission"));
+    public void deleteWorld(@CmdSender CommandSender sender, @CmdParam(value = "name", suggest = "suggestWorlds") String name) {
+        // The class admits any non-player sender, but this command is opened to the server console
+        // only (UltiKits/UltiWorlds#19): a command block, a minecart or an /execute proxy repeating
+        // the same line would otherwise confirm a deletion with no one at the keyboard.
+        boolean fromConsole = sender instanceof ConsoleCommandSender;
+        if (!(sender instanceof Player) && !fromConsole) {
+            sender.sendMessage(i18n("world.delete.sender_not_allowed"));
             return;
         }
-        
-        if (!requireDeletableWorld(player, name)) {
+
+        if (!passesDeleteChecks(sender, name)) {
+            // A refused request or repeat never leaves a console confirmation behind for a later
+            // repeat to use: after a refusal the console starts again from the first request.
+            if (fromConsole) {
+                consoleDeleteConfirmations.discard(sender.getName(), name);
+            }
             return;
+        }
+
+        if (sender instanceof Player) {
+            // Deleting a world cannot be undone, so this command only asks: the deletion happens
+            // when the player presses confirm on this page, and cancelling or closing it deletes
+            // nothing (UltiKits/UltiWorlds#19). The page repeats the refusals above at that
+            // moment, because the world's protection or the player's permission can change while
+            // it is open.
+            new WorldDeleteConfirmPage((Player) sender, worldService, name, plugin).open();
+            return;
+        }
+
+        // The console cannot use the page, so it confirms by repeating this exact command within
+        // the window. Every check above has run again on the repeat before this point.
+        if (!consoleDeleteConfirmations.confirm(sender.getName(), name, clock.getAsLong())) {
+            sender.sendMessage(i18n("world.delete.confirm_console")
+                .replace("{WORLD}", name)
+                .replace("{SECONDS}", String.valueOf(ConsoleDeleteConfirmations.WINDOW_SECONDS)));
+            return;
+        }
+
+        sender.sendMessage(i18n("world.delete.deleting").replace("{WORLD}", name));
+        if (worldService.deleteWorld(name)) {
+            sender.sendMessage(i18n("world.delete.success").replace("{WORLD}", name));
+        } else {
+            sender.sendMessage(i18n("world.delete.failed"));
+        }
+    }
+
+    /**
+     * Every refusal {@code /world delete} makes, for either sender, in the order it makes them;
+     * sends the refusal and returns {@code false} at the first one that applies. Runs on the
+     * console's first request and again on its repeat.
+     */
+    private boolean passesDeleteChecks(CommandSender sender, String name) {
+        if (!sender.hasPermission("ultiworlds.admin.delete")) {
+            sender.sendMessage(i18n("error.no_permission"));
+            return false;
+        }
+
+        if (!requireDeletableWorld(sender, name)) {
+            return false;
         }
 
         // Case-insensitive for the same reason as the unload guard above, and additionally so
@@ -200,26 +272,22 @@ public class WorldCommand extends BaseCommandExecutor {
         // reason is that it is the default world -- a statement about the operator's own
         // configuration has to be true.
         if (name.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
-            player.sendMessage(i18n("world.delete.default"));
-            return;
+            sender.sendMessage(i18n("world.delete.default"));
+            return false;
         }
 
         // WorldService#deleteWorld refuses this on its own -- asking here only decides WHICH
         // message the sender gets, so that a protected world is not reported as a generic failure.
         if (worldService.isDeleteProtected(name)) {
-            player.sendMessage(i18n("world.delete.protected").replace("{WORLD}", name));
-            return;
+            sender.sendMessage(i18n("world.delete.protected").replace("{WORLD}", name));
+            return false;
         }
-
-        // Deleting a world cannot be undone, so this command only asks: the deletion happens when
-        // the player presses confirm on this page, and cancelling or closing it deletes nothing
-        // (UltiKits/UltiWorlds#19). The page repeats the refusals above at that moment, because
-        // the world's protection or the player's permission can change while it is open.
-        new WorldDeleteConfirmPage(player, worldService, name, plugin).open();
+        return true;
     }
     
     // ==================== Settings Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "set <world> <option> <value>")
     public void setWorldOption(@CmdSender Player player,
                                @CmdParam(value = "world", suggest = "suggestWorlds") String worldName,
@@ -311,6 +379,7 @@ public class WorldCommand extends BaseCommandExecutor {
     
     // ==================== Protection Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "protect <world>")
     public void protectWorld(@CmdSender Player player, @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
         if (!player.hasPermission("ultiworlds.admin.protect")) {
@@ -331,6 +400,7 @@ public class WorldCommand extends BaseCommandExecutor {
         player.sendMessage(i18n("world.protect.enabled").replace("{WORLD}", worldName));
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "unprotect <world>")
     public void unprotectWorld(@CmdSender Player player, @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
         if (!player.hasPermission("ultiworlds.admin.protect")) {
@@ -353,6 +423,7 @@ public class WorldCommand extends BaseCommandExecutor {
     
     // ==================== Block Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "block <world>")
     public void blockWorld(@CmdSender Player player, @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
         if (!player.hasPermission("ultiworlds.admin.block")) {
@@ -384,6 +455,7 @@ public class WorldCommand extends BaseCommandExecutor {
         player.sendMessage(i18n("world.block.enabled").replace("{WORLD}", worldName));
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "unblock <world>")
     public void unblockWorld(@CmdSender Player player, @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
         if (!player.hasPermission("ultiworlds.admin.block")) {
@@ -406,6 +478,7 @@ public class WorldCommand extends BaseCommandExecutor {
     
     // ==================== Other Commands ====================
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "setspawn")
     public void setWorldSpawn(@CmdSender Player player) {
         if (!player.hasPermission("ultiworlds.admin.setspawn")) {
@@ -419,6 +492,7 @@ public class WorldCommand extends BaseCommandExecutor {
     
     // ==================== Difficulty Command ====================
 
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "difficulty <world> <level>")
     public void setDifficulty(@CmdSender Player player,
                               @CmdParam(value = "world", suggest = "suggestWorlds") String worldName,
@@ -454,6 +528,7 @@ public class WorldCommand extends BaseCommandExecutor {
 
     // ==================== Post-Teleport Command Management ====================
 
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "postcmd <world> add <command...>")
     public void addPostCmd(@CmdSender Player player,
                            @CmdParam(value = "world", suggest = "suggestWorlds") String worldName,
@@ -488,6 +563,7 @@ public class WorldCommand extends BaseCommandExecutor {
         player.sendMessage(i18n("success.post_cmd_added").replace("%world%", worldName));
     }
 
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "postcmd <world> list")
     public void listPostCmd(@CmdSender Player player,
                             @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
@@ -513,6 +589,7 @@ public class WorldCommand extends BaseCommandExecutor {
         }
     }
 
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "postcmd <world> clear")
     public void clearPostCmd(@CmdSender Player player,
                              @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
@@ -534,6 +611,7 @@ public class WorldCommand extends BaseCommandExecutor {
 
     // ==================== Info Command ====================
 
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "info")
     public void worldInfo(@CmdSender Player player) {
         World world = player.getWorld();
@@ -556,6 +634,7 @@ public class WorldCommand extends BaseCommandExecutor {
             settings.isBlocked() ? i18n("common.yes") : i18n("common.no")));
     }
     
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "help")
     public void help(@CmdSender Player player) {
         player.sendMessage(i18n("help.header"));
@@ -583,7 +662,19 @@ public class WorldCommand extends BaseCommandExecutor {
     protected void handleHelp(CommandSender sender) {
         if (sender instanceof Player) {
             help((Player) sender);
+            return;
         }
+        // A non-player reaches this through "/world help" (the framework answers that literal
+        // argument before matching a mapping, gated only by the class-level target, which admits
+        // non-players for /world delete). The console is shown the one subcommand it can run; any
+        // other non-player can run none of them.
+        if (!(sender instanceof ConsoleCommandSender)) {
+            sender.sendMessage(i18n("world.delete.sender_not_allowed"));
+            return;
+        }
+        sender.sendMessage(i18n("help.header"));
+        sender.sendMessage(i18n("help.delete_console")
+            .replace("{SECONDS}", String.valueOf(ConsoleDeleteConfirmations.WINDOW_SECONDS)));
     }
     
     // ==================== Suggestion Methods ====================
@@ -699,9 +790,9 @@ public class WorldCommand extends BaseCommandExecutor {
      *
      * @return true if the caller should continue, false if a refusal was already sent
      */
-    private boolean requireDeletableWorld(Player player, String worldName) {
+    private boolean requireDeletableWorld(CommandSender sender, String worldName) {
         if (!existsLoadedOrHasAnEntryOnDisk(worldName)) {
-            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            sender.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
             return false;
         }
         return true;

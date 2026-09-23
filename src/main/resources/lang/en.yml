@@ -174,6 +174,8 @@ world:
     deleting: "§6Deleting world {WORLD}, please wait..."
     success: "§cWorld {WORLD} has been deleted!"
     failed: "§cFailed to delete the world!"
+    confirm_console: "§eWorld {WORLD} will be deleted permanently. Run /world delete {WORLD} again within {SECONDS} seconds to confirm."
+    sender_not_allowed: "§cOnly a player or the server console can delete a world."
 
   set:
     invalid_option: "§cInvalid option! Use: pvp, monsters, animals, weather, hidden, locked, blocked, displayname, description, icon, difficulty"
@@ -217,7 +219,8 @@ help:
   create: "§e/world create <name> [type] §7- Create a world (type: NORMAL, NETHER, THE_END)"
   load: "§e/world load <world> §7- Load a world"
   unload: "§e/world unload <world> §7- Unload a world"
-  delete: "§e/world delete <world> §7- Delete a world"
+  delete: "§e/world delete <world> §7- Delete a world (asks for confirmation first)"
+  delete_console: "§e/world delete <world> §7- Delete a world; run the same command again within {SECONDS} seconds to confirm"
   setspawn: "§e/world setspawn §7- Set the current world's spawn point"
   set: "§e/world set <world> <option> <value> §7- Modify world settings"
   protect: "§e/world protect <world> §7- Enable full protection for a world"

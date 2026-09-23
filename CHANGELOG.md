@@ -17,22 +17,44 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and `protected_worlds` again, because they can change while the window is open, and a window
   deletes at most once. The chat lines change with it: the old "Deleting world <name>, please
   wait..." / "World <name> has been deleted!" / "Failed to delete the world!" lines
-  (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent; the
-  window sends "World <name> has been deleted" or "Failed to delete world <name>"
+  (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent to a
+  player; the window sends "World <name> has been deleted" or "Failed to delete world <name>"
   (`command.delete.success`, `command.delete.failed`), and "Delete operation cancelled"
-  (`command.delete.cancelled`) for `Cancel`. If you customised the three old lines in the language
-  files, carry your text over to the new keys. The server console still cannot run
-  `/world delete`, as before: the whole `/world` command is player-only (UltiKits/UltiWorlds#19).
+  (`command.delete.cancelled`) for `Cancel`. If you customised those three old lines in the language
+  files for players, carry your text over to the new keys; the old lines are now the console's (next
+  entry) (UltiKits/UltiWorlds#19).
+- **The server console can now delete a world, behind a typed confirmation.** Until now the whole
+  `/world` command was player-only, so the console could not run `/world delete` at all. It now
+  can, and it never deletes on the first request: `/world delete <name>` from the console makes the
+  same checks as for a player (a world by that name exists, it is not the default world, it is not
+  in `protected_worlds`), deletes nothing, and asks you to run the same command again within 30
+  seconds. Only that repeat -- same world name, spelled and cased exactly the same, within 30
+  seconds -- deletes, and it makes every check again first; it then prints "Deleting world <name>,
+  please wait..." followed by "World <name> has been deleted!" or "Failed to delete the world!". A
+  repeat after 30 seconds deletes nothing and starts a new 30-second wait; a check that refuses the
+  request or the repeat cancels the pending request; each request allows one deletion. A pending
+  request lives in memory only and is lost on restart. Command blocks and other non-player,
+  non-console senders are refused. Every other `/world` subcommand stays player-only, as before;
+  `/world help` from the console now lists only `/world delete` (UltiKits/UltiWorlds#19).
 - `/world delete <名称>` 现在会在删除前先询问。它在原有检查（权限、该名称的世界存在、不是默认世界、
   不在 `protected_worlds` 中）之后，不再立即删除，而是打开标题为"Confirm Delete: <名称>"的确认窗口；
   只有点击窗口中绿色的 `OK` 按钮才会删除世界。点击红色的 `Cancel` 按钮，或以其他任何方式关闭窗口，都
   不会删除任何内容。点击 `OK` 时会再次检查权限、默认世界与 `protected_worlds`，因为窗口打开期间它们可能
   发生变化；并且一个窗口最多只执行一次删除。聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
-  "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送；
+  "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送给玩家；
   改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
   `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你在
-  语言文件中自定义过旧的三行文本，请把文本迁移到新的键上。服务器控制台仍与以前一样无法执行
-  `/world delete`：整个 `/world` 命令仅限玩家使用（UltiKits/UltiWorlds#19）。
+  语言文件中为玩家自定义过旧的三行文本，请把文本迁移到新的键上；旧的三行现在由控制台使用（见下一条）
+  （UltiKits/UltiWorlds#19）。
+- **服务器控制台现在可以删除世界，但需要打字确认。** 此前整个 `/world` 命令仅限玩家使用，控制台完全无法
+  执行 `/world delete`。现在可以执行，但第一次请求绝不会删除：控制台执行 `/world delete <名称>` 时会做与
+  玩家相同的检查（存在该名称的世界、不是默认世界、不在 `protected_worlds` 中），不删除任何内容，并提示在
+  30 秒内再次执行同一条命令。只有这次重复——世界名称的拼写和大小写完全相同、且在 30 秒内——才会删除，并且
+  删除前会再次完成全部检查；随后输出"正在删除世界……"，再输出"世界已删除"或"删除世界失败"。超过 30 秒的
+  重复不会删除任何内容，而是重新开始 30 秒等待；请求或重复被任一检查拒绝时，待确认的请求随之取消；每个
+  请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效。命令方块等既非玩家也非控制台的发送者会被
+  拒绝。其余所有 `/world` 子命令与以前一样仅限玩家；控制台执行 `/world help` 时现在只列出
+  `/world delete`（UltiKits/UltiWorlds#19）。
 
 ### Fixed
 
