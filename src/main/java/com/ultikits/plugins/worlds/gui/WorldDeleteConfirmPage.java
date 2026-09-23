@@ -1,5 +1,6 @@
 package com.ultikits.plugins.worlds.gui;
 
+import com.ultikits.plugins.worlds.service.WorldDeleteTarget;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.gui.BaseConfirmationPage;
@@ -16,7 +17,9 @@ import org.bukkit.inventory.Inventory;
  *
  * <p>The page can stay open indefinitely, so {@link #onConfirm} re-checks, at the moment of the
  * irreversible step, everything the command checked when it opened the page: the delete permission,
- * the default world, and {@code protected_worlds}. A page deletes at most once.
+ * the default world, and {@code protected_worlds}; and it refuses when the world known by that name
+ * is no longer the one the page was opened for -- deleted and recreated under the same name in
+ * between ({@link WorldDeleteTarget}). A page deletes at most once.
  *
  * <p>The page disarms itself: once it has been confirmed or closed, OK does nothing, and OK acts
  * only on a click that landed in this page's own inventory. That safety does not rest on
@@ -36,6 +39,9 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     private final UltiToolsPlugin plugin;
     private final String worldName;
 
+    /** The world this page was opened for; OK refuses if the name now means another one. */
+    private final WorldDeleteTarget target;
+
     /**
      * Set by the first confirm and by closing the page, so neither a second click nor a click
      * routed here after the page closed can run a deletion.
@@ -47,6 +53,7 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         this.worldService = worldService;
         this.plugin = plugin;
         this.worldName = worldName;
+        this.target = WorldDeleteTarget.capture(worldName);
     }
     
     @Override
@@ -73,6 +80,13 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         // "failed to delete", which would be indistinguishable from a locked file.
         if (worldService.isDeleteProtected(worldName)) {
             player.sendMessage(i18n("world.delete.protected").replace("{WORLD}", worldName));
+            return;
+        }
+
+        // The page may have been open for a long time: a world deleted and recreated under this
+        // name meanwhile is not the world the player was asked about.
+        if (!target.equals(WorldDeleteTarget.capture(worldName))) {
+            player.sendMessage(i18n("world.delete.changed").replace("{WORLD}", worldName));
             return;
         }
 

@@ -4,6 +4,7 @@ import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.gui.WorldListPage;
+import com.ultikits.plugins.worlds.service.WorldDeleteTarget;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.command.BaseCommandExecutor;
@@ -242,7 +243,14 @@ public class WorldCommand extends BaseCommandExecutor {
 
         // The console cannot use the page, so it confirms by repeating this exact command within
         // the window. Every check above has run again on the repeat before this point.
-        if (!consoleDeleteConfirmations.confirm(sender.getName(), name, clock.getAsLong())) {
+        // A repeat confirms only the world the request was made about: one deleted and recreated
+        // under the same name in between is a new request, not a confirmation.
+        ConsoleDeleteConfirmations.Outcome outcome = consoleDeleteConfirmations.confirm(
+            sender.getName(), name, WorldDeleteTarget.capture(name), clock.getAsLong());
+        if (outcome != ConsoleDeleteConfirmations.Outcome.CONFIRMED) {
+            if (outcome == ConsoleDeleteConfirmations.Outcome.CHANGED) {
+                sender.sendMessage(i18n("world.delete.changed").replace("{WORLD}", name));
+            }
             sender.sendMessage(i18n("world.delete.confirm_console")
                 .replace("{WORLD}", name)
                 .replace("{SECONDS}", String.valueOf(ConsoleDeleteConfirmations.WINDOW_SECONDS)));
