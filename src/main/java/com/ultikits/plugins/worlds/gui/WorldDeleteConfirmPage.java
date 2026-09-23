@@ -6,6 +6,8 @@ import com.ultikits.ultitools.abstracts.gui.BaseConfirmationPage;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.inventory.Inventory;
 
 /**
  * Confirmation page for world deletion, opened by {@code /world delete <name>}. Nothing is deleted
@@ -15,6 +17,12 @@ import org.bukkit.event.inventory.InventoryClickEvent;
  * <p>The page can stay open indefinitely, so {@link #onConfirm} re-checks, at the moment of the
  * irreversible step, everything the command checked when it opened the page: the delete permission,
  * the default world, and {@code protected_worlds}. A page deletes at most once.
+ *
+ * <p>The page disarms itself: once it has been confirmed or closed, OK does nothing, and OK acts
+ * only on a click that landed in this page's own inventory. That safety does not rest on
+ * obliviate-invs dropping the page from its open-GUI table on close -- if anything in the close
+ * chain threw, obliviate would keep routing the player's later clicks here by slot number alone,
+ * including a click in the player's own inventory at the OK slot's index (gate-1 WR-01).
  *
  * @author wisdomme
  * @version 2.0.0
@@ -28,8 +36,11 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     private final UltiToolsPlugin plugin;
     private final String worldName;
 
-    /** Set by the first confirm, so a second click on the same page cannot run a second deletion. */
-    private boolean confirmed;
+    /**
+     * Set by the first confirm and by closing the page, so neither a second click nor a click
+     * routed here after the page closed can run a deletion.
+     */
+    private boolean disarmed;
 
     public WorldDeleteConfirmPage(Player player, WorldService worldService, String worldName, UltiToolsPlugin plugin) {
         super(player, "delete-" + worldName, plugin.i18n("gui.delete.title").replace("%world%", worldName), 3);
@@ -40,10 +51,10 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     
     @Override
     protected void onConfirm(InventoryClickEvent event) {
-        if (confirmed) {
+        if (disarmed || !isOnThisPage(event)) {
             return;
         }
-        confirmed = true;
+        disarmed = true;
 
         if (!player.hasPermission(DELETE_PERMISSION)) {
             player.sendMessage(i18n("error.no_permission"));
@@ -74,6 +85,22 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         }
     }
     
+    /**
+     * Disarm before anything that could throw, then let the framework and obliviate-invs do their
+     * own close handling.
+     */
+    @Override
+    public void onClose(InventoryCloseEvent event) {
+        disarmed = true;
+        super.onClose(event);
+    }
+
+    /** Whether a click landed in this page's own (top) inventory, as opposed to the player's. */
+    private boolean isOnThisPage(InventoryClickEvent event) {
+        Inventory page = getInventory();
+        return page != null && event.getClickedInventory() == page;
+    }
+
     @Override
     protected void onCancel(InventoryClickEvent event) {
         player.sendMessage(i18n("command.delete.cancelled"));
