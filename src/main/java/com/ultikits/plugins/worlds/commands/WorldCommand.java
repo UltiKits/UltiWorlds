@@ -2,6 +2,7 @@ package com.ultikits.plugins.worlds.commands;
 
 import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.gui.WorldListPage;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
@@ -210,13 +211,11 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        player.sendMessage(i18n("world.delete.deleting").replace("{WORLD}", name));
-        
-        if (worldService.deleteWorld(name)) {
-            player.sendMessage(i18n("world.delete.success").replace("{WORLD}", name));
-        } else {
-            player.sendMessage(i18n("world.delete.failed"));
-        }
+        // Deleting a world cannot be undone, so this command only asks: the deletion happens when
+        // the player presses confirm on this page, and cancelling or closing it deletes nothing
+        // (UltiKits/UltiWorlds#19). The page repeats the refusals above at that moment, because
+        // the world's protection or the player's permission can change while it is open.
+        new WorldDeleteConfirmPage(player, worldService, name, plugin).open();
     }
     
     // ==================== Settings Commands ====================

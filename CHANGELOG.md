@@ -7,6 +7,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `/world delete <name>` now asks before it deletes. After the checks it always made (permission,
+  a world by that name exists, not the default world, not in `protected_worlds`), it opens a
+  confirmation window titled "Confirm Delete: <name>" instead of deleting on the spot; the world is
+  deleted only when you click the window's green `OK` button. The red `Cancel` button, or closing
+  the window any other way, deletes nothing. Clicking `OK` checks the permission, the default world
+  and `protected_worlds` again, because they can change while the window is open, and a window
+  deletes at most once. The chat lines change with it: the old "Deleting world <name>, please
+  wait..." / "World <name> has been deleted!" / "Failed to delete the world!" lines
+  (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent; the
+  window sends "World <name> has been deleted" or "Failed to delete world <name>"
+  (`command.delete.success`, `command.delete.failed`), and "Delete operation cancelled"
+  (`command.delete.cancelled`) for `Cancel`. If you customised the three old lines in the language
+  files, carry your text over to the new keys. The server console still cannot run
+  `/world delete`, as before: the whole `/world` command is player-only (UltiKits/UltiWorlds#19).
+- `/world delete <名称>` 现在会在删除前先询问。它在原有检查（权限、该名称的世界存在、不是默认世界、
+  不在 `protected_worlds` 中）之后，不再立即删除，而是打开标题为"Confirm Delete: <名称>"的确认窗口；
+  只有点击窗口中绿色的 `OK` 按钮才会删除世界。点击红色的 `Cancel` 按钮，或以其他任何方式关闭窗口，都
+  不会删除任何内容。点击 `OK` 时会再次检查权限、默认世界与 `protected_worlds`，因为窗口打开期间它们可能
+  发生变化；并且一个窗口最多只执行一次删除。聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
+  "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送；
+  改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
+  `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你在
+  语言文件中自定义过旧的三行文本，请把文本迁移到新的键上。服务器控制台仍与以前一样无法执行
+  `/world delete`：整个 `/world` 命令仅限玩家使用（UltiKits/UltiWorlds#19）。
+
 ### Fixed
 
 - `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
