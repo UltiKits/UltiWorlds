@@ -4,7 +4,7 @@ import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.gui.WorldListPage;
-import com.ultikits.plugins.worlds.service.WorldDeleteTarget;
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.command.BaseCommandExecutor;
@@ -24,8 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 /**
@@ -60,12 +58,6 @@ public class WorldCommand extends BaseCommandExecutor {
     @Autowired
     private WorldService worldService;
 
-    /**
-     * Time source for the console's delete confirmation window, in milliseconds; replaced in tests.
-     * Monotonic on purpose: the wall clock follows NTP and manual changes, and a backwards step
-     * would lengthen the window (gate-1 IN-01).
-     */
-    private LongSupplier clock = () -> TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
     /** The console's pending {@code /world delete} requests (UltiKits/UltiWorlds#19). */
     private final ConsoleDeleteConfirmations consoleDeleteConfirmations = new ConsoleDeleteConfirmations();
@@ -243,17 +235,17 @@ public class WorldCommand extends BaseCommandExecutor {
 
         // The console cannot use the page, so it confirms by repeating this exact command within
         // the window. Every check above has run again on the repeat before this point.
-        // A repeat confirms only the world the request was made about: one deleted and recreated
-        // under the same name in between is a new request, not a confirmation.
+        // The window and the record of deletions are the ones the player's page uses: a request
+        // made before this module deleted a world by this name confirms nothing.
         ConsoleDeleteConfirmations.Outcome outcome = consoleDeleteConfirmations.confirm(
-            sender.getName(), name, WorldDeleteTarget.capture(name), clock.getAsLong());
+            sender.getName(), name, worldService.getDeleteConfirmationWindow());
         if (outcome != ConsoleDeleteConfirmations.Outcome.CONFIRMED) {
-            if (outcome == ConsoleDeleteConfirmations.Outcome.CHANGED) {
-                sender.sendMessage(i18n("world.delete.changed").replace("{WORLD}", name));
+            if (outcome == ConsoleDeleteConfirmations.Outcome.INVALIDATED) {
+                sender.sendMessage(i18n("world.delete.invalidated").replace("{WORLD}", name));
             }
             sender.sendMessage(i18n("world.delete.confirm_console")
                 .replace("{WORLD}", name)
-                .replace("{SECONDS}", String.valueOf(ConsoleDeleteConfirmations.WINDOW_SECONDS)));
+                .replace("{SECONDS}", String.valueOf(DeleteConfirmationWindow.WINDOW_SECONDS)));
             return;
         }
 
@@ -687,7 +679,7 @@ public class WorldCommand extends BaseCommandExecutor {
         }
         sender.sendMessage(i18n("help.header"));
         sender.sendMessage(i18n("help.delete_console")
-            .replace("{SECONDS}", String.valueOf(ConsoleDeleteConfirmations.WINDOW_SECONDS)));
+            .replace("{SECONDS}", String.valueOf(DeleteConfirmationWindow.WINDOW_SECONDS)));
     }
     
     // ==================== Suggestion Methods ====================

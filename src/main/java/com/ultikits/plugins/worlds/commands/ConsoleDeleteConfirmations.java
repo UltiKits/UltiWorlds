@@ -1,5 +1,7 @@
 package com.ultikits.plugins.worlds.commands;
 
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -7,55 +9,44 @@ import java.util.Map;
 /**
  * Pending {@code /world delete} requests from the server console, which cannot use the player's
  * confirmation window (UltiKits/UltiWorlds#19). The console confirms a deletion by repeating the
- * same command, for the same world name, within {@link #WINDOW_MILLIS}.
+ * same command, for the same world name, within {@link DeleteConfirmationWindow#WINDOW_MILLIS}.
  *
  * <p>A request is keyed by the sender's name and the world name exactly as typed, so a different
  * name, or the same name in other letter case, never confirms it. Each call to {@link #confirm}
  * removes the entry it finds, so a request confirms at most one deletion. Expired entries are
  * dropped on every call, which keeps the table bounded by the names typed in the last window.
  *
- * <p>A request also records the identity of the world it was made about (a
- * {@link com.ultikits.plugins.worlds.service.WorldDeleteTarget}). A repeat whose world is no longer
- * that one -- deleted and recreated under the same name in between -- confirms nothing: it is
- * recorded as a new request for the world that is there now.
- *
- * <p>The caller supplies the time. {@code WorldCommand} passes a monotonic clock, so in production the
- * time never steps backwards; tests inject their own and need no sleeping. A time earlier than the
- * request is still treated as "not confirmed" rather than as a very long window, as a guard for any
- * other caller.
+ * <p>Time and validity come from the {@link DeleteConfirmationWindow} the caller passes -- the same
+ * object the player's confirmation window uses, so the two paths share one clock, one predicate and
+ * one record of deletions. A request is void once this module has deleted a world by that name
+ * after the request was made.
  *
  * @author wisdomme
  * @version 2.0.0
  */
 final class ConsoleDeleteConfirmations {
 
-    /** How long a console request waits for its repeat. */
-    static final long WINDOW_MILLIS = 30_000L;
-
-    /** The same window in seconds, for the messages that tell the console about it. */
-    static final long WINDOW_SECONDS = WINDOW_MILLIS / 1000L;
-
     /** What a call to {@link #confirm} did. */
     enum Outcome {
-        /** A live request for the same world was consumed: the caller may delete. */
+        /** A live request was consumed: the caller may delete. */
         CONFIRMED,
         /** No live request existed: one is recorded now, and the caller must delete nothing. */
         REQUESTED,
         /**
-         * A live request existed, but for a different world under the same name: it is replaced by a
-         * new request for the world there now, and the caller must delete nothing.
+         * A live request existed, but this module has deleted a world by that name since it was
+         * made: it is replaced by a new request, and the caller must delete nothing.
          */
-        CHANGED
+        INVALIDATED
     }
 
-    /** A pending request: when it was made, and what it was made about. */
+    /** A pending request: when it was made, and how many deletions of that name had happened. */
     private static final class Request {
         private final long at;
-        private final Object target;
+        private final long deletions;
 
-        private Request(long at, Object target) {
+        private Request(long at, long deletions) {
             this.at = at;
-            this.target = target;
+            this.deletions = deletions;
         }
     }
 
@@ -66,23 +57,23 @@ final class ConsoleDeleteConfirmations {
      *
      * @param senderName the requesting sender's name
      * @param worldName  the world name exactly as typed
-     * @param target     the identity of the world known by that name now; compared with
-     *                   {@code equals}
-     * @param now        the current time in milliseconds
-     * @return {@link Outcome#CONFIRMED} if a request for this sender, name and world was recorded no
-     *         more than {@link #WINDOW_MILLIS} before {@code now} -- it is consumed; otherwise a new
-     *         request is recorded at {@code now} and the result is {@link Outcome#CHANGED} when a
-     *         live request for a different world was replaced, or {@link Outcome#REQUESTED}
+     * @param window     the shared confirmation window
+     * @return {@link Outcome#CONFIRMED} if a request for this sender and name is still inside the
+     *         window and no deletion of that name has happened since -- it is consumed; otherwise a
+     *         new request is recorded now and the result is {@link Outcome#INVALIDATED} when a live
+     *         request was voided by a deletion, or {@link Outcome#REQUESTED}
      */
-    synchronized Outcome confirm(String senderName, String worldName, Object target, long now) {
-        dropExpired(now);
+    synchronized Outcome confirm(String senderName, String worldName, DeleteConfirmationWindow window) {
+        long now = window.now();
+        long deletions = window.deletions(worldName);
+        dropExpired(window, now);
         Request request = pending.remove(key(senderName, worldName));
-        boolean live = request != null && isInsideWindow(request.at, now);
-        if (live && request.target.equals(target)) {
+        boolean live = request != null && window.isInside(request.at, now);
+        if (live && request.deletions == deletions) {
             return Outcome.CONFIRMED;
         }
-        pending.put(key(senderName, worldName), new Request(now, target));
-        return live ? Outcome.CHANGED : Outcome.REQUESTED;
+        pending.put(key(senderName, worldName), new Request(now, deletions));
+        return live ? Outcome.INVALIDATED : Outcome.REQUESTED;
     }
 
     /**
@@ -93,18 +84,13 @@ final class ConsoleDeleteConfirmations {
         pending.remove(key(senderName, worldName));
     }
 
-    private void dropExpired(long now) {
+    private void dropExpired(DeleteConfirmationWindow window, long now) {
         Iterator<Request> requests = pending.values().iterator();
         while (requests.hasNext()) {
-            if (!isInsideWindow(requests.next().at, now)) {
+            if (!window.isInside(requests.next().at, now)) {
                 requests.remove();
             }
         }
-    }
-
-    /** The one place the window is decided; a clock that stepped backwards is outside it. */
-    private static boolean isInsideWindow(long requestedAt, long now) {
-        return now >= requestedAt && now - requestedAt <= WINDOW_MILLIS;
     }
 
     private static String key(String senderName, String worldName) {

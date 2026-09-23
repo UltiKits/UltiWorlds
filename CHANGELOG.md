@@ -16,8 +16,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the window any other way, deletes nothing. Clicking `OK` checks the permission, the default world
   and `protected_worlds` again, because they can change while the window is open, and a window
   deletes at most once, never after it has been closed, and only for a click on its own `OK` button
-  (not for a click at the same slot in your own inventory). If the world was deleted and a different
-  world created under the same name while the window was open, `OK` deletes nothing and says so. The chat lines change with it: the old "Deleting world <name>, please
+  (not for a click at the same slot in your own inventory). The window is valid for 30 seconds, the
+  same limit and clock as the console's confirmation: `OK` after that deletes nothing and asks you
+  to run the command again. If this module deletes that world for another request while your window
+  is open, your `OK` deletes nothing either. The chat lines change with it: the old "Deleting world <name>, please
   wait..." / "World <name> has been deleted!" / "Failed to delete the world!" lines
   (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent to a
   player; the window sends "World <name> has been deleted" or "Failed to delete world <name>"
@@ -33,9 +35,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   seconds. Only that repeat -- same world name, spelled and cased exactly the same, within 30
   seconds -- deletes, and it makes every check again first; it then prints "Deleting world <name>,
   please wait..." followed by "World <name> has been deleted!" or "Failed to delete the world!". A
-  repeat after 30 seconds deletes nothing and starts a new 30-second wait; a repeat that finds a
-  different world under that name (the first was deleted and another created in between) deletes
-  nothing, says so, and counts as a new request for the world now there; a check that refuses the
+  repeat after 30 seconds deletes nothing and starts a new 30-second wait; a repeat made after this
+  module has deleted a world by that name for another request deletes nothing, says so, and counts
+  as a new request; a check that refuses the
   request or the repeat cancels the pending request; each request allows one deletion. A pending
   request lives in memory only and is lost on restart, and the 30 seconds are measured on a clock
   that changes to the system time do not affect. Command blocks and other non-player,
@@ -61,13 +63,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     world is teleported into. The prompt goes to the console, so the teleporting players are never
     told. Do not add one. Adding post-teleport commands requires `ultiworlds.admin.settings`, so that
     permission is in effect enough to delete any unprotected world (UltiKits/UltiWorlds#19).
+- **Known limitation.** A delete confirmation, from a player or from the console, does not try to
+  recognise "the same world": it is bound to its 30 seconds and to this module's own deletions. A
+  world deleted by another plugin or by hand, and created again under the same name within those 30
+  seconds, is deleted by a confirmation given for the one before it (UltiKits/UltiWorlds#19).
 - `/world delete <名称>` 现在会在删除前先询问。它在原有检查（权限、该名称的世界存在、不是默认世界、
   不在 `protected_worlds` 中）之后，不再立即删除，而是打开标题为"Confirm Delete: <名称>"的确认窗口；
   只有点击窗口中绿色的 `OK` 按钮才会删除世界。点击红色的 `Cancel` 按钮，或以其他任何方式关闭窗口，都
   不会删除任何内容。点击 `OK` 时会再次检查权限、默认世界与 `protected_worlds`，因为窗口打开期间它们可能
   发生变化；并且一个窗口最多只执行一次删除，关闭后不再执行，且只响应窗口自身 `OK` 按钮的点击（不会响应在
-  自己背包同一格位的点击）。若窗口打开期间该世界被删除、又以同名创建了另一个世界，点击 `OK` 不会删除任何内容，
-  并会提示原因。聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
+  自己背包同一格位的点击）。窗口有效期为 30 秒，与控制台确认使用相同的时限和时钟：超过后点击 `OK` 不会删除
+  任何内容，并提示重新执行命令。若窗口打开期间本模块因另一个请求删除了该世界，你的 `OK` 同样不会删除任何内容。
+  聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
   "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送给玩家；
   改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
   `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你在
@@ -78,8 +85,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   玩家相同的检查（存在该名称的世界、不是默认世界、不在 `protected_worlds` 中），不删除任何内容，并提示在
   30 秒内再次执行同一条命令。只有这次重复——世界名称的拼写和大小写完全相同、且在 30 秒内——才会删除，并且
   删除前会再次完成全部检查；随后输出"正在删除世界……"，再输出"世界已删除"或"删除世界失败"。超过 30 秒的
-  重复不会删除任何内容，而是重新开始 30 秒等待；若重复时该名称下已是另一个世界（原世界在此期间被删除、又创建了
-  同名世界），则不删除任何内容、给出提示，并视为对现存世界的新请求；请求或重复被任一检查拒绝时，待确认的请求随之取消；每个
+  重复不会删除任何内容，而是重新开始 30 秒等待；若在请求之后本模块因另一个请求删除了该名称的世界，重复不会删除
+  任何内容，会给出提示，并视为新的请求；请求或重复被任一检查拒绝时，待确认的请求随之取消；每个
   请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效；这 30 秒按不受系统时间调整影响的时钟计算。命令方块等既非玩家也非控制台的发送者会被
   拒绝，RCON（`mcrcon` 及许多聊天桥接工具使用的远程控制台协议）同样被拒绝：它不能删除世界。其余所有 `/world` 子命令与以前一样仅限玩家；控制台执行 `/world help` 时现在只列出
   `/world delete`（UltiKits/UltiWorlds#19）。
@@ -97,6 +104,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     被传送进入的那个世界。确认提示发给控制台，传送的玩家不会得到任何提示。请不要添加这样的命令。添加传送后
     命令需要 `ultiworlds.admin.settings` 权限，因此该权限实际上足以删除任何未受保护的世界
     （UltiKits/UltiWorlds#19）。
+- **已知限制。** 删除确认（无论来自玩家还是控制台）不会尝试识别"是否还是同一个世界"：它只受 30 秒时限和本模块
+  自身删除操作的约束。若某个世界在这 30 秒内被其他插件或手工删除、又以同名重新创建，为原世界给出的确认会删除
+  新创建的世界（UltiKits/UltiWorlds#19）。
 
 ### Fixed
 

@@ -46,6 +46,10 @@ public class WorldService {
     // Empty world timer (tracks how long a world has been empty)
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
 
+    // The time limit and the deletion record both /world delete confirmations follow
+    // (UltiKits/UltiWorlds#19); every successful deletion below voids earlier confirmations.
+    private DeleteConfirmationWindow deleteConfirmationWindow = new DeleteConfirmationWindow();
+
     // Closes every line this service prints about a world's environment. It points at the
     // procedure instead of inlining one, and it does not vary by branch, so it cannot be true of
     // one folder shape and false of another -- see reportNoDecision for why that matters.
@@ -674,7 +678,13 @@ public class WorldService {
             .delete();
         settingsCache.remove(name);
 
-        return wasLoaded || folderExisted;
+        boolean deleted = wasLoaded || folderExisted;
+        if (deleted) {
+            // A confirmation given before this deletion must not delete whatever is created under
+            // this name next (UltiKits/UltiWorlds#19).
+            deleteConfirmationWindow.invalidate(name);
+        }
+        return deleted;
     }
 
     /**
@@ -839,5 +849,10 @@ public class WorldService {
     
     public WorldConfig getConfig() {
         return config;
+    }
+
+    /** The time limit and deletion record both {@code /world delete} confirmations follow. */
+    public DeleteConfirmationWindow getDeleteConfirmationWindow() {
+        return deleteConfirmationWindow;
     }
 }

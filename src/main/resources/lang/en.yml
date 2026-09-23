@@ -175,7 +175,8 @@ world:
     success: "§cWorld {WORLD} has been deleted!"
     failed: "§cFailed to delete the world!"
     confirm_console: "§eWorld {WORLD} will be deleted permanently. Run /world delete {WORLD} again within {SECONDS} seconds to confirm."
-    changed: "§cWorld {WORLD} has been replaced by a different world since this deletion was requested, so nothing was deleted."
+    expired: "§cThis confirmation for world {WORLD} expired after {SECONDS} seconds, so nothing was deleted. Run /world delete {WORLD} again."
+    invalidated: "§cWorld {WORLD} was deleted after this confirmation was requested, so nothing was deleted. Run /world delete {WORLD} again to delete what is there now."
     sender_not_allowed: "§cOnly a player or the server console can delete a world."
 
   set:

@@ -175,7 +175,8 @@ world:
     success: "§c世界 {WORLD} 已删除！"
     failed: "§c删除世界失败！"
     confirm_console: "§e世界 {WORLD} 将被永久删除。请在 {SECONDS} 秒内再次执行 /world delete {WORLD} 以确认。"
-    changed: "§c世界 {WORLD} 在请求删除之后已被另一个同名世界替换，因此没有删除任何内容。"
+    expired: "§c世界 {WORLD} 的删除确认已超过 {SECONDS} 秒失效，因此没有删除任何内容。请重新执行 /world delete {WORLD}。"
+    invalidated: "§c在请求此确认之后，世界 {WORLD} 已被删除，因此没有删除任何内容。如需删除该名称下现有的世界，请重新执行 /world delete {WORLD}。"
     sender_not_allowed: "§c只有玩家或服务器控制台可以删除世界。"
 
   set:

@@ -1,6 +1,6 @@
 package com.ultikits.plugins.worlds.gui;
 
-import com.ultikits.plugins.worlds.service.WorldDeleteTarget;
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.gui.BaseConfirmationPage;
@@ -15,11 +15,14 @@ import org.bukkit.inventory.Inventory;
  * until the player presses confirm; cancel and closing the page delete nothing
  * (UltiKits/UltiWorlds#19).
  *
- * <p>The page can stay open indefinitely, so {@link #onConfirm} re-checks, at the moment of the
- * irreversible step, everything the command checked when it opened the page: the delete permission,
- * the default world, and {@code protected_worlds}; and it refuses when the world known by that name
- * is no longer the one the page was opened for -- deleted and recreated under the same name in
- * between ({@link WorldDeleteTarget}). A page deletes at most once.
+ * <p>A page is valid for {@link DeleteConfirmationWindow#WINDOW_MILLIS} after it opened -- the same
+ * limit, clock and predicate as the console's typed confirmation -- and is void once this module has
+ * deleted a world by that name after it opened. Within that, {@link #onConfirm} re-checks, at the
+ * moment of the irreversible step, everything the command checked when it opened the page: the
+ * delete permission, the default world, and {@code protected_worlds}. A page deletes at most once.
+ * It does not try to recognise "the same world": a world deleted by another plugin or by hand and
+ * created again under the same name within the window is deleted (see
+ * {@link DeleteConfirmationWindow}).
  *
  * <p>The page disarms itself: once it has been confirmed or closed, OK does nothing, and OK acts
  * only on a click that landed in this page's own inventory. That safety does not rest on
@@ -39,8 +42,14 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     private final UltiToolsPlugin plugin;
     private final String worldName;
 
-    /** The world this page was opened for; OK refuses if the name now means another one. */
-    private final WorldDeleteTarget target;
+    /** The rule this page follows; the same object the console's confirmation uses. */
+    private final DeleteConfirmationWindow window;
+
+    /** When the page opened, on the window's clock. */
+    private final long openedAt;
+
+    /** How many times this module had deleted a world by this name when the page opened. */
+    private final long deletionsAtOpen;
 
     /**
      * Set by the first confirm and by closing the page, so neither a second click nor a click
@@ -53,7 +62,9 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         this.worldService = worldService;
         this.plugin = plugin;
         this.worldName = worldName;
-        this.target = WorldDeleteTarget.capture(worldName);
+        this.window = worldService.getDeleteConfirmationWindow();
+        this.openedAt = window.now();
+        this.deletionsAtOpen = window.deletions(worldName);
     }
     
     @Override
@@ -62,6 +73,20 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
             return;
         }
         disarmed = true;
+
+        if (!window.isInside(openedAt, window.now())) {
+            player.sendMessage(i18n("world.delete.expired")
+                .replace("{WORLD}", worldName)
+                .replace("{SECONDS}", String.valueOf(DeleteConfirmationWindow.WINDOW_SECONDS)));
+            return;
+        }
+
+        // Void once this module has deleted a world by this name since the page opened: whatever
+        // is under the name now is not what the player was asked about.
+        if (window.deletions(worldName) != deletionsAtOpen) {
+            player.sendMessage(i18n("world.delete.invalidated").replace("{WORLD}", worldName));
+            return;
+        }
 
         if (!player.hasPermission(DELETE_PERMISSION)) {
             player.sendMessage(i18n("error.no_permission"));
@@ -80,13 +105,6 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         // "failed to delete", which would be indistinguishable from a locked file.
         if (worldService.isDeleteProtected(worldName)) {
             player.sendMessage(i18n("world.delete.protected").replace("{WORLD}", worldName));
-            return;
-        }
-
-        // The page may have been open for a long time: a world deleted and recreated under this
-        // name meanwhile is not the world the player was asked about.
-        if (!target.equals(WorldDeleteTarget.capture(worldName))) {
-            player.sendMessage(i18n("world.delete.changed").replace("{WORLD}", worldName));
             return;
         }
 
