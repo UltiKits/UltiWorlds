@@ -28,10 +28,15 @@ class WorldDeleteConfirmPageTest {
     private WorldService mockWorldService;
     private UltiToolsPlugin mockPlugin;
     private Player mockPlayer;
+    private java.io.File container;
+    private org.mockito.MockedStatic<org.bukkit.Bukkit> bukkit;
 
     @BeforeEach
     void setUp() throws Exception {
         UltiWorldsTestHelper.setUp();
+        // The page reads the world container, which MockBukkit does not implement (UltiWorlds#19).
+        container = java.nio.file.Files.createTempDirectory("p17w2page").toFile();
+        bukkit = DeleteConfirmPageDriver.worldContainerIn(container);
         mockPlugin = UltiWorldsTestHelper.getMockPlugin();
         mockWorldService = mock(WorldService.class);
         mockPlayer = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
@@ -45,6 +50,8 @@ class WorldDeleteConfirmPageTest {
 
     @AfterEach
     void tearDown() throws Exception {
+        bukkit.close();
+        container.delete();
         UltiWorldsTestHelper.tearDown();
     }
 

@@ -4,17 +4,23 @@ import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 
 import mc.obliviate.inventory.event.customclosevent.FakeInventoryCloseEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.PlayerInventory;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+
+import java.io.File;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
@@ -44,6 +50,19 @@ public final class DeleteConfirmPageDriver {
     public static MockedConstruction<WorldDeleteConfirmPage> intercept(List<List<Object>> sink) {
         return mockConstruction(WorldDeleteConfirmPage.class,
                 (page, context) -> sink.add(new ArrayList<>(context.arguments())));
+    }
+
+    /**
+     * Give a test running on the live MockBukkit server a world container. The page records the
+     * identity of the world it is opened for, which reads {@code Bukkit.getWorldContainer()}, and
+     * MockBukkit 4 does not implement that call: it throws {@code UnimplementedOperationException},
+     * which JUnit reports as a SKIPPED test rather than a failure. Every other static {@code Bukkit}
+     * call still reaches the live server. Close the handle in {@code @AfterEach}.
+     */
+    public static MockedStatic<Bukkit> worldContainerIn(File container) {
+        MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS);
+        bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+        return bukkit;
     }
 
     /** Build a real page from arguments a command passed to the intercepted constructor. */
