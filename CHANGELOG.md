@@ -19,7 +19,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (not for a click at the same slot in your own inventory). The window is valid for 30 seconds, the
   same limit and clock as the console's confirmation: `OK` after that deletes nothing and asks you
   to run the command again. If this module deletes that world for another request while your window
-  is open, your `OK` deletes nothing either. The chat lines change with it: the old "Deleting world <name>, please
+  is open -- or starts to and fails part-way -- your `OK` deletes nothing either. The chat lines change with it: the old "Deleting world <name>, please
   wait..." / "World <name> has been deleted!" / "Failed to delete the world!" lines
   (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent to a
   player; the window sends "World <name> has been deleted" or "Failed to delete world <name>"
@@ -36,7 +36,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   seconds -- deletes, and it makes every check again first; it then prints "Deleting world <name>,
   please wait..." followed by "World <name> has been deleted!" or "Failed to delete the world!". A
   repeat after 30 seconds deletes nothing and starts a new 30-second wait; a repeat made after this
-  module has deleted a world by that name for another request deletes nothing, says so, and counts
+  module has deleted (or started deleting) a world by that name for another request deletes nothing, says so, and counts
   as a new request; a check that refuses the
   request or the repeat cancels the pending request; each request allows one deletion. A pending
   request lives in memory only and is lost on restart, and the 30 seconds are measured on a clock
@@ -73,7 +73,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   不会删除任何内容。点击 `OK` 时会再次检查权限、默认世界与 `protected_worlds`，因为窗口打开期间它们可能
   发生变化；并且一个窗口最多只执行一次删除，关闭后不再执行，且只响应窗口自身 `OK` 按钮的点击（不会响应在
   自己背包同一格位的点击）。窗口有效期为 30 秒，与控制台确认使用相同的时限和时钟：超过后点击 `OK` 不会删除
-  任何内容，并提示重新执行命令。若窗口打开期间本模块因另一个请求删除了该世界，你的 `OK` 同样不会删除任何内容。
+  任何内容，并提示重新执行命令。若窗口打开期间本模块因另一个请求删除了该世界（或开始删除但中途失败），你的 `OK` 同样不会删除任何内容。
   聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
   "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送给玩家；
   改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
@@ -85,7 +85,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   玩家相同的检查（存在该名称的世界、不是默认世界、不在 `protected_worlds` 中），不删除任何内容，并提示在
   30 秒内再次执行同一条命令。只有这次重复——世界名称的拼写和大小写完全相同、且在 30 秒内——才会删除，并且
   删除前会再次完成全部检查；随后输出"正在删除世界……"，再输出"世界已删除"或"删除世界失败"。超过 30 秒的
-  重复不会删除任何内容，而是重新开始 30 秒等待；若在请求之后本模块因另一个请求删除了该名称的世界，重复不会删除
+  重复不会删除任何内容，而是重新开始 30 秒等待；若在请求之后本模块因另一个请求删除（或开始删除）了该名称的世界，重复不会删除
   任何内容，会给出提示，并视为新的请求；请求或重复被任一检查拒绝时，待确认的请求随之取消；每个
   请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效；这 30 秒按不受系统时间调整影响的时钟计算。命令方块等既非玩家也非控制台的发送者会被
   拒绝，RCON（`mcrcon` 及许多聊天桥接工具使用的远程控制台协议）同样被拒绝：它不能删除世界。其余所有 `/world` 子命令与以前一样仅限玩家；控制台执行 `/world help` 时现在只列出

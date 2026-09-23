@@ -48,8 +48,6 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
     /** When the page opened, on the window's clock. */
     private final long openedAt;
 
-    /** How many times this module had deleted a world by this name when the page opened. */
-    private final long deletionsAtOpen;
 
     /**
      * Set by the first confirm and by closing the page, so neither a second click nor a click
@@ -64,7 +62,6 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         this.worldName = worldName;
         this.window = worldService.getDeleteConfirmationWindow();
         this.openedAt = window.now();
-        this.deletionsAtOpen = window.deletions(worldName);
     }
     
     @Override
@@ -83,7 +80,7 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
 
         // Void once this module has deleted a world by this name since the page opened: whatever
         // is under the name now is not what the player was asked about.
-        if (window.deletions(worldName) != deletionsAtOpen) {
+        if (window.deletedSince(worldName, openedAt)) {
             player.sendMessage(i18n("world.delete.invalidated").replace("{WORLD}", worldName));
             return;
         }

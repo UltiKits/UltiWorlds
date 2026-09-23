@@ -47,7 +47,7 @@ public class WorldService {
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
 
     // The time limit and the deletion record both /world delete confirmations follow
-    // (UltiKits/UltiWorlds#19); every successful deletion below voids earlier confirmations.
+    // (UltiKits/UltiWorlds#19); every deletion below voids earlier confirmations before it starts.
     private DeleteConfirmationWindow deleteConfirmationWindow = new DeleteConfirmationWindow();
 
     // Closes every line this service prints about a world's environment. It points at the
@@ -626,6 +626,11 @@ public class WorldService {
             return false;
         }
 
+        // Before anything is removed: a confirmation given before this deletion must not delete
+        // whatever is created under this name next, and that must hold even if a later step of
+        // this deletion fails (UltiKits/UltiWorlds#19).
+        deleteConfirmationWindow.invalidate(name);
+
         World world = Bukkit.getWorld(name);
         boolean wasLoaded = world != null;
         if (wasLoaded) {
@@ -678,13 +683,7 @@ public class WorldService {
             .delete();
         settingsCache.remove(name);
 
-        boolean deleted = wasLoaded || folderExisted;
-        if (deleted) {
-            // A confirmation given before this deletion must not delete whatever is created under
-            // this name next (UltiKits/UltiWorlds#19).
-            deleteConfirmationWindow.invalidate(name);
-        }
-        return deleted;
+        return wasLoaded || folderExisted;
     }
 
     /**

@@ -39,18 +39,8 @@ final class ConsoleDeleteConfirmations {
         INVALIDATED
     }
 
-    /** A pending request: when it was made, and how many deletions of that name had happened. */
-    private static final class Request {
-        private final long at;
-        private final long deletions;
-
-        private Request(long at, long deletions) {
-            this.at = at;
-            this.deletions = deletions;
-        }
-    }
-
-    private final Map<String, Request> pending = new HashMap<>();
+    /** Name key to the time each pending request was made, on the window's clock. */
+    private final Map<String, Long> pending = new HashMap<>();
 
     /**
      * Confirm a pending request, or record a new one.
@@ -65,14 +55,13 @@ final class ConsoleDeleteConfirmations {
      */
     synchronized Outcome confirm(String senderName, String worldName, DeleteConfirmationWindow window) {
         long now = window.now();
-        long deletions = window.deletions(worldName);
         dropExpired(window, now);
-        Request request = pending.remove(key(senderName, worldName));
-        boolean live = request != null && window.isInside(request.at, now);
-        if (live && request.deletions == deletions) {
+        Long requestedAt = pending.remove(key(senderName, worldName));
+        boolean live = requestedAt != null && window.isInside(requestedAt, now);
+        if (live && !window.deletedSince(worldName, requestedAt)) {
             return Outcome.CONFIRMED;
         }
-        pending.put(key(senderName, worldName), new Request(now, deletions));
+        pending.put(key(senderName, worldName), now);
         return live ? Outcome.INVALIDATED : Outcome.REQUESTED;
     }
 
@@ -85,9 +74,9 @@ final class ConsoleDeleteConfirmations {
     }
 
     private void dropExpired(DeleteConfirmationWindow window, long now) {
-        Iterator<Request> requests = pending.values().iterator();
+        Iterator<Long> requests = pending.values().iterator();
         while (requests.hasNext()) {
-            if (!window.isInside(requests.next().at, now)) {
+            if (!window.isInside(requests.next(), now)) {
                 requests.remove();
             }
         }

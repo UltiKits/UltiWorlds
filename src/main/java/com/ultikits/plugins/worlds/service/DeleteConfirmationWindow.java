@@ -15,11 +15,14 @@ import java.util.function.LongSupplier;
  * measured on a monotonic clock (changes to the system time neither lengthen nor shorten it). The
  * single predicate is {@link #isInside(long, long)}.
  *
- * <p><b>Deletions through this module.</b> Each successful deletion of a world by this module
- * advances a per-name counter ({@link #invalidate(String)}, called by
- * {@link WorldService#deleteWorld(String)}). A confirmation records the counter when it is
- * requested and is void if the counter has moved: a world deleted through this module and created
- * again under the same name is never deleted on a confirmation given before that deletion.
+ * <p><b>Deletions through this module.</b> {@link WorldService#deleteWorld(String)} records, before
+ * it removes anything, that a world by that name is being deleted ({@link #invalidate(String)}). A
+ * confirmation is void if such a record is at or after the time it was requested
+ * ({@link #deletedSince(String, long)}): a world deleted through this module and created again under
+ * the same name is never deleted on a confirmation given before that deletion -- also when the
+ * deletion failed part-way, because the record is written first. A record matters only while a
+ * confirmation older than it can still be inside the window, so records older than the window are
+ * dropped whenever one is written, and uniquely named worlds do not accumulate.
  *
  * <p><b>What this deliberately does not do.</b> It does not try to recognise "the same world". A
  * world deleted by another plugin or by hand, and created again under the same name within the
@@ -42,6 +45,7 @@ public final class DeleteConfirmationWindow {
     public static final long WINDOW_SECONDS = WINDOW_MILLIS / 1000L;
 
     private final LongSupplier clock;
+    /** Name (lower case) to the time of the latest deletion of that name, on this window's clock. */
     private final Map<String, Long> deletions = new ConcurrentHashMap<>();
 
     /** A window on the JVM's monotonic clock, in milliseconds. */
@@ -68,15 +72,28 @@ public final class DeleteConfirmationWindow {
         return now >= requestedAt && now - requestedAt <= WINDOW_MILLIS;
     }
 
-    /** How many times this module has deleted a world by this name; recorded with a request. */
-    public long deletions(String worldName) {
-        Long count = deletions.get(key(worldName));
-        return count == null ? 0L : count;
+    /**
+     * Whether this module has deleted, or started deleting, a world by this name at or after
+     * {@code requestedAt}. At the same instant counts as after: the error is on the side of voiding.
+     */
+    public boolean deletedSince(String worldName, long requestedAt) {
+        Long deletedAt = deletions.get(key(worldName));
+        return deletedAt != null && deletedAt >= requestedAt;
     }
 
-    /** Record that this module has deleted a world by this name, voiding earlier confirmations. */
+    /**
+     * Record that this module is deleting a world by this name, voiding every confirmation
+     * requested before now; and drop records too old to void a confirmation that is still valid.
+     */
     public void invalidate(String worldName) {
-        deletions.merge(key(worldName), 1L, Long::sum);
+        long now = now();
+        deletions.values().removeIf(deletedAt -> !isInside(deletedAt, now));
+        deletions.put(key(worldName), now);
+    }
+
+    /** How many names currently have a deletion record; for tests. */
+    int recordedNames() {
+        return deletions.size();
     }
 
     private static String key(String worldName) {
