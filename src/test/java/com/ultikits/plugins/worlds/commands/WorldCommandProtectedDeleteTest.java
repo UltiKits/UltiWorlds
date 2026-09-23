@@ -3,6 +3,8 @@ package com.ultikits.plugins.worlds.commands;
 import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.gui.DeleteConfirmPageDriver;
+import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.DataOperator;
@@ -15,13 +17,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,6 +97,22 @@ class WorldCommandProtectedDeleteTest {
         return mockQuery;
     }
 
+    /**
+     * Since UltiKits/UltiWorlds#19 {@code /world delete} opens {@link WorldDeleteConfirmPage} and
+     * the page's confirm button deletes. Runs the command, then confirms on a real page built from
+     * exactly the arguments the command passed; returns how many pages the command opened.
+     */
+    private int deleteAndConfirm(Player player, String name) {
+        List<List<Object>> opened = new ArrayList<>();
+        try (MockedConstruction<WorldDeleteConfirmPage> pages = DeleteConfirmPageDriver.intercept(opened)) {
+            command.deleteWorld(player, name);
+        }
+        for (List<Object> arguments : opened) {
+            DeleteConfirmPageDriver.confirm(DeleteConfirmPageDriver.rebuild(arguments));
+        }
+        return opened.size();
+    }
+
     private void deleteRecursively(File file) {
         File[] children = file.listFiles();
         if (children != null) {
@@ -160,10 +181,10 @@ class WorldCommandProtectedDeleteTest {
             Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
             when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
 
-            command.deleteWorld(player, "scratchw");
+            assertThat(deleteAndConfirm(player, "scratchw")).isEqualTo(1);
 
             // Control: the new refusal branch must not swallow ordinary deletions.
-            verify(mockPlugin).i18n("world.delete.success");
+            verify(mockPlugin).i18n("command.delete.success");
             verify(mockPlugin, never()).i18n("world.delete.protected");
             assertThat(worldFolder).doesNotExist();
         } finally {
@@ -215,7 +236,7 @@ class WorldCommandProtectedDeleteTest {
             Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
             when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
 
-            command.deleteWorld(player, "danglingw");
+            assertThat(deleteAndConfirm(player, "danglingw")).isEqualTo(1);
 
             // The command's on-disk check followed the link, so an entry that plainly exists in the
             // container was reported to the operator as a world that does not exist, and the entry
@@ -223,7 +244,7 @@ class WorldCommandProtectedDeleteTest {
             // entry I can remove" against "is there world data I can load" -- and one
             // link-following call cannot answer both.
             verify(mockPlugin, never()).i18n("world.not_found");
-            verify(mockPlugin).i18n("world.delete.deleting");
+            verify(mockPlugin).i18n("command.delete.success");
             assertThat(Files.isSymbolicLink(link.toPath())).isFalse();
         } finally {
             link.delete();
