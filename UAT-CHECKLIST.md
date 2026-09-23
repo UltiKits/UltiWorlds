@@ -20,12 +20,13 @@ for real-machine verification, not user-facing documentation.
 - This module has no row needing personal credentials or a maintainer-authenticated UltiCloud
   panel session — the D-27b pattern (stated here for template consistency) does not currently
   apply to any row below.
-- **Dead-code rows:** `ultiworlds.gui.world-list-gui` and `ultiworlds.gui.world-delete-confirm`
-  cannot be exercised on a live server at all — neither class is ever instantiated by any other
-  class in this module (`UltiKits/UltiWorlds#18`, `#19`). Their rows are Layer `protocol`
-  (confirmed by reading the source directly, the same treatment the framework's and other
-  modules' checklists give an analogous unobservable-from-the-command-surface path), not
-  `human-uat-pending` — the class is not merely hard to reach, it is verifiably unreachable.
+- **Dead-code rows:** `ultiworlds.gui.world-delete-confirm` cannot be exercised on a live server
+  at all — the class is never instantiated by any other class in this module
+  (`UltiKits/UltiWorlds#19`). Its row is Layer `protocol` (confirmed by reading the source
+  directly, the same treatment the framework's and other modules' checklists give an analogous
+  unobservable-from-the-command-surface path), not `human-uat-pending` — the class is not merely
+  hard to reach, it is verifiably unreachable. The `ultiworlds.gui.world-list-gui` row that used
+  to sit beside it was removed together with the class it described (`UltiKits/UltiWorlds#18`).
 - **Destructive-command safety (D-05/T-10-19):** every world-creating or world-deleting row below
   uses its own throwaway world name, never reused by another row, and every deleting row appears
   strictly after every row that reads or writes the world it deletes. Throwaway names used in
@@ -117,13 +118,13 @@ for real-machine verification, not user-facing documentation.
 
 ## GUI
 
-Phase 9 excluded all three classes below from this module's JaCoCo `check` gate
+Phase 9 excluded this module's GUI classes from its JaCoCo `check` gate
 (`.planning/phases/09-module-ecosystem-readiness-and-test-coverage/gui-exclusions/UltiWorlds.md`).
+Two remain, one row each below; the third, `WorldListGUI`, was deleted (`UltiKits/UltiWorlds#18`).
 
 | ID | Preconditions | Steps | Expected | Layer | Covers |
 |---|---|---|---|---|---|
 | ultiworlds.gui.world-delete-confirm | none — `WorldDeleteConfirmPage` is never instantiated anywhere in this module's source (`grep -rln "new WorldDeleteConfirmPage" src/main/java` returns nothing; control: `grep -rln "new WorldListPage" src/main/java` returns `WorldCommand.java`, so the form does find a real construction). The bare-type-name form this row used to cite is not durable: it also matches a javadoc `{@link}`, and `UltiKits/UltiWorlds#20` added one in `WorldService`, which made the cited command return two files while the claim itself stayed true | Read the pinned copies `checklist-copy/src@969ae5a2/WorldDeleteConfirmPage.java` (SHA-256 `a9ae0b4b4a9bffc9ab293ec42e34e12cfb72fa024e781e88b10407b7765db605`) and `checklist-copy/src@969ae5a2/WorldCommand.java` (SHA-256 `2d84a5eb7b8f710a493ee06d3076b5eae33e94c0e11d33f1a0770b9a16ca514c`), not the live source tree, per D-11 (a structural assertion about unreachable code with no runtime observable a real-machine dispatch can produce) | `onConfirm` correctly re-checks the `default_world` refusal and calls `WorldService#deleteWorld`, and `onCancel` sends `command.delete.cancelled` — the CLASS's own logic is sound, but `WorldCommand#deleteWorld` deletes immediately without ever constructing this page, so none of this logic is reachable from a running server. Known product gap, `UltiKits/UltiWorlds#19`. Note that the pinned copy predates two changes `UltiKits/UltiWorlds#20` made to the live class — its default-world comparison is now case-insensitive, and it now reports `world.delete.protected` for a protected world instead of the generic `command.delete.failed`; re-pinning belongs with `#19`, which is the issue that makes this class reachable | protocol | WorldDeleteConfirmPage |
-| ultiworlds.gui.world-list-gui | none — `WorldListGUI` is never instantiated anywhere in this module's source (`grep -rln "new WorldListGUI" src/main/java` returns nothing) | Read the pinned copies `checklist-copy/src@969ae5a2/WorldListGUI.java` (SHA-256 `41b1136bd05370f89824d242a27bc324f835a44488eed025001086e4e4b64350`) and `checklist-copy/src@969ae5a2/WorldCommand.java` (SHA-256 `2d84a5eb7b8f710a493ee06d3076b5eae33e94c0e11d33f1a0770b9a16ca514c`), not the live source tree, per D-11 (a structural assertion about unreachable code with no runtime observable a real-machine dispatch can produce) | `WorldListGUI`'s own icon-building logic (hardcoded Simplified Chinese lore, no protected/locked/blocked indicator) is intact but unreachable — `openWorldList` (bare `/world`) opens `WorldListPage` instead, a separate, i18n-driven, currently-maintained class. Known product gap, `UltiKits/UltiWorlds#18` | protocol | WorldListGUI |
 | ultiworlds.gui.world-list-page | `language: en`; at least one visible world loaded | Same steps as `ultiworlds.world.open-list` | Same observable as `ultiworlds.world.open-list` — this row exists to satisfy the GUI-exclusion back-reference for `WorldListPage` specifically, distinct from the command-trigger row above | pixel | WorldListPage |
 
 ## Scheduled Tasks

@@ -142,6 +142,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- The unused `WorldListGUI` class. It was the predecessor of the world list that bare `/world`
+  opens (`WorldListPage`), and nothing in the module ever constructed it, so removing it changes
+  nothing a player or operator can see. The `gui_title` setting it read still has no effect, as
+  before; that key and eight others in `config/worlds.yml` that no code reads are tracked in
+  UltiKits/UltiWorlds#38 (UltiKits/UltiWorlds#18).
+- 移除未使用的 `WorldListGUI` 类。它是裸命令 `/world` 所打开的世界列表（`WorldListPage`）的前身，
+  模块中从未有任何代码构造它，因此移除它不会改变玩家或运维可见的任何行为。它所读取的 `gui_title`
+  设置项与以前一样仍不起作用；该键以及 `config/worlds.yml` 中另外八个没有任何代码读取的键记录在
+  UltiKits/UltiWorlds#38（UltiKits/UltiWorlds#18）。
 - The module's own console lines "UltiWorlds has been disabled!" on unload (and its
   `worlds_disabled` language key in `lang/en.yml` and `lang/zh.yml`) and
   "UltiWorlds configuration reloaded!" on `/ul reload UltiWorlds` (printed in English under either

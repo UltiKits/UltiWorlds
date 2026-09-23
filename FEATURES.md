@@ -96,7 +96,7 @@ rather than an error:
 **Positive control:** the line-start form returns `@CmdExecutor` = 1, `@CmdMapping` = 21,
 `@EventListener` = 1 (class), `@EventHandler` = 9 (handler methods), `@Scheduled` = 1,
 `@ConditionalOnConfig` = 1, `@ConfigEntity` = 1 (class), `@ConfigEntry` = 27, `@Table` = 2
-(`WorldSettings`, `WorldInventory`) — confirmed by reading all 12 source files directly, not by
+(`WorldSettings`, `WorldInventory`) — confirmed by reading all 11 source files directly (12 before `WorldListGUI` was deleted, which carried none of these annotations), not by
 trusting the count alone. `WorldCommand`'s own 21 `@CmdMapping` sites, all behind the single
 `@CmdExecutor(alias = {"world", "worlds", "w"})` site, are this module's standing positive
 control and the reconciliation table's clearest illustration of the executor-versus-mapping
@@ -159,15 +159,16 @@ per-action guard clusters in other modules' listeners.
 
 ## GUI
 
-Phase 9 excluded all three classes below from this module's JaCoCo `check` gate
+Phase 9 excluded this module's GUI classes from its JaCoCo `check` gate
 (`.planning/phases/09-module-ecosystem-readiness-and-test-coverage/gui-exclusions/UltiWorlds.md`).
-Unlike UltiLogin's and UltiMail's GUI-excluded classes, two of this module's three are dead code
-with no live entry point — see each row's own note.
+Two remain below. A third, `WorldListGUI` — the predecessor of `WorldListPage`, never constructed
+by any class — was deleted (`UltiKits/UltiWorlds#18`). Unlike UltiLogin's and UltiMail's
+GUI-excluded classes, one of this module's two is dead code with no live entry point — see its
+row's own note.
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
 | ultiworlds.gui.world-delete-confirm | A confirm/cancel dialog for world deletion, applying the same refusals `/world delete` itself applies: the configured default world (`world.delete.default`) and any world in `protected_worlds` (`world.delete.protected`), both compared without regard to letter case. Never instantiated by any class in this module — `/world delete` deletes immediately with no confirmation step at all (`UltiKits/UltiWorlds#19`); this page has NO live entry point | gui | none — dead code, unreachable through any command, listener, or other class | n/a | n/a | internal | detailed | WorldDeleteConfirmPage#onConfirm |
-| ultiworlds.gui.world-list-gui | A predecessor to `WorldListPage`: implements `InventoryHolder` directly, entirely hardcoded Simplified Chinese lore/labels, no i18n at all, no protection/locked/blocked indicator. Never instantiated by any class in this module — fully superseded by `WorldListPage`, which `/world` (bare) actually opens (`UltiKits/UltiWorlds#18`); this page has NO live entry point | gui | none — dead code, unreachable through any command, listener, or other class | n/a | n/a | internal | brief | WorldListGUI#createWorldItem |
 | ultiworlds.gui.world-list-page | Paginated (45 items/page) world list: one icon per VISIBLE (non-hidden) world, lore showing description/environment/player-count/time/weather/PVP/monster state, plus protected/locked/blocked indicators; clicking closes the GUI and teleports the viewer to that world via the same path as `/world tp` | gui | `ultiworlds.world.open-list` | n/a | n/a | player | detailed | WorldListPage#createWorldIcon |
 
 ## Scheduled Tasks
@@ -226,7 +227,7 @@ that whole block "Messages (legacy, prefer i18n)").
 | ultiworlds.config.worlds.auto_unload.enabled | Master switch for the empty-world auto-unload scheduled task | config | `config/worlds.yml: auto_unload.enabled (default: false)` | n/a | n/a | admin | brief | WorldService#checkAutoUnloadEmptyWorlds |
 | ultiworlds.config.worlds.auto_unload.unload_after | Seconds a non-protected, `autoUnload`-eligible world must sit empty before the scheduled task unloads it | config | `config/worlds.yml: auto_unload.unload_after (default: 300)` | n/a | n/a | admin | brief | WorldService#checkAutoUnloadEmptyWorlds |
 | ultiworlds.config.worlds.default_world | The world name treated as the server's default — `/world unload`/`/world delete` both refuse to act on it, and it is the fallback teleport target when kicking players out of a blocked/unloading world. Every site that compares a name against this key does so without regard to letter case — `/world unload`, `/world delete`'s own `world.delete.default` message, `WorldDeleteConfirmPage`, and the service-level refusal in `WorldService#deleteWorld` — because `CraftServer#getWorld` resolves a world name as `name.toLowerCase(Locale.ROOT)`, so an exact comparison was bypassable by typing the name in another case | config | `config/worlds.yml: default_world (default: "world")` | n/a | n/a | admin | detailed | WorldCommand#unloadWorld, WorldCommand#deleteWorld, WorldCommand#blockWorld, WorldService#deleteWorld |
-| ultiworlds.config.worlds.gui_title | Declared as the world-list GUI title, shipped default Simplified Chinese; has NO effect on the live, reachable GUI — `WorldListPage#WorldListPage` (the class `/world` actually opens) reads `plugin.i18n("gui.title")` instead, never this key. The only production reader of `WorldConfig#getGuiTitle()` is the documented-unreachable `WorldListGUI` (`UltiKits/UltiWorlds#18`) | config | `config/worlds.yml: gui_title (default: Simplified Chinese text, not reproduced per D-02, has no effect on the live GUI, see UltiKits/UltiWorlds#18)` | n/a | n/a | admin | brief | WorldListGUI#WorldListGUI (declared, read only by this dead class) |
+| ultiworlds.config.worlds.gui_title | Declared as the world-list GUI title, shipped default Simplified Chinese; has NO effect on the live, reachable GUI — `WorldListPage#WorldListPage` (the class `/world` actually opens) reads `plugin.i18n("gui.title")` instead, never this key. `WorldConfig#getGuiTitle()` has no production reader: its only one was `WorldListGUI`, which nothing ever constructed and which was deleted (`UltiKits/UltiWorlds#18`). One of nine keys in this file read by no code (`UltiKits/UltiWorlds#38`) | config | `config/worlds.yml: gui_title (default: Simplified Chinese text, not reproduced per D-02, has no effect, see UltiKits/UltiWorlds#38)` | n/a | n/a | admin | brief | WorldConfig#guiTitle (declared, never read outside this class) |
 | ultiworlds.config.worlds.load_worlds_on_start | World names to load automatically during this module's own `@PostConstruct` boot step | config | `config/worlds.yml: load_worlds_on_start (default: [])` | n/a | n/a | admin | brief | WorldService#init |
 | ultiworlds.config.worlds.messages.no_permission | Declared as the no-permission-for-world message; never read — every actual no-permission refusal in this module goes through `plugin.i18n(...)` (`error.no_permission`), not this config field | config | `config/worlds.yml: messages.no_permission (default: Simplified Chinese text, not reproduced per D-02, has no effect)` | n/a | n/a | admin | none | WorldConfig#noPermissionMessage (declared, never read outside this class) |
 | ultiworlds.config.worlds.messages.world_created | Declared as the world-created message; never read — the actual `/world create` success line comes from `world.create.success` via `plugin.i18n(...)` | config | `config/worlds.yml: messages.world_created (default: Simplified Chinese text, not reproduced per D-02, has no effect)` | n/a | n/a | admin | none | WorldConfig#worldCreatedMessage (declared, never read outside this class) |
