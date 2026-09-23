@@ -1628,14 +1628,31 @@ class WorldCommandTest {
     @DisplayName("Handle Help Extended")
     class HandleHelpExtended {
 
+        // Before UltiKits/UltiWorlds#19 this asserted that a non-player got nothing, which was
+        // unreachable anyway: the whole class was player-only, so the framework refused a
+        // non-player before handleHelp. The class now admits the console for /world delete, so
+        // "/world help" from the console reaches handleHelp and must say something true.
         @Test
-        @DisplayName("handleHelp should do nothing for non-Player sender")
-        void handleHelpNonPlayer() {
-            org.bukkit.command.CommandSender sender = mock(org.bukkit.command.CommandSender.class);
+        @DisplayName("handleHelp shows the console the one subcommand it can run")
+        void handleHelpConsole() {
+            org.bukkit.command.ConsoleCommandSender sender = mock(org.bukkit.command.ConsoleCommandSender.class);
 
             command.handleHelp(sender);
 
-            verify(sender, never()).sendMessage(anyString());
+            verify(sender).sendMessage("help.header");
+            verify(sender).sendMessage("help.delete_console");
+            verify(sender, times(2)).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("handleHelp tells a sender that is neither a player nor the console it can run none")
+        void handleHelpOtherNonPlayer() {
+            org.bukkit.command.BlockCommandSender sender = mock(org.bukkit.command.BlockCommandSender.class);
+
+            command.handleHelp(sender);
+
+            verify(sender).sendMessage("world.delete.sender_not_allowed");
+            verify(sender, times(1)).sendMessage(anyString());
         }
     }
 
