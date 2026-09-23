@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
@@ -58,8 +59,12 @@ public class WorldCommand extends BaseCommandExecutor {
     @Autowired
     private WorldService worldService;
 
-    /** Time source for the console's delete confirmation window; replaced in tests. */
-    private LongSupplier clock = System::currentTimeMillis;
+    /**
+     * Time source for the console's delete confirmation window, in milliseconds; replaced in tests.
+     * Monotonic on purpose: the wall clock follows NTP and manual changes, and a backwards step
+     * would lengthen the window (gate-1 IN-01).
+     */
+    private LongSupplier clock = () -> TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
     /** The console's pending {@code /world delete} requests (UltiKits/UltiWorlds#19). */
     private final ConsoleDeleteConfirmations consoleDeleteConfirmations = new ConsoleDeleteConfirmations();

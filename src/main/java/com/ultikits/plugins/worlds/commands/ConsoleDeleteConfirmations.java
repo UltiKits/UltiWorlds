@@ -14,8 +14,10 @@ import java.util.Map;
  * removes the entry it finds, so a request confirms at most one deletion. Expired entries are
  * dropped on every call, which keeps the table bounded by the names typed in the last window.
  *
- * <p>The caller supplies the time, so tests need no sleeping and a clock that steps backwards is
- * treated as "not confirmed" rather than as a very long window.
+ * <p>The caller supplies the time. {@code WorldCommand} passes a monotonic clock, so in production the
+ * time never steps backwards; tests inject their own and need no sleeping. A time earlier than the
+ * request is still treated as "not confirmed" rather than as a very long window, as a guard for any
+ * other caller.
  *
  * @author wisdomme
  * @version 2.0.0

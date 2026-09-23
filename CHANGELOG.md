@@ -34,7 +34,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   please wait..." followed by "World <name> has been deleted!" or "Failed to delete the world!". A
   repeat after 30 seconds deletes nothing and starts a new 30-second wait; a check that refuses the
   request or the repeat cancels the pending request; each request allows one deletion. A pending
-  request lives in memory only and is lost on restart. Command blocks and other non-player,
+  request lives in memory only and is lost on restart, and the 30 seconds are measured on a clock
+  that changes to the system time do not affect. Command blocks and other non-player,
   non-console senders are refused, and so is RCON (the remote console protocol used by tools such
   as `mcrcon` and many chat bridges): it cannot delete a world. Every other `/world` subcommand stays player-only, as before;
   `/world help` from the console now lists only `/world delete` (UltiKits/UltiWorlds#19).
@@ -74,7 +75,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   30 秒内再次执行同一条命令。只有这次重复——世界名称的拼写和大小写完全相同、且在 30 秒内——才会删除，并且
   删除前会再次完成全部检查；随后输出"正在删除世界……"，再输出"世界已删除"或"删除世界失败"。超过 30 秒的
   重复不会删除任何内容，而是重新开始 30 秒等待；请求或重复被任一检查拒绝时，待确认的请求随之取消；每个
-  请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效。命令方块等既非玩家也非控制台的发送者会被
+  请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效；这 30 秒按不受系统时间调整影响的时钟计算。命令方块等既非玩家也非控制台的发送者会被
   拒绝，RCON（`mcrcon` 及许多聊天桥接工具使用的远程控制台协议）同样被拒绝：它不能删除世界。其余所有 `/world` 子命令与以前一样仅限玩家；控制台执行 `/world help` 时现在只列出
   `/world delete`（UltiKits/UltiWorlds#19）。
 - **所有以服务器控制台身份执行的命令都算作控制台**，并且它们共用同一个身份：都报告名称 `CONSOLE`，因此对每个
