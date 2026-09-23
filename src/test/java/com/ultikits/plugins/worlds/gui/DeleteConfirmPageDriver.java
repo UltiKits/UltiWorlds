@@ -6,6 +6,8 @@ import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import mc.obliviate.inventory.event.customclosevent.FakeInventoryCloseEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.PlayerInventory;
 import org.mockito.MockedConstruction;
 
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.when;
 
 /**
  * Drives a {@link WorldDeleteConfirmPage} the way a player does, for {@code UltiKits/UltiWorlds#19}.
@@ -49,9 +52,39 @@ public final class DeleteConfirmPageDriver {
                 (String) arguments.get(2), (UltiToolsPlugin) arguments.get(3));
     }
 
-    /** What the OK button does: {@code onConfirm}. */
+    /**
+     * What the OK button does: {@code onConfirm}, for a click that landed in the page's own (top)
+     * inventory, at the OK slot. A test that holds {@code Bukkit} static-mocked builds pages whose
+     * {@code Bukkit.createInventory} returned {@code null}; such a page is given a stand-in
+     * inventory first, which is what a running server always gives it.
+     */
     public static void confirm(WorldDeleteConfirmPage page) {
-        page.onConfirm(mock(InventoryClickEvent.class));
+        Inventory top = page.getInventory();
+        if (top == null) {
+            top = mock(Inventory.class);
+            page.setInventory(top);
+        }
+        page.onConfirm(clickIn(top, OK_SLOT));
+    }
+
+    /**
+     * A click on the OK slot's index that lands in the player's own inventory instead of the page:
+     * what obliviate-invs would deliver to a page it still believes is open (UltiKits/UltiWorlds#19,
+     * gate-1 WR-01).
+     */
+    public static void clickOkSlotInPlayersOwnInventory(WorldDeleteConfirmPage page) {
+        page.onConfirm(clickIn(mock(PlayerInventory.class), OK_SLOT));
+    }
+
+    /** The OK button's raw slot: bottom row, column 5, of a 3-row page. */
+    public static final int OK_SLOT = 23;
+
+    private static InventoryClickEvent clickIn(Inventory clicked, int slot) {
+        InventoryClickEvent event = mock(InventoryClickEvent.class);
+        when(event.getClickedInventory()).thenReturn(clicked);
+        when(event.getRawSlot()).thenReturn(slot);
+        when(event.getSlot()).thenReturn(slot);
+        return event;
     }
 
     /** What the Cancel button does: {@code onCancel}. */

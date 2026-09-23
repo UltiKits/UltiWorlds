@@ -11,7 +11,6 @@ import com.ultikits.ultitools.interfaces.Query;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryClickEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +19,6 @@ import org.mockito.MockedStatic;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,7 +50,6 @@ import static org.mockito.Mockito.when;
  * @author wisdomme
  * @version 2.0.0
  */
-@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // onConfirm is protected; the page has no public entry point
 @DisplayName("WorldDeleteConfirmPage protected-world message (UltiWorlds#20, gate-1 WR-04)")
 class WorldDeleteConfirmPageProtectedTest {
 
@@ -93,10 +90,8 @@ class WorldDeleteConfirmPageProtectedTest {
     private void invokeOnConfirm(String worldName) throws Exception {
         WorldDeleteConfirmPage page =
                 new WorldDeleteConfirmPage(mockPlayer, worldService, worldName, mockPlugin);
-        Method onConfirm =
-                WorldDeleteConfirmPage.class.getDeclaredMethod("onConfirm", InventoryClickEvent.class);
-        onConfirm.setAccessible(true); // NOPMD - the page exposes no public entry point
-        onConfirm.invoke(page, mock(InventoryClickEvent.class));
+        // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+        DeleteConfirmPageDriver.confirm(page);
     }
 
     private void deleteRecursively(File file) {

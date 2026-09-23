@@ -89,6 +89,38 @@ class WorldDeleteConfirmPageGuardsTest {
     }
 
     @Test
+    @DisplayName("after the window has closed, a later OK deletes nothing (gate-1 WR-01)")
+    void anOkAfterCloseDeletesNothing() {
+        WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(player, worldService, "scratchw", plugin);
+
+        DeleteConfirmPageDriver.close(page);
+        DeleteConfirmPageDriver.confirm(page);
+
+        verify(worldService, never()).deleteWorld(anyString());
+    }
+
+    @Test
+    @DisplayName("a click on the OK slot's index in the player's own inventory deletes nothing (gate-1 WR-01)")
+    void anOkSlotClickInThePlayersOwnInventoryDeletesNothing() {
+        WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(player, worldService, "scratchw", plugin);
+
+        DeleteConfirmPageDriver.clickOkSlotInPlayersOwnInventory(page);
+
+        verify(worldService, never()).deleteWorld(anyString());
+    }
+
+    @Test
+    @DisplayName("control: an OK click in the page's own inventory deletes, and a later stray click does not count against it")
+    void anOkClickInThePagesOwnInventoryDeletes() {
+        WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(player, worldService, "scratchw", plugin);
+        DeleteConfirmPageDriver.clickOkSlotInPlayersOwnInventory(page);
+
+        DeleteConfirmPageDriver.confirm(page);
+
+        verify(worldService, times(1)).deleteWorld("scratchw");
+    }
+
+    @Test
     @DisplayName("control: confirm with ultiworlds.admin.delete deletes")
     void confirmWithThePermissionDeletes() {
         when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
