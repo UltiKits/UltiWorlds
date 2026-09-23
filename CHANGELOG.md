@@ -37,15 +37,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   request lives in memory only and is lost on restart. Command blocks and other non-player,
   non-console senders are refused. Every other `/world` subcommand stays player-only, as before;
   `/world help` from the console now lists only `/world delete` (UltiKits/UltiWorlds#19).
-- Two other ways in count as the console, because they run commands as the console. **UltiPanel
-  remote commands** run as the console, so a panel user can delete a world the same two-step way.
-  The panel and the server console share one pending confirmation per world name: a request made
-  from the panel is confirmed by the same command typed at the server console within 30 seconds,
-  and the other way round. **Post-teleport commands** added with `/world postcmd add` also run as
-  the console: a `world delete <name>` added there would run every time a player teleports into
-  that world with `/world tp` or the world list, and a player doing that twice within 30 seconds
-  would delete the named world. Do not add one. Adding post-teleport commands requires
-  `ultiworlds.admin.settings` (UltiKits/UltiWorlds#19).
+- **Every command that runs as the server console counts as the console**, and they all share one
+  identity: each reports the name `CONSOLE`, so there is one pending confirmation per world name
+  for all of them together, and any one of them confirms a request made by any other. That
+  includes UltiPanel remote commands, post-teleport commands added with `/world postcmd add`, and
+  console commands run by other modules or plugins (for example scheduled commands, menu actions,
+  kit commands and mail commands).
+  - **UltiPanel.** A panel user can delete a world by sending `world delete <name>` twice within 30
+    seconds, but the panel never shows the prompt, the outcome or a refusal: the command body runs
+    one tick after the panel has already read its output, so the panel's command result always
+    reads "Command executed successfully". The prompt, the outcome and any refusal appear only as
+    lines in the server log (and in the panel's log view, if log streaming is on).
+  - **Post-teleport commands.** A `world delete <name>` stored as a post-teleport command runs every
+    time any player teleports into that world with `/world tp` or the world list. Any two such
+    teleports within 30 seconds, by the same player or by different players, delete the named world;
+    so do one such teleport plus the same command from the console, the panel or any other
+    console-run command within 30 seconds. Stored as `world delete {world}`, it targets whichever
+    world is teleported into. The prompt goes to the console, so the teleporting players are never
+    told. Do not add one. Adding post-teleport commands requires `ultiworlds.admin.settings`, so that
+    permission is in effect enough to delete any unprotected world (UltiKits/UltiWorlds#19).
 - `/world delete <名称>` 现在会在删除前先询问。它在原有检查（权限、该名称的世界存在、不是默认世界、
   不在 `protected_worlds` 中）之后，不再立即删除，而是打开标题为"Confirm Delete: <名称>"的确认窗口；
   只有点击窗口中绿色的 `OK` 按钮才会删除世界。点击红色的 `Cancel` 按钮，或以其他任何方式关闭窗口，都
@@ -66,13 +76,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效。命令方块等既非玩家也非控制台的发送者会被
   拒绝。其余所有 `/world` 子命令与以前一样仅限玩家；控制台执行 `/world help` 时现在只列出
   `/world delete`（UltiKits/UltiWorlds#19）。
-- 另有两条通路同样算作控制台，因为它们都以控制台身份执行命令。**UltiPanel 远程命令**以控制台身份执行，
-  因此面板用户也可以用同样的两步方式删除世界。面板与服务器控制台对每个世界名称共用同一个待确认请求：
-  在面板发起的请求，可以由 30 秒内在服务器控制台输入的同一条命令确认，反之亦然。用
-  `/world postcmd add` 添加的**传送后命令**同样以控制台身份执行：若在其中添加 `world delete <名称>`，
-  它会在每次有玩家通过 `/world tp` 或世界列表传送进该世界时执行，玩家在 30 秒内这样传送两次就会删除
-  该名称的世界。请不要添加这样的
-  命令。添加传送后命令需要 `ultiworlds.admin.settings` 权限（UltiKits/UltiWorlds#19）。
+- **所有以服务器控制台身份执行的命令都算作控制台**，并且它们共用同一个身份：都报告名称 `CONSOLE`，因此对每个
+  世界名称，它们合起来只有一个待确认请求，其中任何一个都能确认由另一个发起的请求。这包括 UltiPanel 远程命令、
+  用 `/world postcmd add` 添加的传送后命令，以及其他模块或插件以控制台身份执行的命令（例如定时命令、菜单
+  动作、礼包命令、邮件命令）。
+  - **UltiPanel。** 面板用户在 30 秒内发送两次 `world delete <名称>` 即可删除世界，但面板从不显示确认提示、
+    结果或拒绝原因：命令主体在面板读取输出之后的下一刻（一个 tick）才执行，所以面板的命令结果永远是
+    "Command executed successfully"。提示、结果与拒绝只会以服务器日志行的形式出现（若开启了日志流，也会出现
+    在面板的日志视图中）。
+  - **传送后命令。** 作为传送后命令保存的 `world delete <名称>`，会在任何玩家通过 `/world tp` 或世界列表传送
+    进该世界时执行。30 秒内任意两次这样的传送（同一玩家或不同玩家）都会删除该世界；30 秒内一次这样的传送加上
+    来自控制台、面板或任何其他控制台命令的同一条命令，同样会删除。若保存为 `world delete {world}`，它会作用于
+    被传送进入的那个世界。确认提示发给控制台，传送的玩家不会得到任何提示。请不要添加这样的命令。添加传送后
+    命令需要 `ultiworlds.admin.settings` 权限，因此该权限实际上足以删除任何未受保护的世界
+    （UltiKits/UltiWorlds#19）。
 
 ### Fixed
 
