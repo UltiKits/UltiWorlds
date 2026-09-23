@@ -322,10 +322,14 @@ class WorldCommandConsoleDeleteTest {
         assertThat(worldFolder).doesNotExist();
 
         assertThat(new File(worldFolder, "region").mkdirs()).isTrue();
+        clearInvocations(console);
         now.addAndGet(1_000L);
         delete(console, WORLD);
 
         assertThat(worldFolder).as("recreated folder survives: no leftover confirmation").exists();
+        // Consumed, not merely voided by the deletion it confirmed: the third call finds no
+        // pending request at all, so it is a plain first request -- no "invalidated" line.
+        assertThat(sentTo(console)).containsExactly("world.delete.confirm_console");
     }
 
     @Test

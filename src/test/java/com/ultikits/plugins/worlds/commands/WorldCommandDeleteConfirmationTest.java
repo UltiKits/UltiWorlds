@@ -61,6 +61,7 @@ class WorldCommandDeleteConfirmationTest {
     private WorldConfig mockConfig;
     private UltiToolsPlugin mockPlugin;
     private DataOperator<WorldSettings> mockDataOperator;
+    private Query<WorldSettings> mockQuery;
     private File container;
     private File worldFolder;
     private Player player;
@@ -77,7 +78,7 @@ class WorldCommandDeleteConfirmationTest {
         when(mockConfig.getProtectedWorlds())
                 .thenReturn(Arrays.asList("world", "world_nether", "world_the_end"));
         mockDataOperator = mock(DataOperator.class);
-        Query<WorldSettings> mockQuery = mock(Query.class);
+        mockQuery = mock(Query.class);
         when(mockDataOperator.query()).thenReturn(mockQuery);
         when(mockQuery.where(anyString())).thenReturn(mockQuery);
         when(mockQuery.eq(any())).thenReturn(mockQuery);
@@ -318,6 +319,9 @@ class WorldCommandDeleteConfirmationTest {
             assertThatThrownBy(() -> DeleteConfirmPageDriver.confirm(second))
                     .isInstanceOf(IllegalStateException.class);
             assertThat(worldFolder).as("the folder went before the database step failed").doesNotExist();
+            // The database works again, so a stale page that is NOT voided would delete the new
+            // world outright and fail this test on its assertion, not on the stubbed exception.
+            when(mockDataOperator.query()).thenReturn(mockQuery);
             File marker = recreateWorldFolderOutsideTheModule();
             now.addAndGet(5_000L);
 
