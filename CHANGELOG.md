@@ -7,6 +7,107 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `/world delete <name>` now asks before it deletes. After the checks it always made (permission,
+  a world by that name exists, not the default world, not in `protected_worlds`), it opens a
+  confirmation window titled "Confirm Delete: <name>" instead of deleting on the spot; the world is
+  deleted only when you click the window's green `OK` button. The red `Cancel` button, or closing
+  the window any other way, deletes nothing. Clicking `OK` checks the permission, the default world
+  and `protected_worlds` again, because they can change while the window is open, and a window
+  deletes at most once, never after it has been closed, and only for a click on its own `OK` button
+  (not for a click at the same slot in your own inventory). The window is valid for 30 seconds, the
+  same limit and clock as the console's confirmation: `OK` after that deletes nothing and asks you
+  to run the command again. If this module deletes that world for another request while your window
+  is open -- or starts to and fails part-way -- your `OK` deletes nothing either. The chat lines change with it: the old "Deleting world <name>, please
+  wait..." / "World <name> has been deleted!" / "Failed to delete the world!" lines
+  (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent to a
+  player; the window sends "World <name> has been deleted" or "Failed to delete world <name>"
+  (`command.delete.success`, `command.delete.failed`), and "Delete operation cancelled"
+  (`command.delete.cancelled`) for `Cancel`. If you customised those three old lines in the language
+  files for players, carry your text over to the new keys; the old lines are now the console's (next
+  entry) (UltiKits/UltiWorlds#19).
+- **The server console can now delete a world, behind a typed confirmation.** Until now the whole
+  `/world` command was player-only, so the console could not run `/world delete` at all. It now
+  can, and it never deletes on the first request: `/world delete <name>` from the console makes the
+  same checks as for a player (a world by that name exists, it is not the default world, it is not
+  in `protected_worlds`), deletes nothing, and asks you to run the same command again within 30
+  seconds. Only that repeat -- same world name, spelled and cased exactly the same, within 30
+  seconds -- deletes, and it makes every check again first; it then prints "Deleting world <name>,
+  please wait..." followed by "World <name> has been deleted!" or "Failed to delete the world!". A
+  repeat after 30 seconds deletes nothing and starts a new 30-second wait; a repeat made after this
+  module has deleted (or started deleting) a world by that name for another request deletes nothing, says so, and counts
+  as a new request; a check that refuses the
+  request or the repeat cancels the pending request; each request allows one deletion. A pending
+  request lives in memory only and is lost on restart, and the 30 seconds are measured on a clock
+  that changes to the system time do not affect. Command blocks and other non-player,
+  non-console senders are refused, and so is RCON (the remote console protocol used by tools such
+  as `mcrcon` and many chat bridges): it cannot delete a world. Every other `/world` subcommand stays player-only, as before;
+  `/world help` from the console now lists only `/world delete` (UltiKits/UltiWorlds#19).
+- **Every command that runs as the server console counts as the console**, and they all share one
+  identity: each reports the name `CONSOLE`, so there is one pending confirmation per world name
+  for all of them together, and any one of them confirms a request made by any other. That
+  includes UltiPanel remote commands, post-teleport commands added with `/world postcmd add`, and
+  console commands run by other modules or plugins (for example scheduled commands, menu actions,
+  kit commands and mail commands).
+  - **UltiPanel.** A panel user can delete a world by sending `world delete <name>` twice within 30
+    seconds, but the panel never shows the prompt, the outcome or a refusal: the command body runs
+    one tick after the panel has already read its output, so the panel's command result always
+    reads "Command executed successfully". The prompt, the outcome and any refusal appear only as
+    lines in the server log (and in the panel's log view, if log streaming is on).
+  - **Post-teleport commands.** A `world delete <name>` stored as a post-teleport command runs every
+    time any player teleports into that world with `/world tp` or the world list. Any two such
+    teleports within 30 seconds, by the same player or by different players, delete the named world;
+    so do one such teleport plus the same command from the console, the panel or any other
+    console-run command within 30 seconds. Stored as `world delete {world}`, it targets whichever
+    world is teleported into. The prompt goes to the console, so the teleporting players are never
+    told. Do not add one. Adding post-teleport commands requires `ultiworlds.admin.settings`, so that
+    permission is in effect enough to delete any unprotected world (UltiKits/UltiWorlds#19).
+- **Known limitation.** A delete confirmation, from a player or from the console, does not try to
+  recognise "the same world": it is bound to its 30 seconds and to this module's own deletions. A
+  world deleted by another plugin or by hand, and created again under the same name within those 30
+  seconds, is deleted by a confirmation given for the one before it (UltiKits/UltiWorlds#19).
+- `/world delete <名称>` 现在会在删除前先询问。它在原有检查（权限、该名称的世界存在、不是默认世界、
+  不在 `protected_worlds` 中）之后，不再立即删除，而是打开标题为"Confirm Delete: <名称>"的确认窗口；
+  只有点击窗口中绿色的 `OK` 按钮才会删除世界。点击红色的 `Cancel` 按钮，或以其他任何方式关闭窗口，都
+  不会删除任何内容。点击 `OK` 时会再次检查权限、默认世界与 `protected_worlds`，因为窗口打开期间它们可能
+  发生变化；并且一个窗口最多只执行一次删除，关闭后不再执行，且只响应窗口自身 `OK` 按钮的点击（不会响应在
+  自己背包同一格位的点击）。窗口有效期为 30 秒，与控制台确认使用相同的时限和时钟：超过后点击 `OK` 不会删除
+  任何内容，并提示重新执行命令。若窗口打开期间本模块因另一个请求删除了该世界（或开始删除但中途失败），你的 `OK` 同样不会删除任何内容。
+  聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
+  "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送给玩家；
+  改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
+  `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你在
+  语言文件中为玩家自定义过旧的三行文本，请把文本迁移到新的键上；旧的三行现在由控制台使用（见下一条）
+  （UltiKits/UltiWorlds#19）。
+- **服务器控制台现在可以删除世界，但需要打字确认。** 此前整个 `/world` 命令仅限玩家使用，控制台完全无法
+  执行 `/world delete`。现在可以执行，但第一次请求绝不会删除：控制台执行 `/world delete <名称>` 时会做与
+  玩家相同的检查（存在该名称的世界、不是默认世界、不在 `protected_worlds` 中），不删除任何内容，并提示在
+  30 秒内再次执行同一条命令。只有这次重复——世界名称的拼写和大小写完全相同、且在 30 秒内——才会删除，并且
+  删除前会再次完成全部检查；随后输出"正在删除世界……"，再输出"世界已删除"或"删除世界失败"。超过 30 秒的
+  重复不会删除任何内容，而是重新开始 30 秒等待；若在请求之后本模块因另一个请求删除（或开始删除）了该名称的世界，重复不会删除
+  任何内容，会给出提示，并视为新的请求；请求或重复被任一检查拒绝时，待确认的请求随之取消；每个
+  请求只允许一次删除。待确认的请求只保存在内存中，重启后即失效；这 30 秒按不受系统时间调整影响的时钟计算。命令方块等既非玩家也非控制台的发送者会被
+  拒绝，RCON（`mcrcon` 及许多聊天桥接工具使用的远程控制台协议）同样被拒绝：它不能删除世界。其余所有 `/world` 子命令与以前一样仅限玩家；控制台执行 `/world help` 时现在只列出
+  `/world delete`（UltiKits/UltiWorlds#19）。
+- **所有以服务器控制台身份执行的命令都算作控制台**，并且它们共用同一个身份：都报告名称 `CONSOLE`，因此对每个
+  世界名称，它们合起来只有一个待确认请求，其中任何一个都能确认由另一个发起的请求。这包括 UltiPanel 远程命令、
+  用 `/world postcmd add` 添加的传送后命令，以及其他模块或插件以控制台身份执行的命令（例如定时命令、菜单
+  动作、礼包命令、邮件命令）。
+  - **UltiPanel。** 面板用户在 30 秒内发送两次 `world delete <名称>` 即可删除世界，但面板从不显示确认提示、
+    结果或拒绝原因：命令主体在面板读取输出之后的下一刻（一个 tick）才执行，所以面板的命令结果永远是
+    "Command executed successfully"。提示、结果与拒绝只会以服务器日志行的形式出现（若开启了日志流，也会出现
+    在面板的日志视图中）。
+  - **传送后命令。** 作为传送后命令保存的 `world delete <名称>`，会在任何玩家通过 `/world tp` 或世界列表传送
+    进该世界时执行。30 秒内任意两次这样的传送（同一玩家或不同玩家）都会删除该世界；30 秒内一次这样的传送加上
+    来自控制台、面板或任何其他控制台命令的同一条命令，同样会删除。若保存为 `world delete {world}`，它会作用于
+    被传送进入的那个世界。确认提示发给控制台，传送的玩家不会得到任何提示。请不要添加这样的命令。添加传送后
+    命令需要 `ultiworlds.admin.settings` 权限，因此该权限实际上足以删除任何未受保护的世界
+    （UltiKits/UltiWorlds#19）。
+- **已知限制。** 删除确认（无论来自玩家还是控制台）不会尝试识别"是否还是同一个世界"：它只受 30 秒时限和本模块
+  自身删除操作的约束。若某个世界在这 30 秒内被其他插件或手工删除、又以同名重新创建，为原世界给出的确认会删除
+  新创建的世界（UltiKits/UltiWorlds#19）。
+
 ### Fixed
 
 - `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
@@ -142,6 +243,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- The unused `WorldListGUI` class. It was the predecessor of the world list that bare `/world`
+  opens (`WorldListPage`), and nothing in the module ever constructed it, so removing it changes
+  nothing a player or operator can see. The `gui_title` setting it read still has no effect, as
+  before; that key and eight others in `config/worlds.yml` that no code reads are tracked in
+  UltiKits/UltiWorlds#38 (UltiKits/UltiWorlds#18).
+- 移除未使用的 `WorldListGUI` 类。它是裸命令 `/world` 所打开的世界列表（`WorldListPage`）的前身，
+  模块中从未有任何代码构造它，因此移除它不会改变玩家或运维可见的任何行为。它所读取的 `gui_title`
+  设置项与以前一样仍不起作用；该键以及 `config/worlds.yml` 中另外八个没有任何代码读取的键记录在
+  UltiKits/UltiWorlds#38（UltiKits/UltiWorlds#18）。
 - The module's own console lines "UltiWorlds has been disabled!" on unload (and its
   `worlds_disabled` language key in `lang/en.yml` and `lang/zh.yml`) and
   "UltiWorlds configuration reloaded!" on `/ul reload UltiWorlds` (printed in English under either

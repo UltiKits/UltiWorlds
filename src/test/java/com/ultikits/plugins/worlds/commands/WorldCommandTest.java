@@ -4,12 +4,15 @@ import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.gui.DeleteConfirmPageDriver;
+import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.service.WorldService;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.*;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
 import java.util.*;
@@ -45,6 +48,8 @@ class WorldCommandTest {
         UltiWorldsTestHelper.setField(command, "plugin", mockPlugin);
 
         when(mockWorldService.getConfig()).thenReturn(mockConfig);
+        lenient().when(mockWorldService.getDeleteConfirmationWindow())
+                .thenReturn(new com.ultikits.plugins.worlds.service.DeleteConfirmationWindow());
     }
 
     @AfterEach
@@ -624,8 +629,24 @@ class WorldCommandTest {
     @DisplayName("Delete Command")
     class DeleteCommandTests {
 
+        /**
+         * Runs {@code /world delete <name>} and returns the arguments of every confirmation page it
+         * opened. Since UltiKits/UltiWorlds#19 the command itself never deletes; it opens
+         * {@link WorldDeleteConfirmPage}, and the page's confirm button deletes.
+         */
+        private List<List<Object>> deleteOpening(Player player, String name) {
+            List<List<Object>> opened = new ArrayList<>();
+            try (MockedConstruction<WorldDeleteConfirmPage> pages = DeleteConfirmPageDriver.intercept(opened)) {
+                command.deleteWorld(player, name);
+                for (WorldDeleteConfirmPage page : pages.constructed()) {
+                    verify(page).open();
+                }
+            }
+            return opened;
+        }
+
         @Test
-        @DisplayName("deleteWorld should delete when player has permission")
+        @DisplayName("deleteWorld should open the confirmation page for that world when player has permission")
         void deleteWorld() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
@@ -636,9 +657,11 @@ class WorldCommandTest {
                 when(mockConfig.getDefaultWorld()).thenReturn("world");
                 when(mockWorldService.deleteWorld("old_world")).thenReturn(true);
 
-                command.deleteWorld(player, "old_world");
+                List<List<Object>> opened = deleteOpening(player, "old_world");
 
-                verify(mockWorldService).deleteWorld("old_world");
+                assertThat(opened).hasSize(1);
+                assertThat(opened.get(0).get(2)).isEqualTo("old_world");
+                verify(mockWorldService, never()).deleteWorld(anyString());
             }
         }
 
@@ -657,9 +680,10 @@ class WorldCommandTest {
                 when(mockConfig.getDefaultWorld()).thenReturn("world");
                 when(mockWorldService.deleteWorld("unloaded_world")).thenReturn(true);
 
-                command.deleteWorld(player, "unloaded_world");
+                List<List<Object>> opened = deleteOpening(player, "unloaded_world");
 
-                verify(mockWorldService).deleteWorld("unloaded_world");
+                assertThat(opened).hasSize(1);
+                assertThat(opened.get(0).get(2)).isEqualTo("unloaded_world");
             } finally {
                 worldFolder.delete();
             }
@@ -677,9 +701,10 @@ class WorldCommandTest {
                 when(mockConfig.getDefaultWorld()).thenReturn("world");
                 when(mockWorldService.deleteWorld("legacy.world")).thenReturn(true);
 
-                command.deleteWorld(player, "legacy.world");
+                List<List<Object>> opened = deleteOpening(player, "legacy.world");
 
-                verify(mockWorldService).deleteWorld("legacy.world");
+                assertThat(opened).hasSize(1);
+                assertThat(opened.get(0).get(2)).isEqualTo("legacy.world");
             }
         }
 
@@ -714,7 +739,7 @@ class WorldCommandTest {
         }
 
         @Test
-        @DisplayName("deleteWorld should send failure message when delete fails")
+        @DisplayName("a deletion that fails after confirm is reported as failed")
         void deleteWorldFails() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
@@ -725,9 +750,13 @@ class WorldCommandTest {
                 when(mockConfig.getDefaultWorld()).thenReturn("world");
                 when(mockWorldService.deleteWorld("old_world")).thenReturn(false);
 
-                command.deleteWorld(player, "old_world");
+                List<List<Object>> opened = deleteOpening(player, "old_world");
+                assertThat(opened).hasSize(1);
+                DeleteConfirmPageDriver.confirm(DeleteConfirmPageDriver.rebuild(opened.get(0)));
 
-                verify(player, atLeast(2)).sendMessage(anyString()); // deleting + failed
+                verify(mockWorldService).deleteWorld("old_world");
+                verify(mockPlugin).i18n("command.delete.failed");
+                verify(mockPlugin, never()).i18n("command.delete.success");
             }
         }
     }
@@ -1601,14 +1630,31 @@ class WorldCommandTest {
     @DisplayName("Handle Help Extended")
     class HandleHelpExtended {
 
+        // Before UltiKits/UltiWorlds#19 this asserted that a non-player got nothing, which was
+        // unreachable anyway: the whole class was player-only, so the framework refused a
+        // non-player before handleHelp. The class now admits the console for /world delete, so
+        // "/world help" from the console reaches handleHelp and must say something true.
         @Test
-        @DisplayName("handleHelp should do nothing for non-Player sender")
-        void handleHelpNonPlayer() {
-            org.bukkit.command.CommandSender sender = mock(org.bukkit.command.CommandSender.class);
+        @DisplayName("handleHelp shows the console the one subcommand it can run")
+        void handleHelpConsole() {
+            org.bukkit.command.ConsoleCommandSender sender = mock(org.bukkit.command.ConsoleCommandSender.class);
 
             command.handleHelp(sender);
 
-            verify(sender, never()).sendMessage(anyString());
+            verify(sender).sendMessage("help.header");
+            verify(sender).sendMessage("help.delete_console");
+            verify(sender, times(2)).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("handleHelp tells a sender that is neither a player nor the console it can run none")
+        void handleHelpOtherNonPlayer() {
+            org.bukkit.command.BlockCommandSender sender = mock(org.bukkit.command.BlockCommandSender.class);
+
+            command.handleHelp(sender);
+
+            verify(sender).sendMessage("world.delete.sender_not_allowed");
+            verify(sender, times(1)).sendMessage(anyString());
         }
     }
 

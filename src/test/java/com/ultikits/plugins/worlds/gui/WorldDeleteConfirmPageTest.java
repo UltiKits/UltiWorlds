@@ -41,6 +41,8 @@ class WorldDeleteConfirmPageTest {
         WorldConfig defaultConfig = mock(WorldConfig.class);
         when(defaultConfig.getDefaultWorld()).thenReturn("default_world");
         lenient().when(mockWorldService.getConfig()).thenReturn(defaultConfig);
+        lenient().when(mockWorldService.getDeleteConfirmationWindow())
+                .thenReturn(new com.ultikits.plugins.worlds.service.DeleteConfirmationWindow());
     }
 
     @AfterEach
@@ -74,11 +76,8 @@ class WorldDeleteConfirmPageTest {
             WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
                     mockPlayer, mockWorldService, "test_world", mockPlugin);
 
-            Method method = WorldDeleteConfirmPage.class.getDeclaredMethod("onConfirm", InventoryClickEvent.class);
-            method.setAccessible(true); // NOPMD - test reflection
-
-            InventoryClickEvent event = mock(InventoryClickEvent.class);
-            method.invoke(page, event);
+            // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+            DeleteConfirmPageDriver.confirm(page);
 
             verify(mockWorldService).deleteWorld("test_world");
             verify(mockPlayer).sendMessage(anyString());
@@ -92,11 +91,8 @@ class WorldDeleteConfirmPageTest {
             WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
                     mockPlayer, mockWorldService, "test_world", mockPlugin);
 
-            Method method = WorldDeleteConfirmPage.class.getDeclaredMethod("onConfirm", InventoryClickEvent.class);
-            method.setAccessible(true); // NOPMD - test reflection
-
-            InventoryClickEvent event = mock(InventoryClickEvent.class);
-            method.invoke(page, event);
+            // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+            DeleteConfirmPageDriver.confirm(page);
 
             verify(mockWorldService).deleteWorld("test_world");
             verify(mockPlayer).sendMessage(anyString());
@@ -112,11 +108,8 @@ class WorldDeleteConfirmPageTest {
             WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
                     mockPlayer, mockWorldService, "world", mockPlugin);
 
-            Method method = WorldDeleteConfirmPage.class.getDeclaredMethod("onConfirm", InventoryClickEvent.class);
-            method.setAccessible(true); // NOPMD - test reflection
-
-            InventoryClickEvent event = mock(InventoryClickEvent.class);
-            method.invoke(page, event);
+            // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+            DeleteConfirmPageDriver.confirm(page);
 
             verify(mockWorldService, never()).deleteWorld(anyString());
             verify(mockPlayer).sendMessage(anyString());

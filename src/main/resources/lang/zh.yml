@@ -174,6 +174,10 @@ world:
     deleting: "§6正在删除世界 {WORLD}，请稍候..."
     success: "§c世界 {WORLD} 已删除！"
     failed: "§c删除世界失败！"
+    confirm_console: "§e世界 {WORLD} 将被永久删除。请在 {SECONDS} 秒内再次执行 /world delete {WORLD} 以确认。"
+    expired: "§c世界 {WORLD} 的删除确认已超过 {SECONDS} 秒失效，因此没有删除任何内容。请重新执行 /world delete {WORLD}。"
+    invalidated: "§c在请求此确认之后，世界 {WORLD} 已被删除，因此没有删除任何内容。如需删除该名称下现有的世界，请重新执行 /world delete {WORLD}。"
+    sender_not_allowed: "§c只有玩家或服务器控制台可以删除世界。"
 
   set:
     invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、displayname、description、icon、difficulty"
@@ -217,7 +221,8 @@ help:
   create: "§e/world create <名称> [类型] §7- 创建世界（类型：NORMAL、NETHER、THE_END）"
   load: "§e/world load <世界> §7- 加载世界"
   unload: "§e/world unload <世界> §7- 卸载世界"
-  delete: "§e/world delete <世界> §7- 删除世界"
+  delete: "§e/world delete <世界> §7- 删除世界（会先请求确认）"
+  delete_console: "§e/world delete <世界> §7- 删除世界；请在 {SECONDS} 秒内再次执行同一条命令以确认"
   setspawn: "§e/world setspawn §7- 设置当前世界的出生点"
   set: "§e/world set <世界> <选项> <值> §7- 修改世界设置"
   protect: "§e/world protect <世界> §7- 为世界启用完整保护"

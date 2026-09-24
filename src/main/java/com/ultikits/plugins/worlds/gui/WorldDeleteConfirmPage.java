@@ -1,33 +1,95 @@
 package com.ultikits.plugins.worlds.gui;
 
+import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.gui.BaseConfirmationPage;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.inventory.Inventory;
 
 /**
- * Confirmation page for world deletion.
+ * Confirmation page for world deletion, opened by {@code /world delete <name>}. Nothing is deleted
+ * until the player presses confirm; cancel and closing the page delete nothing
+ * (UltiKits/UltiWorlds#19).
+ *
+ * <p>A page is valid for {@link DeleteConfirmationWindow#WINDOW_MILLIS} after it opened -- the same
+ * limit, clock and predicate as the console's typed confirmation -- and is void once this module has
+ * deleted a world by that name after it opened. Within that, {@link #onConfirm} re-checks, at the
+ * moment of the irreversible step, everything the command checked when it opened the page: the
+ * delete permission, the default world, and {@code protected_worlds}. A page deletes at most once.
+ * It does not try to recognise "the same world": a world deleted by another plugin or by hand and
+ * created again under the same name within the window is deleted (see
+ * {@link DeleteConfirmationWindow}).
+ *
+ * <p>The page disarms itself: once it has been confirmed or closed, OK does nothing, and OK acts
+ * only on a click that landed in this page's own inventory. That safety does not rest on
+ * obliviate-invs dropping the page from its open-GUI table on close -- if anything in the close
+ * chain threw, obliviate would keep routing the player's later clicks here by slot number alone,
+ * including a click in the player's own inventory at the OK slot's index (gate-1 WR-01).
  *
  * @author wisdomme
  * @version 2.0.0
  */
 public class WorldDeleteConfirmPage extends BaseConfirmationPage {
-    
+
+    /** The node {@code /world delete} requires; re-checked on confirm. */
+    private static final String DELETE_PERMISSION = "ultiworlds.admin.delete";
+
     private final WorldService worldService;
     private final UltiToolsPlugin plugin;
     private final String worldName;
+
+    /** The rule this page follows; the same object the console's confirmation uses. */
+    private final DeleteConfirmationWindow window;
+
+    /** When the page opened, on the window's clock. */
+    private final long openedAt;
+
+
+    /**
+     * Set by the first confirm and by closing the page, so neither a second click nor a click
+     * routed here after the page closed can run a deletion.
+     */
+    private boolean disarmed;
 
     public WorldDeleteConfirmPage(Player player, WorldService worldService, String worldName, UltiToolsPlugin plugin) {
         super(player, "delete-" + worldName, plugin.i18n("gui.delete.title").replace("%world%", worldName), 3);
         this.worldService = worldService;
         this.plugin = plugin;
         this.worldName = worldName;
+        this.window = worldService.getDeleteConfirmationWindow();
+        this.openedAt = window.now();
     }
     
     @Override
     protected void onConfirm(InventoryClickEvent event) {
+        if (disarmed || !isOnThisPage(event)) {
+            return;
+        }
+        disarmed = true;
+
+        if (!window.isInside(openedAt, window.now())) {
+            player.sendMessage(i18n("world.delete.expired")
+                .replace("{WORLD}", worldName)
+                .replace("{SECONDS}", String.valueOf(DeleteConfirmationWindow.WINDOW_SECONDS)));
+            return;
+        }
+
+        // Void once this module has deleted a world by this name since the page opened: whatever
+        // is under the name now is not what the player was asked about.
+        if (window.deletedSince(worldName, openedAt)) {
+            player.sendMessage(i18n("world.delete.invalidated").replace("{WORLD}", worldName));
+            return;
+        }
+
+        if (!player.hasPermission(DELETE_PERMISSION)) {
+            player.sendMessage(i18n("error.no_permission"));
+            return;
+        }
+
         // Case-insensitive because CraftServer#getWorld resolves a world name that way, so an
         // exact comparison here would let a differently-cased default world through this guard.
         if (worldName.equalsIgnoreCase(worldService.getConfig().getDefaultWorld())) {
@@ -52,6 +114,22 @@ public class WorldDeleteConfirmPage extends BaseConfirmationPage {
         }
     }
     
+    /**
+     * Disarm before anything that could throw, then let the framework and obliviate-invs do their
+     * own close handling.
+     */
+    @Override
+    public void onClose(InventoryCloseEvent event) {
+        disarmed = true;
+        super.onClose(event);
+    }
+
+    /** Whether a click landed in this page's own (top) inventory, as opposed to the player's. */
+    private boolean isOnThisPage(InventoryClickEvent event) {
+        Inventory page = getInventory();
+        return page != null && event.getClickedInventory() == page;
+    }
+
     @Override
     protected void onCancel(InventoryClickEvent event) {
         player.sendMessage(i18n("command.delete.cancelled"));

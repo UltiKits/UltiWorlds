@@ -3,6 +3,8 @@ package com.ultikits.plugins.worlds.commands;
 import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.gui.DeleteConfirmPageDriver;
+import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 
@@ -12,8 +14,11 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -177,8 +182,14 @@ class WorldCommandValidationTest {
 
             Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-            command.deleteWorld(player, "live_world");
-            verify(mockWorldService).deleteWorld("live_world");
+            // Since UltiKits/UltiWorlds#19 an accepted name opens the confirmation page rather than
+            // deleting on the spot; "accepted" is therefore "a page was opened for it".
+            List<List<Object>> opened = new ArrayList<>();
+            try (MockedConstruction<WorldDeleteConfirmPage> pages = DeleteConfirmPageDriver.intercept(opened)) {
+                command.deleteWorld(player, "live_world");
+            }
+            assertThat(opened).hasSize(1);
+            assertThat(opened.get(0).get(2)).isEqualTo("live_world");
 
             command.addPostCmd(player, "live_world", new String[]{"say", "hi"});
             command.listPostCmd(player, "live_world");
