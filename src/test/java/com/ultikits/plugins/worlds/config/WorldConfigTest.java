@@ -321,7 +321,7 @@ class WorldConfigTest {
         /**
          * The framework extracts the jar's {@code config/worlds.yml} into a fresh install before the
          * entity loads it, so a removed key left in the shipped copy would reach every new server and
-         * warn at every start (Codex P2 on UltiKits/UltiWorlds#42).
+         * warn at every start (UltiKits/UltiWorlds#42).
          */
         @Test
         @DisplayName("The shipped config/worlds.yml carries none of the six removed keys, and still carries the live ones")

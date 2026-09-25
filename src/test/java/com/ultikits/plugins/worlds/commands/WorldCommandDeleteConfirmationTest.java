@@ -278,7 +278,7 @@ class WorldCommandDeleteConfirmationTest {
         }
     }
 
-    // ---- Invalidation by an in-module deletion (replaces round 1's identity tests) ----
+    // ---- Invalidation by an in-module deletion (replaces the earlier identity tests) ----
 
     @Test
     @DisplayName("a page opened before another request deleted the world through this module deletes nothing on OK")
