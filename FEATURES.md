@@ -223,12 +223,13 @@ isolation) — that row documents the *feature* the key drives, this row documen
 itself, at key granularity, so the reconciliation table can prove every key is accounted for
 without also making every behavioural row carry a `config` Kind.
 
-**Seven keys are declared, self-documented in this module's own comments (both the Java field
+**Two keys are declared, self-documented in this module's own comments (both the Java field
 comment and the shipped `worlds.yml` file) as legacy/deprecated, and never read by any production
 code** — this is a documented, deliberate deprecation, not a silent defect, and is called out per
-row below without a filed issue: `unload_empty_worlds`, `unload_delay` (both explicitly commented
-"Deprecated: use ... instead"), and the five `messages.*` keys (the shipped `worlds.yml` heads
-that whole block "Messages (legacy, prefer i18n)").
+row below: `unload_empty_worlds` and `unload_delay` (both explicitly commented "Deprecated: use ...
+instead"; UltiKits/UltiWorlds#38). The five `messages.*` keys and `gui_title`, which nothing read
+either, were removed from `WorldConfig` and from the shipped `worlds.yml`; a copy left in an
+operator's file is reported by `ultiworlds.lifecycle.removed-key-warning`.
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|

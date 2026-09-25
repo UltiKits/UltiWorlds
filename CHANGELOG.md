@@ -274,8 +274,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `messages.world_not_found`, `messages.no_permission`, `messages.world_created`,
   `messages.world_deleted`. Changing any of them never changed anything: the world list's title and
   every world message come from the language files (`lang/en.yml`, `lang/zh.yml`), which is where to
-  change them. A leftover key in an existing file is reported at startup and on reload (see Added)
-  (part of UltiKits/UltiWorlds#38).
+  change them. They are gone from the shipped `config/worlds.yml` too, so a new server's file no
+  longer carries them. A leftover key in an existing file is reported at startup and on reload (see
+  Added) (part of UltiKits/UltiWorlds#38).
 - 38 language-file entries that no code displayed, from `lang/en.yml` and `lang/zh.yml`: the older
   `command.help.*` help lines (other than `unprotect`, `unblock`, `difficulty` and `postcmd`, which
   `/world help` shows), `command.usage`, `command.set_options`, the unused `common` words for on and
@@ -285,7 +286,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 移除 `config/worlds.yml` 中从未被任何代码读取的六个键：`gui_title` 以及 `messages.world_teleport`、
   `messages.world_not_found`、`messages.no_permission`、`messages.world_created`、`messages.world_deleted`。
   修改其中任何一个都从未改变任何东西：世界列表的标题和所有世界相关消息都来自语言文件（`lang/en.yml`、`lang/zh.yml`），
-  要修改请改那里。已有文件中残留的键会在启动和重载时报告（见 Added）（UltiKits/UltiWorlds#38 的一部分）。
+  要修改请改那里。随插件分发的 `config/worlds.yml` 中也已删除它们，新服务器的文件不再包含这些键。已有文件中残留的键会在启动和
+  重载时报告（见 Added）（UltiKits/UltiWorlds#38 的一部分）。
 - 从 `lang/en.yml` 与 `lang/zh.yml` 中移除 38 条从未被任何代码显示的条目：旧的 `command.help.*` 帮助行（`unprotect`、
   `unblock`、`difficulty`、`postcmd` 除外，`/world help` 会显示它们）、`command.usage`、`command.set_options`、
   `common` 中未使用的「开」「关」、其消息改由其他条目提供的 `error.*` 与 `success.*` 行、`gui.delete.confirm`、
