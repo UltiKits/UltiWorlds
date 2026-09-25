@@ -181,11 +181,12 @@ which restarts the server with the flag enabled.
 
 ## Configuration
 
-One row per shipped yml file (the config-per-file rule): `worlds.yml` (27 keys). The row
+One row per shipped yml file (the config-per-file rule): `worlds.yml` (21 keys). The row
 confirms every key is present at its `FEATURES.md`-documented default, then flips one or more
-representative keys and observes the behaviour follow — **except the seven keys `FEATURES.md`
-documents as declared-legacy-and-dead** (`unload_empty_worlds`, `unload_delay`, and the five
-`messages.*` keys), which this row deliberately does NOT attempt to exercise for an effect.
+representative keys and observes the behaviour follow — **except the two keys `FEATURES.md`
+documents as declared-legacy-and-dead** (`unload_empty_worlds` and `unload_delay`), which this row
+deliberately does NOT attempt to exercise for an effect. The five `messages.*` keys and `gui_title`
+are no longer in the shipped file (see `ultiworlds.lifecycle.removed-key-warning`).
 
 | ID | Preconditions | Steps | Expected | Layer | Covers |
 |---|---|---|---|---|---|

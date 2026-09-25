@@ -55,7 +55,7 @@ for UAT execution and issue reconciliation — the public description of these f
   names the specific `ultiworlds.admin.*` (or `ultiworlds.use`) node the method checks by hand —
   see the Tier note above for why this is a hand-written check, not a framework attribute.
 - **Source:** `ClassName#member` — the class and member that actually reads or applies the
-  feature — for every Kind, `config` included: all 27 `config` rows below cite the reading
+  feature — for every Kind, `config` included: all 21 `config` rows below cite the reading
   member. This module's one configuration file (`worlds.yml`) is a real
   `@ConfigEntity`/`@ConfigEntry`-bound class, so a config row's Source cites whichever class and
   method actually calls the generated getter — not the config class's own field declaration.
