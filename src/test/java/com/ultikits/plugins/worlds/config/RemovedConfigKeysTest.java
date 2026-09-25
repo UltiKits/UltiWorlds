@@ -95,6 +95,24 @@ class RemovedConfigKeysTest {
     }
 
     @Test
+    @DisplayName("A failing check never fails enable, and is reported with the language file's text (gate-1 IN-04)")
+    void aFailingCheckIsReportedAndNeverFailsEnable() throws Exception {
+        UltiWorlds plugin = mock(UltiWorlds.class);
+        PluginLogger logger = mock(PluginLogger.class);
+        when(plugin.getLogger()).thenReturn(logger);
+        when(plugin.i18n(anyString())).thenAnswer(CatalogueText.answer("en"));
+        Method seam = UltiWorlds.class.getDeclaredMethod("operatorConfigFile");
+        seam.setAccessible(true); // NOPMD - the seam is package-private in another package
+        seam.invoke(org.mockito.Mockito.doThrow(new IllegalStateException("disk unavailable")).when(plugin));
+        when(plugin.registerSelf()).thenCallRealMethod();
+        String expected = CatalogueText.text("en", "log.removed_key_check_failed").replace("{FILE}", "config/worlds.yml");
+
+        assertThat(plugin.registerSelf()).isTrue();
+
+        verify(logger).warn(org.mockito.ArgumentMatchers.any(Throwable.class), org.mockito.ArgumentMatchers.eq(expected));
+    }
+
+    @Test
     @DisplayName("The module runs the check when it is enabled and when it is reloaded")
     void moduleRunsTheCheckOnEnableAndReload() throws Exception {
         File file = writeConfig(true);
