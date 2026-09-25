@@ -895,10 +895,14 @@ class WorldServiceTest {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
             doThrow(new IllegalAccessException("test error")).when(mockDataOperator).update(settings);
 
-            // Should not throw - catches the exception internally
+            // Should not throw - catches the exception internally; the console line follows the
+            // server's language.
+            when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
             worldService.updateSettings(settings);
 
             verify(mockDataOperator).update(settings);
+            String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.settings_update_failed");
+            verify(UltiWorldsTestHelper.getMockLogger()).error(eq(expected), any(IllegalAccessException.class));
         }
     }
 
@@ -1371,11 +1375,15 @@ class WorldServiceTest {
                 when(mockConfig.getTpCooldown()).thenReturn(0);
                 when(mockConfig.isShowDescriptionOnTeleport()).thenReturn(false);
 
-                // Should not throw exception
+                // Should not throw exception; the console line follows the server's language.
+                when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
                 worldService.getOrCreateSettings("world");
 
                 // Verify setDifficulty was NOT called
                 verify(world, never()).setDifficulty(any(org.bukkit.Difficulty.class));
+                String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.invalid_difficulty")
+                        .replace("{WORLD}", "world").replace("{VALUE}", "SUPERHARD");
+                verify(UltiWorldsTestHelper.getMockLogger()).warn(expected);
             }
         }
     }
@@ -1526,10 +1534,14 @@ class WorldServiceTest {
                 // Small wait to ensure timeout of 0 seconds is exceeded
                 Thread.sleep(5);
 
-                // Second call: timer expired, should unload
+                // Second call: timer expired, should unload. The console line follows the
+                // server's language: answered from the real zh catalogue.
+                when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
                 worldService.checkAutoUnloadEmptyWorlds();
 
                 bukkit.verify(() -> Bukkit.unloadWorld(emptyWorld, true));
+                String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.auto_unload").replace("{WORLD}", "custom");
+                verify(UltiWorldsTestHelper.getMockLogger()).info(expected);
             }
         }
     }

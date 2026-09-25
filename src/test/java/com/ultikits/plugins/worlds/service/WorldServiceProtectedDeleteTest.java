@@ -73,6 +73,9 @@ class WorldServiceProtectedDeleteTest {
         UltiWorldsTestHelper.setField(worldService, "config", mockConfig);
         UltiWorldsTestHelper.setField(worldService, "dataOperator", mockDataOperator);
         UltiWorldsTestHelper.setField(worldService, "plugin", mockPlugin);
+        // The console lines come from the language file; the whole-line assertions below quote its
+        // English text, so i18n answers from the real en catalogue.
+        when(mockPlugin.i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
     }
 
     @AfterEach
@@ -145,6 +148,22 @@ class WorldServiceProtectedDeleteTest {
             verify(mockDataOperator, never()).query();
         } finally {
             deleteRecursively(worldFolder);
+        }
+    }
+
+    @Test
+    @DisplayName("under language: zh the refusal to delete a protected world is logged in Chinese")
+    void protectedRefusalFollowsTheLanguageSetting() {
+        when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            when(mockConfig.getDefaultWorld()).thenReturn("world");
+            when(mockConfig.getProtectedWorlds()).thenReturn(Arrays.asList("world_nether"));
+            stubQueryChain();
+            String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.delete.refused_protected").replace("{WORLD}", "world_nether");
+
+            assertThat(worldService.deleteWorld("world_nether")).isFalse();
+
+            verify(UltiWorldsTestHelper.getMockLogger()).warn(expected);
         }
     }
 

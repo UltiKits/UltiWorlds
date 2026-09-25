@@ -83,6 +83,9 @@ class WorldServiceLoadEnvironmentTest {
         UltiWorldsTestHelper.setField(worldService, "config", mockConfig);
         UltiWorldsTestHelper.setField(worldService, "dataOperator", mockDataOperator);
         UltiWorldsTestHelper.setField(worldService, "plugin", mockPlugin);
+        // The environment lines come from the language file; the whole-line assertions below quote
+        // its English text, so i18n answers from the real en catalogue.
+        when(mockPlugin.i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
     }
 
     @AfterEach
@@ -850,6 +853,35 @@ class WorldServiceLoadEnvironmentTest {
         }
     }
 
+
+    @Test
+    @DisplayName("under language: zh the refusing and the answering environment lines are the Chinese catalogue text")
+    void environmentLinesFollowTheLanguageSetting() throws IOException {
+        when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
+        File container = newContainer();
+        newWorldFolder(container, "zhbothw", "DIM-1", "DIM1");
+        newWorldFolder(container, "zhloudw", "DIM-1");
+
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld(anyString())).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(container);
+            stubQueryChain();
+            captureCreator(bukkit);
+            String refused = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.environment.none").replace("{WORLD}", "zhbothw")
+                    .replace("{OBSERVATION}", com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.environment.observation.both_dimensions"));
+            String answered = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.environment.inferred").replace("{WORLD}", "zhloudw")
+                    .replace("{ENVIRONMENT}", "NETHER").replace("{ENTRY}", "DIM-1");
+
+            worldService.loadWorld("zhbothw");
+            worldService.loadWorld("zhloudw");
+
+            ArgumentCaptor<String> lines = ArgumentCaptor.forClass(String.class);
+            verify(UltiWorldsTestHelper.getMockLogger(), atLeastOnce()).warn(lines.capture());
+            assertThat(lines.getAllValues()).containsExactly(refused, answered);
+        } finally {
+            deleteRecursively(container);
+        }
+    }
 
     @Test
     @DisplayName("an environment the server cannot rebuild never reaches the creator (gate-1 IN-01)")
