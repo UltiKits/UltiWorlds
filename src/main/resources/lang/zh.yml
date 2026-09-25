@@ -240,12 +240,12 @@ log:
     symbolic_link: "世界 '{WORLD}' 是一个符号链接，而不是世界文件夹。本命令只作用于该链接条目本身；它指向的任何内容都不会被读取或删除。"
     link_remove_failed: "移除世界 {WORLD} 的符号链接失败；该链接仍在世界容器中。已保留此世界的设置。"
     folder_remove_failed: "未能完整删除世界 {WORLD} 的文件夹；部分文件仍留在磁盘上。已保留此世界的设置。"
+  removed_key_check_failed: "无法检查 {FILE} 中已移除的配置键；模块将跳过这项检查继续运行。"
   inventory:
     save_failed: "保存 {PLAYER} 的背包失败"
     load_failed: "加载 {PLAYER} 的背包失败"
 
 # ==================== 已移除的配置键 ====================
-log_removed_key_check_failed: "无法检查 {FILE} 中已移除的配置键；模块将跳过这项检查继续运行。"
 removed_key_warning: "{FILE} 仍包含 '{KEY}'，当前版本的 UltiWorlds 已不再读取该键。{REASON} 从文件中删除该键即可消除此警告。"
 removed_key_reason_gui_title: "从未有代码读取它：世界列表的标题来自本模块的语言文件（lang/en.yml、lang/zh.yml 中的 gui.title），要修改请改那里。"
 removed_key_reason_message: "从未有代码读取它：所有世界相关消息都来自本模块的语言文件（lang/en.yml、lang/zh.yml），要修改请改那里。"

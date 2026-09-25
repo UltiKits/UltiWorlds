@@ -240,12 +240,12 @@ log:
     symbolic_link: "World '{WORLD}' is a symbolic link, not a world folder. Only the link entry is subject to this command; nothing it points at is read or deleted."
     link_remove_failed: "Failed to remove the symbolic link for world {WORLD}; the link is still in the world container. Settings for this world were kept."
     folder_remove_failed: "Failed to fully delete the folder for world {WORLD}; some files remain on disk. Settings for this world were kept."
+  removed_key_check_failed: "Could not check {FILE} for removed configuration keys; the module continues without that check."
   inventory:
     save_failed: "Failed to save inventory for {PLAYER}"
     load_failed: "Failed to load inventory for {PLAYER}"
 
 # ==================== Removed Configuration Keys ====================
-log_removed_key_check_failed: "Could not check {FILE} for removed configuration keys; the module continues without that check."
 removed_key_warning: "{FILE} still contains '{KEY}', which this version of UltiWorlds no longer reads. {REASON} Delete the key from the file to silence this warning."
 removed_key_reason_gui_title: "Nothing ever read it: the world list's title comes from this module's language file (gui.title in lang/en.yml, lang/zh.yml), which is where to change it."
 removed_key_reason_message: "Nothing ever read it: every world message comes from this module's language file (lang/en.yml, lang/zh.yml), which is where to change it."

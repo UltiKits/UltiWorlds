@@ -60,7 +60,7 @@ public class UltiWorlds extends UltiToolsPlugin {
         try {
             RemovedConfigKeys.warnAboutLeftovers(operatorConfigFile(), getLogger()::warn, this);
         } catch (RuntimeException e) {
-            getLogger().warn(e, i18n("log_removed_key_check_failed").replace("{FILE}", CONFIG_PATH));
+            getLogger().warn(e, i18n("log.removed_key_check_failed").replace("{FILE}", CONFIG_PATH));
         }
     }
 
