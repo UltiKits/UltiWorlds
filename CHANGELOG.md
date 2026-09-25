@@ -7,6 +7,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- On startup, and again on every `/ul reload`, this module now checks your own `config/worlds.yml`
+  for the six keys this version no longer reads (next entry under Removed) and logs one warning per
+  leftover, naming the module, the file and the key, and saying where the text comes from. Deleting
+  a key from the module stops a *fresh* file being written with it but does nothing to the file you
+  already have, so without this warning an edited value would go on meaning nothing, silently. Delete
+  the keys from the file to silence it (part of UltiKits/UltiWorlds#38).
+- 本模块现在会在启动时、以及每次 `/ul reload` 时检查你自己的 `config/worlds.yml` 中是否仍存在本版本不再读取的
+  六个配置键（见下方 Removed 中的条目），并为每个残留键各记一条警告，点明模块、文件与键名，并说明文本来自哪里。
+  从模块中删除一个键，只会让**新生成**的文件里不再有它，对你已有的文件没有任何影响，因此若没有这条警告，被改过的值
+  会继续悄无声息地不起作用。把这些键从文件中删除即可不再提示（UltiKits/UltiWorlds#38 的一部分）。
+
 ### Changed
 
 - `/world delete <name>` now asks before it deletes. After the checks it always made (permission,
@@ -109,6 +122,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   新创建的世界（UltiKits/UltiWorlds#19）。
 
 ### Fixed
+
+- `language: zh` now applies to this module's console lines that were fixed English text: the
+  lines about a world's environment when it is loaded, the refusal to delete a protected world, the
+  symbolic-link and incomplete-deletion lines of `/world delete`, the empty-world auto-unload line,
+  an invalid stored difficulty, and a failed save of world settings or of a player's inventory.
+  Their English wording is unchanged. The `/world` command's description (shown by `/help`) now
+  follows `language` too; it was fixed Chinese text.
+- `/world help` now shows an admin the `/world unprotect` and `/world unblock` lines. Both commands
+  worked, and the language files carried their help text, but the help never printed it.
+- `language: zh` 现在也对本模块原先写死为英文的控制台日志生效：加载世界时关于其环境的日志、拒绝删除受保护世界的日志、
+  `/world delete` 遇到符号链接与未能完整删除时的日志、空世界自动卸载日志、已存储的无效难度，以及保存世界设置或玩家背包
+  失败的日志。它们的英文措辞不变。`/world` 命令的描述（由 `/help` 显示）现在也跟随 `language`；原先是写死的中文。
+- `/world help` 现在会向管理员显示 `/world unprotect` 与 `/world unblock` 两行。这两个命令本来就能用，语言文件里
+  也有它们的帮助文本，但帮助从未打印过。
 
 - `/world load` now brings a NETHER or THE_END world back as itself instead of as an overworld.
   Reloading such a world previously reported success while rebinding it to the `NORMAL`
@@ -242,6 +269,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   （UltiKits/UltiWorlds#27）。
 
 ### Removed
+
+- Six `config/worlds.yml` keys that no code ever read: `gui_title` and `messages.world_teleport`,
+  `messages.world_not_found`, `messages.no_permission`, `messages.world_created`,
+  `messages.world_deleted`. Changing any of them never changed anything: the world list's title and
+  every world message come from the language files (`lang/en.yml`, `lang/zh.yml`), which is where to
+  change them. A leftover key in an existing file is reported at startup and on reload (see Added)
+  (part of UltiKits/UltiWorlds#38).
+- 38 language-file entries that no code displayed, from `lang/en.yml` and `lang/zh.yml`: the older
+  `command.help.*` help lines (other than `unprotect`, `unblock`, `difficulty` and `postcmd`, which
+  `/world help` shows), `command.usage`, `command.set_options`, the unused `common` words for on and
+  off, the `error.*` and `success.*` lines whose messages come from other entries, the
+  `gui.delete.confirm`, `gui.delete.cancel` and `gui.delete.warning` lines (the confirmation window's
+  buttons come from UltiTools itself), and the four `inventory.*` lines.
+- 移除 `config/worlds.yml` 中从未被任何代码读取的六个键：`gui_title` 以及 `messages.world_teleport`、
+  `messages.world_not_found`、`messages.no_permission`、`messages.world_created`、`messages.world_deleted`。
+  修改其中任何一个都从未改变任何东西：世界列表的标题和所有世界相关消息都来自语言文件（`lang/en.yml`、`lang/zh.yml`），
+  要修改请改那里。已有文件中残留的键会在启动和重载时报告（见 Added）（UltiKits/UltiWorlds#38 的一部分）。
+- 从 `lang/en.yml` 与 `lang/zh.yml` 中移除 38 条从未被任何代码显示的条目：旧的 `command.help.*` 帮助行（`unprotect`、
+  `unblock`、`difficulty`、`postcmd` 除外，`/world help` 会显示它们）、`command.usage`、`command.set_options`、
+  `common` 中未使用的「开」「关」、其消息改由其他条目提供的 `error.*` 与 `success.*` 行、`gui.delete.confirm`、
+  `gui.delete.cancel`、`gui.delete.warning`（确认窗口的按钮由 UltiTools 自身提供），以及四条 `inventory.*`。
 
 - The unused `WorldListGUI` class. It was the predecessor of the world list that bare `/world`
   opens (`WorldListPage`), and nothing in the module ever constructed it, so removing it changes

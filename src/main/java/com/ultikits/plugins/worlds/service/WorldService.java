@@ -53,11 +53,6 @@ public class WorldService {
     // Closes every line this service prints about a world's environment. It points at the
     // procedure instead of inlining one, and it does not vary by branch, so it cannot be true of
     // one folder shape and false of another -- see reportNoDecision for why that matters.
-    private static final String WHERE_THE_PROCEDURE_LIVES =
-        " What each of these folder shapes means, and what can be done about it, is in this"
-            + " module's CHANGELOG.md changelog entry for this version, and in"
-            + " UltiKits/UltiWorlds#22.";
-
     /**
      * Initialize the service with @PostConstruct.
      */
@@ -107,7 +102,7 @@ public class WorldService {
                 } else if (now - emptyStart > unloadAfter * 1000L) {
                     // World has been empty long enough, unload it
                     plugin.getLogger().info(
-                        "Auto-unloading empty world: " + worldName
+                        plugin.i18n("log.auto_unload").replace("{WORLD}", worldName)
                     );
                     unloadWorld(worldName, true);
                     emptyWorldTimers.remove(worldName);
@@ -145,7 +140,9 @@ public class WorldService {
                 try {
                     world.setDifficulty(Difficulty.valueOf(settings.getDifficulty()));
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warn("Invalid difficulty for world " + worldName + ": " + settings.getDifficulty());
+                    plugin.getLogger().warn(plugin.i18n("log.invalid_difficulty")
+                        .replace("{WORLD}", worldName)
+                        .replace("{VALUE}", String.valueOf(settings.getDifficulty())));
                 }
             }
         }
@@ -160,7 +157,7 @@ public class WorldService {
         try {
             dataOperator.update(settings);
         } catch (IllegalAccessException e) {
-            plugin.getLogger().error("Failed to update world settings", e);
+            plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e);
         }
         settingsCache.put(settings.getWorldName(), settings);
     }
@@ -467,38 +464,32 @@ public class WorldService {
             // method exists to prevent, happening on the one input it could not see.
             String dangling = danglingDimensionLink(worldFolder);
             if (dangling != null) {
-                reportNoDecision(name, "its '" + dangling + "' entry is a symbolic link that does"
-                    + " not lead to a directory, so the folder cannot be read as the world it may"
-                    + " belong to");
+                reportNoDecision(name, plugin.i18n("log.environment.observation.dangling_link")
+                    .replace("{ENTRY}", dangling));
             }
             return null;
         }
 
         if (isSymbolicLink(worldFolder, "DIM-1") || isSymbolicLink(worldFolder, "DIM1")) {
-            reportNoDecision(name, "its dimension entry is a symbolic link, and this module does"
-                + " not follow links when reading a world folder, so whatever the link points at"
-                + " was not read");
+            reportNoDecision(name, plugin.i18n("log.environment.observation.dimension_link"));
             return null;
         }
         if (nether && theEnd) {
-            reportNoDecision(name, "its folder contains both a top-level 'DIM-1' directory and a"
-                + " top-level 'DIM1' directory");
+            reportNoDecision(name, plugin.i18n("log.environment.observation.both_dimensions"));
             return null;
         }
         String marker = nether ? "DIM-1" : "DIM1";
         if (isDirectChildDirectory(worldFolder, "region")) {
-            reportNoDecision(name, "its folder contains a top-level '" + marker + "' directory"
-                + " and a top-level 'region' directory, each holding a different world's terrain");
+            reportNoDecision(name, plugin.i18n("log.environment.observation.dimension_and_region")
+                .replace("{ENTRY}", marker));
             return null;
         }
 
         World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
-        plugin.getLogger().warn(
-            "World '" + name + "': this module supplies " + inferred
-                + " as the environment to load with, because its folder contains a top-level '"
-                + marker + "' directory and no top-level 'region' directory."
-                + WHERE_THE_PROCEDURE_LIVES
-        );
+        plugin.getLogger().warn(plugin.i18n("log.environment.inferred")
+            .replace("{WORLD}", name)
+            .replace("{ENVIRONMENT}", String.valueOf(inferred))
+            .replace("{ENTRY}", marker));
         return inferred;
     }
 
@@ -529,7 +520,8 @@ public class WorldService {
      * one.
      *
      * @param name the world
-     * @param observation what was found in the folder, stated as fact and owned by the caller
+     * @param observation what was found in the folder, stated as fact and owned by the caller,
+     *                    already in the server's language
      */
     private void reportNoDecision(String name, String observation) {
         // Present tense throughout, and deliberately. This runs while the environment is being
@@ -537,12 +529,9 @@ public class WorldService {
         // states an outcome that has not happened and may not: `createWorld` can return null, and
         // the operator would then hold one line saying the world was loaded and another saying the
         // command failed. What is true at this moment is what this module supplies.
-        plugin.getLogger().warn(
-            "World '" + name + "': this module supplies no environment, because " + observation
-                + ". It does not guess an environment it cannot read from the folder, so the"
-                + " server's own default applies -- the same as before this version."
-                + WHERE_THE_PROCEDURE_LIVES
-        );
+        plugin.getLogger().warn(plugin.i18n("log.environment.none")
+            .replace("{WORLD}", name)
+            .replace("{OBSERVATION}", observation));
     }
 
 
@@ -619,10 +608,7 @@ public class WorldService {
         }
 
         if (isDeleteProtected(name)) {
-            plugin.getLogger().warn(
-                "Refused to delete world " + name + ": it is the configured default_world or is"
-                    + " listed in protected_worlds."
-            );
+            plugin.getLogger().warn(plugin.i18n("log.delete.refused_protected").replace("{WORLD}", name));
             return false;
         }
 
@@ -653,11 +639,7 @@ public class WorldService {
                 // command can reach is a link. The sentence describes the command's SCOPE rather
                 // than reporting an outcome, because it is printed before the attempt -- a past
                 // tense here is a claim about something that has not happened yet and may fail.
-                plugin.getLogger().warn(
-                    "World '" + name + "' is a symbolic link, not a world folder. Only the link"
-                        + " entry is subject to this command; nothing it points at is read or"
-                        + " deleted."
-                );
+                plugin.getLogger().warn(plugin.i18n("log.delete.symbolic_link").replace("{WORLD}", name));
             }
             boolean allEntriesDeleted = deleteFolder(worldFolder);
             if (!allEntriesDeleted
@@ -665,14 +647,10 @@ public class WorldService {
                 // A link that could not be unlinked leaves a link, not files in a folder, and
                 // saying "some files remain on disk" of a world whose data was never in this place
                 // contradicts the line above it.
-                plugin.getLogger().warn(
-                    isLink
-                        ? "Failed to remove the symbolic link for world " + name
-                            + "; the link is still in the world container. Settings for this world"
-                            + " were kept."
-                        : "Failed to fully delete the folder for world " + name
-                            + "; some files remain on disk. Settings for this world were kept."
-                );
+                plugin.getLogger().warn((isLink
+                        ? plugin.i18n("log.delete.link_remove_failed")
+                        : plugin.i18n("log.delete.folder_remove_failed"))
+                    .replace("{WORLD}", name));
                 return false;
             }
         }

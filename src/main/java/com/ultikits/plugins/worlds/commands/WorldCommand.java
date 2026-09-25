@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 @CmdExecutor(
     alias = {"world", "worlds", "w"},
     permission = "ultiworlds.use",
-    description = "世界管理系统"
+    description = "command.description"
 )
 public class WorldCommand extends BaseCommandExecutor {
 
@@ -658,6 +658,8 @@ public class WorldCommand extends BaseCommandExecutor {
             player.sendMessage(i18n("help.set"));
             player.sendMessage(i18n("help.protect"));
             player.sendMessage(i18n("help.block"));
+            player.sendMessage(i18n("command.help.unprotect"));
+            player.sendMessage(i18n("command.help.unblock"));
             player.sendMessage(i18n("command.help.difficulty"));
             player.sendMessage(i18n("command.help.postcmd"));
         }

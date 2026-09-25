@@ -8,7 +8,6 @@ import com.ultikits.ultitools.annotations.ConfigEntity;
 import com.ultikits.ultitools.annotations.ConfigEntry;
 import com.ultikits.ultitools.annotations.config.NotEmpty;
 import com.ultikits.ultitools.annotations.config.Range;
-import com.ultikits.ultitools.annotations.config.Size;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -54,13 +53,6 @@ public class WorldConfig extends AbstractConfigEntity {
     @ConfigEntry(path = "unload_delay", comment = "Deprecated: use auto_unload.unload_after instead")
     private int unloadDelay = 300;
     
-    // ==================== GUI Settings ====================
-
-    @NotEmpty
-    @Size(min = 1, max = 32)
-    @ConfigEntry(path = "gui_title", comment = "World list GUI title")
-    private String guiTitle = "&6世界列表";
-
     // ==================== Teleport Settings ====================
 
     @ConfigEntry(path = "tp_to_world.enabled", comment = "Allow players to teleport between worlds")
@@ -104,23 +96,6 @@ public class WorldConfig extends AbstractConfigEntity {
     
     @ConfigEntry(path = "world_isolation.shared_worlds", comment = "Worlds that share inventory (comma separated groups)")
     private List<String> sharedWorldGroups = Arrays.asList("world,world_nether,world_the_end");
-    
-    // ==================== Messages (legacy, prefer i18n) ====================
-    
-    @ConfigEntry(path = "messages.world_teleport", comment = "World teleport message")
-    private String worldTeleportMessage = "&a已传送到世界: {WORLD}";
-    
-    @ConfigEntry(path = "messages.world_not_found", comment = "World not found message")
-    private String worldNotFoundMessage = "&c世界 {WORLD} 不存在！";
-    
-    @ConfigEntry(path = "messages.no_permission", comment = "No permission for world message")
-    private String noPermissionMessage = "&c你没有权限进入世界 {WORLD}！";
-    
-    @ConfigEntry(path = "messages.world_created", comment = "World created message")
-    private String worldCreatedMessage = "&a世界 {WORLD} 已创建！";
-    
-    @ConfigEntry(path = "messages.world_deleted", comment = "World deleted message")
-    private String worldDeletedMessage = "&c世界 {WORLD} 已删除！";
 
     public WorldConfig(String configFilePath) {
         super(configFilePath);

@@ -11,37 +11,20 @@ common:
   "yes": "是"
   "no": "否"
   random: "随机"
-  on: "开"
-  off: "关"
 
 # ==================== 错误消息 ====================
 error:
   world_not_found: "§c世界 %world% 不存在！"
-  world_exists: "§c世界 %world% 已存在！"
   world_blocked: "§c此世界已被禁止进入！"
   world_locked: "§c此世界已被锁定，无法进入！"
   no_permission: "§c你没有权限进入此世界！"
   cooldown: "§c传送冷却中！请等待 %time% 秒"
-  delete_protected: "§c无法删除受保护的世界！"
-  invalid_world: "§c无效的世界名称！"
-  invalid_option: "§c无效的选项！可用选项: %options%"
   invalid_value: "§c无效的值！"
-  not_player: "§c此命令只能由玩家执行！"
   invalid_difficulty: "§c无效的难度！可用: PEACEFUL, EASY, NORMAL, HARD"
 
 # ==================== 成功消息 ====================
 success:
   teleported: "§a已传送到世界: %world%"
-  created: "§a世界 %world% 已创建！"
-  deleted: "§c世界 %world% 已删除！"
-  loaded: "§a世界 %world% 已加载！"
-  unloaded: "§e世界 %world% 已卸载"
-  spawn_set: "§a已设置世界出生点"
-  setting_updated: "§a设置已更新: %option% = %value%"
-  protection_enabled: "§a已启用世界保护"
-  protection_disabled: "§e已禁用世界保护"
-  world_blocked: "§c已禁止进入世界 %world%"
-  world_unblocked: "§a已允许进入世界 %world%"
   difficulty_set: "§a已设置世界 %world% 的难度为 %value%"
   post_cmd_added: "§a已为世界 %world% 添加传送后命令"
   post_cmd_cleared: "§a已清除世界 %world% 的所有传送后命令"
@@ -73,9 +56,6 @@ gui:
   
   delete:
     title: "§c确认删除: %world%"
-    confirm: "§a确认删除"
-    cancel: "§c取消"
-    warning: "§c警告: 此操作不可撤销！"
 
 # ==================== 环境名称 ====================
 environment:
@@ -208,9 +188,8 @@ world:
     blocked: "§7已禁止: §f{VALUE}"
 
 # ==================== 帮助菜单 ====================
-# 由 WorldCommand#help() 通过 "help.*" key 调用（区别于下方 "command.help.*"
-# key，后者用于 /world create <名称> <类型> [生成器] 一类的参考文本，
-# 并非全部被实际运行的 /world help 命令读取）。
+# 由 WorldCommand#help() 通过 "help.*" key 调用；管理员部分还会显示下方四条
+# "command.help.*"。
 help:
   header: "§6========== UltiWorlds 帮助 =========="
   list: "§e/world list §7- 列出所有已加载的世界"
@@ -230,37 +209,43 @@ help:
 
 # ==================== 命令帮助 ====================
 command:
-  usage: "§e用法: %usage%"
+  description: "世界管理系统"
   help:
-    header: "§6========== UltiWorlds 帮助 =========="
-    list: "§e/world list §7- 打开世界列表GUI"
-    tp: "§e/world tp <世界> §7- 传送到指定世界"
-    create: "§e/world create <名称> [类型] §7- 创建世界（类型：NORMAL、NETHER、THE_END）"
-    delete: "§e/world delete <世界> §7- 删除世界"
-    load: "§e/world load <世界> §7- 加载世界"
-    unload: "§e/world unload <世界> §7- 卸载世界"
-    setspawn: "§e/world setspawn §7- 设置当前世界出生点"
-    set: "§e/world set <世界> <选项> <值> §7- 修改世界设置"
-    protect: "§e/world protect <世界> §7- 启用完整保护"
     unprotect: "§e/world unprotect <世界> §7- 禁用所有保护"
-    block: "§e/world block <世界> §7- 禁止进入世界"
     unblock: "§e/world unblock <世界> §7- 允许进入世界"
-    wizard: "§e/world wizard §7- 启动世界创建向导"
     difficulty: "§e/world difficulty <世界> <难度> §7- 设置世界难度"
     postcmd: "§e/world postcmd <世界> <add|list|clear> §7- 管理传送后命令"
 
-  # 设置选项
-  set_options: "pvp, monsters, animals, weather, hidden, locked, displayname, description, icon"
-  
   # 删除
   delete:
     success: "§a世界 %world% 已删除"
     failed: "§c删除世界 %world% 失败"
     cancelled: "§e已取消删除操作"
 
-# ==================== 背包隔离 ====================
-inventory:
-  saved: "§a背包数据已保存"
-  loaded: "§a背包数据已加载"
-  save_failed: "§c保存背包数据失败"
-  load_failed: "§c加载背包数据失败"
+# ==================== 控制台消息 ====================
+log:
+  auto_unload: "正在自动卸载无人的世界：{WORLD}"
+  invalid_difficulty: "世界 {WORLD} 的难度无效：{VALUE}"
+  settings_update_failed: "更新世界设置失败"
+  environment:
+    inferred: "世界 '{WORLD}'：本模块以 {ENVIRONMENT} 作为加载时的环境，因为其文件夹包含顶层 '{ENTRY}' 目录，且没有顶层 'region' 目录。这些文件夹形态各自意味着什么、可以怎么处理，见本模块 CHANGELOG.md 中本版本的变更条目，以及 UltiKits/UltiWorlds#22。"
+    none: "世界 '{WORLD}'：本模块不提供环境，因为{OBSERVATION}。本模块不会猜测无法从文件夹读出的环境，因此使用服务器自身的默认值——与本版本之前相同。这些文件夹形态各自意味着什么、可以怎么处理，见本模块 CHANGELOG.md 中本版本的变更条目，以及 UltiKits/UltiWorlds#22。"
+    observation:
+      dangling_link: "其 '{ENTRY}' 条目是一个不指向目录的符号链接，因此无法把该文件夹读作它可能所属的世界"
+      dimension_link: "其维度条目是一个符号链接，而本模块读取世界文件夹时不跟随链接，因此链接所指向的内容没有被读取"
+      both_dimensions: "其文件夹同时包含顶层 'DIM-1' 目录和顶层 'DIM1' 目录"
+      dimension_and_region: "其文件夹同时包含顶层 '{ENTRY}' 目录和顶层 'region' 目录，二者各自保存着不同世界的地形"
+  delete:
+    refused_protected: "已拒绝删除世界 {WORLD}：它是配置的 default_world，或列在 protected_worlds 中。"
+    symbolic_link: "世界 '{WORLD}' 是一个符号链接，而不是世界文件夹。本命令只作用于该链接条目本身；它指向的任何内容都不会被读取或删除。"
+    link_remove_failed: "移除世界 {WORLD} 的符号链接失败；该链接仍在世界容器中。已保留此世界的设置。"
+    folder_remove_failed: "未能完整删除世界 {WORLD} 的文件夹；部分文件仍留在磁盘上。已保留此世界的设置。"
+  inventory:
+    save_failed: "保存 {PLAYER} 的背包失败"
+    load_failed: "加载 {PLAYER} 的背包失败"
+
+# ==================== 已移除的配置键 ====================
+log_removed_key_check_failed: "无法检查 {FILE} 中已移除的配置键；模块将跳过这项检查继续运行。"
+removed_key_warning: "{FILE} 仍包含 '{KEY}'，当前版本的 UltiWorlds 已不再读取该键。{REASON} 从文件中删除该键即可消除此警告。"
+removed_key_reason_gui_title: "从未有代码读取它：世界列表的标题来自本模块的语言文件（lang/en.yml、lang/zh.yml 中的 gui.title），要修改请改那里。"
+removed_key_reason_message: "从未有代码读取它：所有世界相关消息都来自本模块的语言文件（lang/en.yml、lang/zh.yml），要修改请改那里。"
