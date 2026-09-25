@@ -76,7 +76,7 @@ class WorldDeleteConfirmPageTest {
             WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
                     mockPlayer, mockWorldService, "test_world", mockPlugin);
 
-            // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+            // A click on the page's own OK slot (a click anywhere else is ignored).
             DeleteConfirmPageDriver.confirm(page);
 
             verify(mockWorldService).deleteWorld("test_world");
@@ -91,7 +91,7 @@ class WorldDeleteConfirmPageTest {
             WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
                     mockPlayer, mockWorldService, "test_world", mockPlugin);
 
-            // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+            // A click on the page's own OK slot (a click anywhere else is ignored).
             DeleteConfirmPageDriver.confirm(page);
 
             verify(mockWorldService).deleteWorld("test_world");
@@ -108,7 +108,7 @@ class WorldDeleteConfirmPageTest {
             WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(
                     mockPlayer, mockWorldService, "world", mockPlugin);
 
-            // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+            // A click on the page's own OK slot (a click anywhere else is ignored).
             DeleteConfirmPageDriver.confirm(page);
 
             verify(mockWorldService, never()).deleteWorld(anyString());

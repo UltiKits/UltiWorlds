@@ -47,7 +47,7 @@ for UAT execution and issue reconciliation — the public description of these f
   behaviour the row documents, so 19 rows record `player`, and two record `both`: `delete <name>`,
   the one mapping without a narrowing, and `help`, whose `@CmdMapping(format = "help")` site carries
   `PLAYER` but is never reached — the framework answers the literal `help` argument through
-  `#handleHelp`, gated only by the class-level `BOTH` (`UltiKits/UltiWorlds#19`, gate-1 IN-03).
+  `#handleHelp`, gated only by the class-level `BOTH` (`UltiKits/UltiWorlds#19`).
 - **Permission:** the literal node string, `none`, or `n/a`, each optionally suffixed with the
   literal text `(requireOp=true)` (preceded by one space) when the row's class-level
   `@CmdExecutor` carries that flag — `WorldCommand`'s class-level `@CmdExecutor` does not set
@@ -110,8 +110,9 @@ none merged or dropped for sharing a class.
 ## World
 
 `WorldCommand` — the sole `@CmdExecutor(alias = {"world", "worlds", "w"}, permission =
-"ultiworlds.use")` (its `description` attribute is Simplified Chinese, not reproduced here per
-D-02), class-level `@CmdTarget(BOTH)` with a method-level `@CmdTarget(PLAYER)` on every mapping except
+"ultiworlds.use")` (its `description` attribute is Simplified Chinese, not reproduced in this
+English-only document), class-level `@CmdTarget(BOTH)` with a method-level `@CmdTarget(PLAYER)` on
+every mapping except
 `delete <name>` — the class admits the console only so that `/world delete` can reach it, and the
 narrowing keeps every other subcommand exactly as player-only as it was when the whole class was
 (`UltiKits/UltiWorlds#19`). All 21 `@CmdMapping` sites are listed below. The literal
@@ -166,8 +167,7 @@ per-action guard clusters in other modules' listeners.
 
 ## GUI
 
-Phase 9 excluded this module's GUI classes from its JaCoCo `check` gate
-(`.planning/phases/09-module-ecosystem-readiness-and-test-coverage/gui-exclusions/UltiWorlds.md`).
+This module's GUI classes are excluded from its JaCoCo `check` gate.
 Two remain below, and both are reachable: `WorldListPage` from bare `/world`, and
 `WorldDeleteConfirmPage` from `/world delete` since `UltiKits/UltiWorlds#19`. A third,
 `WorldListGUI` — the predecessor of `WorldListPage`, never constructed by any class — was deleted
@@ -175,7 +175,7 @@ Two remain below, and both are reachable: `WorldListPage` from bare `/world`, an
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
-| ultiworlds.gui.world-delete-confirm | The 3-row confirmation window `/world delete <name>` opens, titled `gui.delete.title` with `%world%` substituted; its bottom row holds the framework's red Cancel button and green OK button (`BaseConfirmationPage`). OK re-checks, at the moment of the click, everything the command checked when it opened the window — the player still holds `ultiworlds.admin.delete` (`error.no_permission`), the name is not the configured default world (`world.delete.default`) and is not in `protected_worlds` (`world.delete.protected`), both compared without regard to letter case — because the window can stay open while any of those changes; only then does it call `WorldService#deleteWorld` and report `command.delete.success` or `command.delete.failed`, both naming the world. OK also refuses when the window has been open for more than 30 seconds (`world.delete.expired`, which asks the player to run the command again; the same limit, monotonic clock and predicate as the console's confirmation, `DeleteConfirmationWindow`), and when this module has deleted, or started deleting, a world by that name since the window opened (`world.delete.invalidated`). It does not try to recognise "the same world": a world deleted by another plugin or by hand and created again under the same name within the 30 seconds is deleted — a documented limit (maintainer decision of 2026-09-24). A window deletes at most once: a second OK on the same window does nothing, and once the window has been closed OK does nothing at all; OK also acts only on a click in the window itself, never on a click at the same slot index in the player's own inventory — so the window's safety does not depend on obliviate-invs forgetting the window when it closes (gate-1 WR-01). Cancel sends `command.delete.cancelled` and deletes nothing; closing the window without pressing a button deletes nothing and sends nothing (`UltiKits/UltiWorlds#19`) | gui | `ultiworlds.world.delete` | ultiworlds.admin.delete | n/a | admin | detailed | WorldDeleteConfirmPage#onConfirm |
+| ultiworlds.gui.world-delete-confirm | The 3-row confirmation window `/world delete <name>` opens, titled `gui.delete.title` with `%world%` substituted; its bottom row holds the framework's red Cancel button and green OK button (`BaseConfirmationPage`). OK re-checks, at the moment of the click, everything the command checked when it opened the window — the player still holds `ultiworlds.admin.delete` (`error.no_permission`), the name is not the configured default world (`world.delete.default`) and is not in `protected_worlds` (`world.delete.protected`), both compared without regard to letter case — because the window can stay open while any of those changes; only then does it call `WorldService#deleteWorld` and report `command.delete.success` or `command.delete.failed`, both naming the world. OK also refuses when the window has been open for more than 30 seconds (`world.delete.expired`, which asks the player to run the command again; the same limit, monotonic clock and predicate as the console's confirmation, `DeleteConfirmationWindow`), and when this module has deleted, or started deleting, a world by that name since the window opened (`world.delete.invalidated`). It does not try to recognise "the same world": a world deleted by another plugin or by hand and created again under the same name within the 30 seconds is deleted — a documented limit (maintainer decision of 2026-09-24). A window deletes at most once: a second OK on the same window does nothing, and once the window has been closed OK does nothing at all; OK also acts only on a click in the window itself, never on a click at the same slot index in the player's own inventory — so the window's safety does not depend on obliviate-invs forgetting the window when it closes. Cancel sends `command.delete.cancelled` and deletes nothing; closing the window without pressing a button deletes nothing and sends nothing (`UltiKits/UltiWorlds#19`) | gui | `ultiworlds.world.delete` | ultiworlds.admin.delete | n/a | admin | detailed | WorldDeleteConfirmPage#onConfirm |
 | ultiworlds.gui.world-list-page | Paginated (45 items/page) world list: one icon per VISIBLE (non-hidden) world, lore showing description/environment/player-count/time/weather/PVP/monster state, plus protected/locked/blocked indicators; clicking closes the GUI and teleports the viewer to that world via the same path as `/world tp` | gui | `ultiworlds.world.open-list` | n/a | n/a | player | detailed | WorldListPage#createWorldIcon |
 
 ## Scheduled Tasks

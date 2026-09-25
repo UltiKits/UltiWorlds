@@ -69,8 +69,7 @@ public final class DeleteConfirmPageDriver {
 
     /**
      * A click on the OK slot's index that lands in the player's own inventory instead of the page:
-     * what obliviate-invs would deliver to a page it still believes is open (UltiKits/UltiWorlds#19,
-     * gate-1 WR-01).
+     * what obliviate-invs would deliver to a page it still believes is open (UltiKits/UltiWorlds#19).
      */
     public static void clickOkSlotInPlayersOwnInventory(WorldDeleteConfirmPage page) {
         page.onConfirm(clickIn(mock(PlayerInventory.class), OK_SLOT));

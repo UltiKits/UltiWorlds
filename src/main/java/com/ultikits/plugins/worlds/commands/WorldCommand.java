@@ -760,13 +760,13 @@ public class WorldCommand extends BaseCommandExecutor {
      * {@link #requireLoadableWorld} and unlike {@link #requireWorld}, it accepts a world that is on
      * disk but not currently loaded.
      *
-     * <p>This and {@link #existsLoadedOrHasWorldDataOnDisk(String)} were one method until gate-2
-     * round 6, and that is what the defect was: deleting and loading ask different questions of the
-     * same path, and one link-following call cannot answer both. {@link File#exists()} resolves a
-     * link, so for a link whose target is missing it answers about the target -- and an entry
-     * plainly present in the container was reported to the operator as a world that does not exist,
-     * then left in place after its settings row had already been removed. Deleting asks about the
-     * entry, so this one does not follow.
+     * <p>This and {@link #existsLoadedOrHasWorldDataOnDisk(String)} were once one method, and that
+     * is what the defect was: deleting and loading ask different questions of the same path, and
+     * one link-following call cannot answer both. {@link File#exists()} resolves a link, so for a
+     * link whose target is missing it answers about the target -- and an entry plainly present in
+     * the container was reported to the operator as a world that does not exist, then left in
+     * place after its settings row had already been removed. Deleting asks about the entry, so
+     * this one does not follow.
      */
     private static boolean existsLoadedOrHasAnEntryOnDisk(String worldName) {
         return WorldService.isFilesystemSafeWorldName(worldName)

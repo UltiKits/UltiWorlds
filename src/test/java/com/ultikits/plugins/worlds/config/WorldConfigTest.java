@@ -294,7 +294,7 @@ class WorldConfigTest {
     }
 
     @Nested
-    @DisplayName("Removed keys (maintainer ruling 2026-09-24 (d))")
+    @DisplayName("Removed keys")
     class RemovedKeys {
 
         /** The six keys nothing ever read; their text comes from the language file. */

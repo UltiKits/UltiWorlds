@@ -26,10 +26,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The six {@code config/worlds.yml} keys nothing ever read are removed (maintainer ruling 2026-09-24
- * (d)); an operator whose file still holds one is told so, once per key, naming the module, the file
- * and the key. The removed-key check and the module's seam are reached by reflection so this file
- * compiles against a tree that does not have them yet, which a revert proof needs.
+ * The six {@code config/worlds.yml} keys nothing ever read are removed; an operator whose file still
+ * holds one is told so, once per key, naming the module, the file and the key. The removed-key check
+ * and the module's seam are reached by reflection so this file compiles against a tree that does not
+ * have them yet, which a revert proof needs.
  */
 @DisplayName("Removed config/worlds.yml keys are reported when still present")
 class RemovedConfigKeysTest {
@@ -95,7 +95,7 @@ class RemovedConfigKeysTest {
     }
 
     @Test
-    @DisplayName("A failing check never fails enable, and is reported with the language file's text (gate-1 IN-04)")
+    @DisplayName("A failing check never fails enable, and is reported with the language file's text")
     void aFailingCheckIsReportedAndNeverFailsEnable() throws Exception {
         UltiWorlds plugin = mock(UltiWorlds.class);
         PluginLogger logger = mock(PluginLogger.class);

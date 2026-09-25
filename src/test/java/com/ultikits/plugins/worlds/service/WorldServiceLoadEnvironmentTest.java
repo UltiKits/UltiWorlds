@@ -139,11 +139,11 @@ class WorldServiceLoadEnvironmentTest {
     /**
      * The one line the logger was given, asserted to be exactly one.
      *
-     * <p>Gate-1 R5-WR-17. What replaced this was a blacklist -- a list of phrasings the line must
-     * not contain -- and a blacklist constrains only what its author thought of. Measured, the
-     * previous list was evadable by a double space, by capitalising and dropping an article, and
-     * by omitting the verb it keyed on; and because it listed the NEGATED form "do not delete", it
-     * did not catch an affirmative "delete", which is the round-1 defect it was written to pin.
+     * <p>What replaced this was a blacklist -- a list of phrasings the line must not contain --
+     * and a blacklist constrains only what its author thought of. Measured, the previous list was
+     * evadable by a double space, by capitalising and dropping an article, and by omitting the
+     * verb it keyed on; and because it listed the NEGATED form "do not delete", it did not catch
+     * an affirmative "delete", which is the original defect it was written to pin.
      *
      * <p>So the assertions below state what the line must BE. Anything appended, reworded or
      * inserted fails, whatever it says, because it is not the expected form -- and that covers the
@@ -155,11 +155,11 @@ class WorldServiceLoadEnvironmentTest {
         assertThat(lines.getAllValues())
                 .as("the module must print exactly one line about a world's environment")
                 .hasSize(1);
-        // Gate-1 R6-WR-23. Asserting the content of the warn(String) line leaves the other doors on
-        // the same logger open: the round-1 destructive remedy passed verbatim through
-        // getLogger().info(...), and a remedy through the warn(String, Object...) varargs overload
-        // passed too -- both NO-RED against the whole-line assertions, because neither is a
-        // warn(String). One line closes every route at once, including ones nobody has named.
+        // Asserting the content of the warn(String) line leaves the other doors on the same logger
+        // open: the original destructive remedy passed verbatim through getLogger().info(...), and
+        // a remedy through the warn(String, Object...) varargs overload passed too -- both NO-RED
+        // against the whole-line assertions, because neither is a warn(String). One line closes
+        // every route at once, including ones nobody has named.
         verifyNoMoreInteractions(logger);
         return lines.getAllValues().get(0);
     }
@@ -664,11 +664,11 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     // ---------------------------------------------------------------------------------------
-    // Gate-1 WR-01: the folder heuristic runs unattended at boot (init() loops over
-    // load_worlds_on_start), and a wrong answer silently points the server at a different set of
-    // region files, so everything players built in the other set stops existing for them. These
-    // tests pin the rule that it must decline rather than pick whenever the folder is ambiguous,
-    // and that it is never silent when it does answer.
+    // The folder heuristic runs unattended at boot (init() loops over load_worlds_on_start), and
+    // a wrong answer silently points the server at a different set of region files, so
+    // everything players built in the other set stops existing for them. These tests pin the
+    // rule that it must decline rather than pick whenever the folder is ambiguous, and that it
+    // is never silent when it does answer.
     // ---------------------------------------------------------------------------------------
 
     @Test
@@ -884,7 +884,7 @@ class WorldServiceLoadEnvironmentTest {
     }
 
     @Test
-    @DisplayName("an environment the server cannot rebuild never reaches the creator (gate-1 IN-01)")
+    @DisplayName("an environment the server cannot rebuild never reaches the creator")
     void aCustomEnvironmentNeverReachesTheCreator() throws IOException {
         File container = newContainer();
         newWorldFolder(container, "customw", "DIM-1");

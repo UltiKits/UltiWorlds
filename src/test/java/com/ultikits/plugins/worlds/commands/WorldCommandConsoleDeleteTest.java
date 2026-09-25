@@ -365,7 +365,7 @@ class WorldCommandConsoleDeleteTest {
     void rconIsRefused() {
         // Maintainer decision 2026-09-24 (question 14, third follow-up): RCON stays refused.
         // RemoteConsoleCommandSender is not a ConsoleCommandSender, so it never reaches the
-        // confirmation table (gate-1 WR-04).
+        // confirmation table.
         org.bukkit.command.RemoteConsoleCommandSender rcon =
                 mock(org.bukkit.command.RemoteConsoleCommandSender.class);
         when(rcon.hasPermission(anyString())).thenReturn(true);

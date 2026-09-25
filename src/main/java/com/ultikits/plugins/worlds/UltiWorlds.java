@@ -40,7 +40,7 @@ public class UltiWorlds extends UltiToolsPlugin {
     public boolean registerSelf() {
         getLogger().info(i18n("worlds_enabled"));
         // Deleting a key from WorldConfig does nothing to the operator's existing file, so tell them
-        // about any key this version no longer reads (maintainer ruling 2026-09-24 (d)).
+        // about any key this version no longer reads.
         warnAboutRemovedConfigKeys();
         return true;
     }
