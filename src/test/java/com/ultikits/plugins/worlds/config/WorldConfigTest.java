@@ -317,6 +317,37 @@ class WorldConfigTest {
             assertThat(declared).contains("default_world", "tp_to_world.enabled");
             assertThat(declared).doesNotContainAnyElementsOf(removed);
         }
+
+        /**
+         * The framework extracts the jar's {@code config/worlds.yml} into a fresh install before the
+         * entity loads it, so a removed key left in the shipped copy would reach every new server and
+         * warn at every start (Codex P2 on UltiKits/UltiWorlds#42).
+         */
+        @Test
+        @DisplayName("The shipped config/worlds.yml carries none of the six removed keys, and still carries the live ones")
+        void shippedFileCarriesNoneOfTheRemovedKeys() throws Exception {
+            org.bukkit.configuration.file.YamlConfiguration shipped = new org.bukkit.configuration.file.YamlConfiguration();
+            try (java.io.InputStream in = WorldConfig.class.getClassLoader().getResourceAsStream("config/worlds.yml")) {
+                assertThat(in).as("the jar ships config/worlds.yml").isNotNull();
+                shipped.loadFromString(new String(readAll(in), java.nio.charset.StandardCharsets.UTF_8));
+            }
+            // Control: the parse really reads the shipped keys.
+            assertThat(shipped.contains("default_world")).isTrue();
+            assertThat(shipped.contains("tp_to_world.enabled")).isTrue();
+            for (String key : removed) {
+                assertThat(shipped.contains(key)).as("shipped config/worlds.yml still holds %s", key).isFalse();
+            }
+        }
+
+        private byte[] readAll(java.io.InputStream in) throws java.io.IOException {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int n;
+            while ((n = in.read(buffer)) > 0) {
+                out.write(buffer, 0, n);
+            }
+            return out.toByteArray();
+        }
     }
 
     @Nested
