@@ -91,7 +91,7 @@ class WorldDeleteConfirmPageGuardsTest {
     }
 
     @Test
-    @DisplayName("after the window has closed, a later OK deletes nothing (gate-1 WR-01)")
+    @DisplayName("after the window has closed, a later OK deletes nothing")
     void anOkAfterCloseDeletesNothing() {
         WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(player, worldService, "scratchw", plugin);
 
@@ -102,7 +102,7 @@ class WorldDeleteConfirmPageGuardsTest {
     }
 
     @Test
-    @DisplayName("a click on the OK slot's index in the player's own inventory deletes nothing (gate-1 WR-01)")
+    @DisplayName("a click on the OK slot's index in the player's own inventory deletes nothing")
     void anOkSlotClickInThePlayersOwnInventoryDeletesNothing() {
         WorldDeleteConfirmPage page = new WorldDeleteConfirmPage(player, worldService, "scratchw", plugin);
 

@@ -498,11 +498,13 @@ class InventoryIsolationServiceTest {
             // Make update throw
             doThrow(new RuntimeException("DB error")).when(mockDataOperator).update(any());
 
-            // Should not throw
+            // Should not throw; the console line follows the server's language.
+            when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
             service.saveInventory(player, "world");
 
             // Logger should have been called with error
-            verify(UltiWorldsTestHelper.getMockPlugin().getLogger()).error(anyString(), any(Exception.class));
+            String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.inventory.save_failed").replace("{PLAYER}", "TestPlayer");
+            verify(UltiWorldsTestHelper.getMockPlugin().getLogger()).error(eq(expected), any(Exception.class));
         }
 
         @Test

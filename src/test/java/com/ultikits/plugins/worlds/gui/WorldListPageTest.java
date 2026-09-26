@@ -33,13 +33,13 @@ class WorldListPageTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // UltiWorldsTestHelper.setUp() installs a live MockBukkit server (phase-14 bootstrap),
-        // which already answers ItemFactory/registry lookups for real ItemStack construction. A
-        // hand-rolled Bukkit.setServer(mock(Server.class)) used to run after this and silently
-        // replace that live server with a bare Mockito mock stubbing only getItemFactory() -- a
-        // stand-in that could not satisfy Tag/Registry resolution, permanently poisoning
-        // registry-backed classes (MaterialTags/BlockStateMetaMock) for the rest of the Surefire
-        // fork. Removed; the live server is sufficient on its own.
+        // UltiWorldsTestHelper.setUp() installs a live MockBukkit server, which already answers
+        // ItemFactory/registry lookups for real ItemStack construction. A hand-rolled
+        // Bukkit.setServer(mock(Server.class)) used to run after this and silently replace that
+        // live server with a bare Mockito mock stubbing only getItemFactory() -- a stand-in that
+        // could not satisfy Tag/Registry resolution, permanently poisoning registry-backed
+        // classes (MaterialTags/BlockStateMetaMock) for the rest of the Surefire fork. Removed;
+        // the live server is sufficient on its own.
         UltiWorldsTestHelper.setUp();
         mockPlugin = UltiWorldsTestHelper.getMockPlugin();
         mockWorldService = mock(WorldService.class);

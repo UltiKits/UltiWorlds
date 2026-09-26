@@ -125,7 +125,7 @@ public class InventoryIsolationService {
             
             dataOperator.update(inv);
         } catch (Exception e) {
-            plugin.getLogger().error("Failed to save inventory for " + player.getName(), e);
+            plugin.getLogger().error(plugin.i18n("log.inventory.save_failed").replace("{PLAYER}", player.getName()), e);
         }
     }
     
@@ -193,7 +193,7 @@ public class InventoryIsolationService {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().error("Failed to load inventory for " + player.getName(), e);
+            plugin.getLogger().error(plugin.i18n("log.inventory.load_failed").replace("{PLAYER}", player.getName()), e);
         }
     }
     

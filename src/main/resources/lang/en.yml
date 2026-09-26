@@ -11,37 +11,20 @@ common:
   "yes": "Yes"
   "no": "No"
   random: "Random"
-  on: "On"
-  off: "Off"
 
 # ==================== Error Messages ====================
 error:
   world_not_found: "§cWorld %world% does not exist!"
-  world_exists: "§cWorld %world% already exists!"
   world_blocked: "§cThis world has been blocked!"
   world_locked: "§cThis world is locked and cannot be entered!"
   no_permission: "§cYou don't have permission to enter this world!"
   cooldown: "§cTeleport cooldown! Please wait %time% seconds"
-  delete_protected: "§cCannot delete a protected world!"
-  invalid_world: "§cInvalid world name!"
-  invalid_option: "§cInvalid option! Available options: %options%"
   invalid_value: "§cInvalid value!"
-  not_player: "§cThis command can only be executed by players!"
   invalid_difficulty: "§cInvalid difficulty! Use: PEACEFUL, EASY, NORMAL, HARD"
 
 # ==================== Success Messages ====================
 success:
   teleported: "§aTeleported to world: %world%"
-  created: "§aWorld %world% has been created!"
-  deleted: "§cWorld %world% has been deleted!"
-  loaded: "§aWorld %world% has been loaded!"
-  unloaded: "§eWorld %world% has been unloaded"
-  spawn_set: "§aWorld spawn point has been set"
-  setting_updated: "§aSetting updated: %option% = %value%"
-  protection_enabled: "§aWorld protection enabled"
-  protection_disabled: "§eWorld protection disabled"
-  world_blocked: "§cWorld %world% has been blocked"
-  world_unblocked: "§aWorld %world% has been unblocked"
   difficulty_set: "§aDifficulty set to %value% for world %world%"
   post_cmd_added: "§aPost-teleport command added for world %world%"
   post_cmd_cleared: "§aAll post-teleport commands cleared for world %world%"
@@ -73,9 +56,6 @@ gui:
   
   delete:
     title: "§cConfirm Delete: %world%"
-    confirm: "§aConfirm Delete"
-    cancel: "§cCancel"
-    warning: "§cWarning: This action cannot be undone!"
 
 # ==================== Environment Names ====================
 environment:
@@ -208,9 +188,8 @@ world:
     blocked: "§7Blocked: §f{VALUE}"
 
 # ==================== Help Menu ====================
-# Referenced by WorldCommand#help() via the "help.*" keys (distinct from the
-# "command.help.*" keys below, which back the /world create <name> <type> [generator]
-# style reference text and are not all read by the live /world help command).
+# Referenced by WorldCommand#help() via the "help.*" keys; the admin block also shows the
+# four "command.help.*" lines below.
 help:
   header: "§6========== UltiWorlds Help =========="
   list: "§e/world list §7- List all loaded worlds"
@@ -230,37 +209,43 @@ help:
 
 # ==================== Command Help ====================
 command:
-  usage: "§eUsage: %usage%"
+  description: "World management"
   help:
-    header: "§6========== UltiWorlds Help =========="
-    list: "§e/world list §7- Open world list GUI"
-    tp: "§e/world tp <world> §7- Teleport to a world"
-    create: "§e/world create <name> [type] §7- Create world (type: NORMAL, NETHER, THE_END)"
-    delete: "§e/world delete <world> §7- Delete a world"
-    load: "§e/world load <world> §7- Load a world"
-    unload: "§e/world unload <world> §7- Unload a world"
-    setspawn: "§e/world setspawn §7- Set current world spawn"
-    set: "§e/world set <world> <option> <value> §7- Modify world settings"
-    protect: "§e/world protect <world> §7- Enable full protection"
     unprotect: "§e/world unprotect <world> §7- Disable all protection"
-    block: "§e/world block <world> §7- Block world access"
     unblock: "§e/world unblock <world> §7- Unblock world access"
-    wizard: "§e/world wizard §7- Start world creation wizard"
     difficulty: "§e/world difficulty <world> <level> §7- Set world difficulty"
     postcmd: "§e/world postcmd <world> <add|list|clear> §7- Manage post-TP commands"
 
-  # Setting options
-  set_options: "pvp, monsters, animals, weather, hidden, locked, displayname, description, icon"
-  
   # Delete
   delete:
     success: "§aWorld %world% has been deleted"
     failed: "§cFailed to delete world %world%"
     cancelled: "§eDelete operation cancelled"
 
-# ==================== Inventory Isolation ====================
-inventory:
-  saved: "§aInventory data saved"
-  loaded: "§aInventory data loaded"
-  save_failed: "§cFailed to save inventory data"
-  load_failed: "§cFailed to load inventory data"
+# ==================== Console Messages ====================
+log:
+  auto_unload: "Auto-unloading empty world: {WORLD}"
+  invalid_difficulty: "Invalid difficulty for world {WORLD}: {VALUE}"
+  settings_update_failed: "Failed to update world settings"
+  environment:
+    inferred: "World '{WORLD}': this module supplies {ENVIRONMENT} as the environment to load with, because its folder contains a top-level '{ENTRY}' directory and no top-level 'region' directory. What each of these folder shapes means, and what can be done about it, is in this module's CHANGELOG.md changelog entry for this version, and in UltiKits/UltiWorlds#22."
+    none: "World '{WORLD}': this module supplies no environment, because {OBSERVATION}. It does not guess an environment it cannot read from the folder, so the server's own default applies -- the same as before this version. What each of these folder shapes means, and what can be done about it, is in this module's CHANGELOG.md changelog entry for this version, and in UltiKits/UltiWorlds#22."
+    observation:
+      dangling_link: "its '{ENTRY}' entry is a symbolic link that does not lead to a directory, so the folder cannot be read as the world it may belong to"
+      dimension_link: "its dimension entry is a symbolic link, and this module does not follow links when reading a world folder, so whatever the link points at was not read"
+      both_dimensions: "its folder contains both a top-level 'DIM-1' directory and a top-level 'DIM1' directory"
+      dimension_and_region: "its folder contains a top-level '{ENTRY}' directory and a top-level 'region' directory, each holding a different world's terrain"
+  delete:
+    refused_protected: "Refused to delete world {WORLD}: it is the configured default_world or is listed in protected_worlds."
+    symbolic_link: "World '{WORLD}' is a symbolic link, not a world folder. Only the link entry is subject to this command; nothing it points at is read or deleted."
+    link_remove_failed: "Failed to remove the symbolic link for world {WORLD}; the link is still in the world container. Settings for this world were kept."
+    folder_remove_failed: "Failed to fully delete the folder for world {WORLD}; some files remain on disk. Settings for this world were kept."
+  removed_key_check_failed: "Could not check {FILE} for removed configuration keys; the module continues without that check."
+  inventory:
+    save_failed: "Failed to save inventory for {PLAYER}"
+    load_failed: "Failed to load inventory for {PLAYER}"
+
+# ==================== Removed Configuration Keys ====================
+removed_key_warning: "{FILE} still contains '{KEY}', which this version of UltiWorlds no longer reads. {REASON} Delete the key from the file to silence this warning."
+removed_key_reason_gui_title: "Nothing ever read it: the world list's title comes from this module's language file (gui.title in lang/en.yml, lang/zh.yml), which is where to change it."
+removed_key_reason_message: "Nothing ever read it: every world message comes from this module's language file (lang/en.yml, lang/zh.yml), which is where to change it."
