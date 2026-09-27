@@ -1021,13 +1021,12 @@ class WorldSettingsTest {
     }
 
     /**
-     * UltiWorlds#11 (FIX-04): all twelve boolean columns declare no explicit {@code @Column}
-     * type, and the framework's read-side fix (issue #388, closed 2026-09-04) already covers
-     * pre-existing text-typed boolean columns. Plan 13-03 already ran this exact measurement
-     * once as a throwaway harness against the module's own production {@code SQLiteDataOperator}
-     * class (not a mock) and recorded {@code ALL_12_ROUND_TRIP_CORRECTLY} in
-     * {@code 13-RECONFIRMATION.md}. This nested class turns that one-off measurement into a
-     * standing regression test rather than re-litigating the verdict -- per D-05, no
+     * UltiWorlds#11: all twelve boolean columns declare no explicit {@code @Column} type, and
+     * the framework's read-side fix (issue #388, closed 2026-09-04) already covers pre-existing
+     * text-typed boolean columns. This exact measurement was first run once as a throwaway
+     * harness against the module's own production {@code SQLiteDataOperator} class (not a mock),
+     * and all twelve columns round-tripped correctly. This nested class turns that one-off
+     * measurement into a standing regression test rather than re-litigating the verdict -- so no
      * {@code @Column(type = "BOOLEAN")} is added anywhere in {@link WorldSettings}.
      */
     @Nested

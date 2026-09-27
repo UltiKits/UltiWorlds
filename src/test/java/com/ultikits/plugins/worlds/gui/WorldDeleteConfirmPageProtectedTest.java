@@ -34,8 +34,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Gate-1 WR-04: {@link WorldService#deleteWorld(String)}'s own javadoc names
- * {@code WorldDeleteConfirmPage#onConfirm} as the reason the protected-world refusal lives in the
+ * {@link WorldService#deleteWorld(String)}'s own javadoc names {@code
+ * WorldDeleteConfirmPage#onConfirm} as the reason the protected-world refusal lives in the
  * service rather than in the command -- and that page was the one caller that could not show the
  * refusal, sending the generic {@code command.delete.failed} instead, which is indistinguishable
  * from a locked file or a partial delete.
@@ -43,14 +43,14 @@ import static org.mockito.Mockito.when;
  * <p>A real {@link WorldService} sits behind the page here, so the message the page shows and the
  * refusal the service applies are exercised as one path.
  *
- * <p>This does not wire the page into any command -- that is {@code UltiKits/UltiWorlds#19}, in
- * wave 2, and is explicitly out of scope for this pull request. It only makes the message the page
- * would show correct.
+ * <p>This does not wire the page into any command -- that is {@code UltiKits/UltiWorlds#19}, and
+ * is explicitly out of scope for this pull request. It only makes the message the page would
+ * show correct.
  *
  * @author wisdomme
  * @version 2.0.0
  */
-@DisplayName("WorldDeleteConfirmPage protected-world message (UltiWorlds#20, gate-1 WR-04)")
+@DisplayName("WorldDeleteConfirmPage protected-world message (UltiWorlds#20)")
 class WorldDeleteConfirmPageProtectedTest {
 
     private WorldService worldService;
@@ -90,7 +90,7 @@ class WorldDeleteConfirmPageProtectedTest {
     private void invokeOnConfirm(String worldName) throws Exception {
         WorldDeleteConfirmPage page =
                 new WorldDeleteConfirmPage(mockPlayer, worldService, worldName, mockPlugin);
-        // A click on the page's own OK slot (gate-1 WR-01: a click anywhere else is ignored).
+        // A click on the page's own OK slot (a click anywhere else is ignored).
         DeleteConfirmPageDriver.confirm(page);
     }
 

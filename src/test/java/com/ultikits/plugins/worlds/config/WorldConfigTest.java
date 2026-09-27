@@ -294,108 +294,65 @@ class WorldConfigTest {
     }
 
     @Nested
-    @DisplayName("Message Defaults")
-    class MessageDefaults {
+    @DisplayName("Removed keys")
+    class RemovedKeys {
+
+        /** The six keys nothing ever read; their text comes from the language file. */
+        private final List<String> removed = Arrays.asList("gui_title", "messages.world_teleport",
+                "messages.world_not_found", "messages.no_permission", "messages.world_created",
+                "messages.world_deleted");
 
         @Test
-        @DisplayName("Should have default teleport message")
-        void worldTeleportMessage() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getWorldTeleportMessage()).isEqualTo("&a\u5df2\u4f20\u9001\u5230\u4e16\u754c: {WORLD}");
+        @DisplayName("WorldConfig declares none of the six keys nothing read, and still declares the ones it reads")
+        void declaresNoneOfTheRemovedKeys() {
+            List<String> declared = new java.util.ArrayList<>();
+            for (java.lang.reflect.Field field : WorldConfig.class.getDeclaredFields()) {
+                com.ultikits.ultitools.annotations.ConfigEntry entry =
+                        field.getAnnotation(com.ultikits.ultitools.annotations.ConfigEntry.class);
+                if (entry != null) {
+                    declared.add(entry.path());
+                }
+            }
+            // Control: the reflection really reads the declarations.
+            assertThat(declared).contains("default_world", "tp_to_world.enabled");
+            assertThat(declared).doesNotContainAnyElementsOf(removed);
         }
 
+        /**
+         * The framework extracts the jar's {@code config/worlds.yml} into a fresh install before the
+         * entity loads it, so a removed key left in the shipped copy would reach every new server and
+         * warn at every start (UltiKits/UltiWorlds#42).
+         */
         @Test
-        @DisplayName("Should have default world not found message")
-        void worldNotFoundMessage() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getWorldNotFoundMessage()).isEqualTo("&c\u4e16\u754c {WORLD} \u4e0d\u5b58\u5728\uff01");
+        @DisplayName("The shipped config/worlds.yml carries none of the six removed keys, and still carries the live ones")
+        void shippedFileCarriesNoneOfTheRemovedKeys() throws Exception {
+            org.bukkit.configuration.file.YamlConfiguration shipped = new org.bukkit.configuration.file.YamlConfiguration();
+            try (java.io.InputStream in = WorldConfig.class.getClassLoader().getResourceAsStream("config/worlds.yml")) {
+                assertThat(in).as("the jar ships config/worlds.yml").isNotNull();
+                shipped.loadFromString(new String(readAll(in), java.nio.charset.StandardCharsets.UTF_8));
+            }
+            // Control: the parse really reads the shipped keys.
+            assertThat(shipped.contains("default_world")).isTrue();
+            assertThat(shipped.contains("tp_to_world.enabled")).isTrue();
+            for (String key : removed) {
+                assertThat(shipped.contains(key)).as("shipped config/worlds.yml still holds %s", key).isFalse();
+            }
         }
 
-        @Test
-        @DisplayName("Should have default no permission message")
-        void noPermissionMessage() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getNoPermissionMessage()).isEqualTo("&c\u4f60\u6ca1\u6709\u6743\u9650\u8fdb\u5165\u4e16\u754c {WORLD}\uff01");
-        }
-
-        @Test
-        @DisplayName("Should have default world created message")
-        void worldCreatedMessage() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getWorldCreatedMessage()).isEqualTo("&a\u4e16\u754c {WORLD} \u5df2\u521b\u5efa\uff01");
-        }
-
-        @Test
-        @DisplayName("Should have default world deleted message")
-        void worldDeletedMessage() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getWorldDeletedMessage()).isEqualTo("&c\u4e16\u754c {WORLD} \u5df2\u5220\u9664\uff01");
-        }
-    }
-
-    @Nested
-    @DisplayName("Message Setters")
-    class MessageSetters {
-
-        @Test
-        @DisplayName("Should update teleport message")
-        void setWorldTeleportMessage() {
-            WorldConfig config = createRealConfig();
-            config.setWorldTeleportMessage("&aTeleported to {WORLD}");
-            assertThat(config.getWorldTeleportMessage()).isEqualTo("&aTeleported to {WORLD}");
-        }
-
-        @Test
-        @DisplayName("Should update world not found message")
-        void setWorldNotFoundMessage() {
-            WorldConfig config = createRealConfig();
-            config.setWorldNotFoundMessage("&cWorld {WORLD} not found!");
-            assertThat(config.getWorldNotFoundMessage()).isEqualTo("&cWorld {WORLD} not found!");
-        }
-
-        @Test
-        @DisplayName("Should update no permission message")
-        void setNoPermissionMessage() {
-            WorldConfig config = createRealConfig();
-            config.setNoPermissionMessage("&cNo access to {WORLD}!");
-            assertThat(config.getNoPermissionMessage()).isEqualTo("&cNo access to {WORLD}!");
-        }
-
-        @Test
-        @DisplayName("Should update world created message")
-        void setWorldCreatedMessage() {
-            WorldConfig config = createRealConfig();
-            config.setWorldCreatedMessage("&aWorld {WORLD} created!");
-            assertThat(config.getWorldCreatedMessage()).isEqualTo("&aWorld {WORLD} created!");
-        }
-
-        @Test
-        @DisplayName("Should update world deleted message")
-        void setWorldDeletedMessage() {
-            WorldConfig config = createRealConfig();
-            config.setWorldDeletedMessage("&cWorld {WORLD} deleted!");
-            assertThat(config.getWorldDeletedMessage()).isEqualTo("&cWorld {WORLD} deleted!");
+        private byte[] readAll(java.io.InputStream in) throws java.io.IOException {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int n;
+            while ((n = in.read(buffer)) > 0) {
+                out.write(buffer, 0, n);
+            }
+            return out.toByteArray();
         }
     }
 
     @Nested
     @DisplayName("GUI and Description Settings")
     class GuiAndDescription {
-
-        @Test
-        @DisplayName("Should have default GUI title")
-        void guiTitle() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getGuiTitle()).isEqualTo("&6\u4e16\u754c\u5217\u8868");
-        }
-
-        @Test
-        @DisplayName("Should update GUI title")
-        void setGuiTitle() {
-            WorldConfig config = createRealConfig();
-            config.setGuiTitle("&6World List");
-            assertThat(config.getGuiTitle()).isEqualTo("&6World List");
-        }
 
         @Test
         @DisplayName("Should have show description on teleport enabled by default")

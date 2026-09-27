@@ -28,7 +28,7 @@ import org.bukkit.inventory.Inventory;
  * only on a click that landed in this page's own inventory. That safety does not rest on
  * obliviate-invs dropping the page from its open-GUI table on close -- if anything in the close
  * chain threw, obliviate would keep routing the player's later clicks here by slot number alone,
- * including a click in the player's own inventory at the OK slot's index (gate-1 WR-01).
+ * including a click in the player's own inventory at the OK slot's index.
  *
  * @author wisdomme
  * @version 2.0.0

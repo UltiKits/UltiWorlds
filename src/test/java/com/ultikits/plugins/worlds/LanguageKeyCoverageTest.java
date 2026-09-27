@@ -23,11 +23,11 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Guard test for real-machine finding F-W2 (Phase 13 UltiWorlds PR #16): every {@code
- * i18n("literal.key")} call site under {@code src/main/java} must resolve to an actual message in
- * both language files. Before this fix, {@code src/main/resources/lang/en.yml} and {@code zh.yml}
- * had no {@code world:} section and no {@code help:} section at all, so roughly fifty keys the
- * command class calls resolved to nothing and reached the player as raw dotted keys.
+ * Guard test for a real-server finding (UltiWorlds PR #16): every {@code i18n("literal.key")}
+ * call site under {@code src/main/java} must resolve to an actual message in both language files.
+ * Before this fix, {@code src/main/resources/lang/en.yml} and {@code zh.yml} had no {@code
+ * world:} section and no {@code help:} section at all, so roughly fifty keys the command class
+ * calls resolved to nothing and reached the player as raw dotted keys.
  *
  * <p>Every call site in this module passes a string literal directly to {@code i18n(...)} (checked
  * by reading every caller); none builds a key by concatenation, so a plain regex scan over the
@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author wisdomme
  * @version 2.0.0
  */
-@DisplayName("Language key coverage (F-W2)")
+@DisplayName("Language key coverage")
 class LanguageKeyCoverageTest {
 
     private static final Path SOURCE_ROOT = Paths.get("src", "main", "java");

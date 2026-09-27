@@ -39,12 +39,12 @@ import static org.mockito.Mockito.when;
 /**
  * Runs the outcome table published in {@code CHANGELOG.md} against this code, by reading the file.
  *
- * <p>Gate-1 R5-WR-16. The class this replaces transcribed the changelog into Java and then tested
- * the transcription, so it constrained the code and not the document: three document-only
- * mutations -- shape 2's outcomes swapped, shape 4's ordering inverted, and the defect a previous
- * round had found reinstated verbatim -- each left it at five passing tests. The exact regression
- * one round had caught could be put back into the shipped document with the gate green, while the
- * class's own javadoc claimed "an edit to either side fails here".
+ * <p>The class this replaces transcribed the changelog into Java and then tested the
+ * transcription, so it constrained the code and not the document: three document-only mutations --
+ * shape 2's outcomes swapped, shape 4's ordering inverted, and the defect a previous round had
+ * found reinstated verbatim -- each left it at five passing tests. The exact regression one round
+ * had caught could be put back into the shipped document with the gate green, while the class's
+ * own javadoc claimed "an edit to either side fails here".
  *
  * <p>So this reads `CHANGELOG.md`, parses the table, and drives every fixture from what the file
  * actually contains. Nothing about the table is hard-coded: not the number of rows, not the folder
@@ -60,7 +60,7 @@ import static org.mockito.Mockito.when;
  * @author wisdomme
  * @version 2.0.0
  */
-@DisplayName("The published outcome table is run against the code (UltiWorlds#22, gate-1 R5-WR-16)")
+@DisplayName("The published outcome table is run against the code (UltiWorlds#22)")
 class WorldServiceFolderShapeProcedureTest {
 
     private static final Path CHANGELOG = Paths.get("CHANGELOG.md");

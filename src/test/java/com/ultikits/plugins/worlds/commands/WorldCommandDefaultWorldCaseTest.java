@@ -33,11 +33,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Gate-1 WR-03: the two `default_world` guards on the command surface compared the operator's
- * argument with {@link String#equals(Object)}, while {@code CraftServer#getWorld} resolves a world
- * name as {@code name.toLowerCase(Locale.ROOT)} -- measured directly in the bytecode of
- * {@code paper-1.21.4.jar}, offsets 15-34. So a name typed in another case walked past the guard
- * and then resolved to the real world anyway.
+ * The two `default_world` guards on the command surface compared the operator's argument with
+ * {@link String#equals(Object)}, while {@code CraftServer#getWorld} resolves a world name as
+ * {@code name.toLowerCase(Locale.ROOT)} -- measured directly in the bytecode of {@code
+ * paper-1.21.4.jar}, offsets 15-34. So a name typed in another case walked past the guard and then
+ * resolved to the real world anyway.
  *
  * <p>These tests use a real {@link WorldService} behind the command, because the second scenario is
  * specifically about the command and the service disagreeing about which refusal applies.
@@ -45,7 +45,7 @@ import static org.mockito.Mockito.when;
  * @author wisdomme
  * @version 2.0.0
  */
-@DisplayName("WorldCommand default-world guards are case-insensitive (UltiWorlds#20, gate-1 WR-03)")
+@DisplayName("WorldCommand default-world guards are case-insensitive (UltiWorlds#20)")
 class WorldCommandDefaultWorldCaseTest {
 
     private WorldCommand command;

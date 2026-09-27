@@ -47,7 +47,7 @@ public final class UltiWorldsTestHelper {
         // Live test-time server bootstrap: resolves registry-backed types
         // (InventoryType/MenuType, PotionEffectType, ItemStack/Material) that a plain Mockito mock
         // cannot satisfy. Centralized here so every class that already calls this helper picks it
-        // up with zero per-class edits (phase-14).
+        // up with zero per-class edits.
         MockBukkitSupport.ensureCleanState();
         MockBukkit.mock();
 

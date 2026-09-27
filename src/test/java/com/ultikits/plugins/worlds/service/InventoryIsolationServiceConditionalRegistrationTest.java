@@ -21,20 +21,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Falsification test for FIX-04 (UltiWorlds#10): whether the inventory-isolation service exists
- * at runtime matches the configured flag at cold start, and whether a later change to that flag
- * is reported as drift for this service and this key after a reload.
+ * Falsification test for UltiWorlds#10: whether the inventory-isolation service exists at
+ * runtime matches the configured flag at cold start, and whether a later change to that flag is
+ * reported as drift for this service and this key after a reload.
  * <p>
- * <b>Cold start (re-derivation, see {@code 13-LEDGER-UltiWorlds.md}):</b> the annotation's sense
- * ({@code negate=false}), the configured path (identical to {@code WorldConfig}'s own
- * {@code @ConfigEntry} key), and the framework's evaluator (proven correct elsewhere in the same
- * measurement session per 13-CONTEXT.md) are all independently confirmed correct by reading
- * source. {@link #coldStartEnabledTrueRegistersTheService(Path)} and
- * {@link #coldStartEnabledFalseDoesNotRegisterTheService(Path)} exercise the real gate directly
- * (the framework's sole {@code @ConditionalOnConfig} gate,
- * {@code ConditionalRegistrationEvaluator.shouldRegister}, whose only {@code src/main} caller is
+ * <b>Cold start (re-derivation):</b> the annotation's sense ({@code negate=false}), the
+ * configured path (identical to {@code WorldConfig}'s own {@code @ConfigEntry} key), and the
+ * framework's evaluator (proven correct separately) are all independently confirmed correct by
+ * reading source. {@link #coldStartEnabledTrueRegistersTheService(Path)} and {@link
+ * #coldStartEnabledFalseDoesNotRegisterTheService(Path)} exercise the real gate directly (the
+ * framework's sole {@code @ConditionalOnConfig} gate, {@code
+ * ConditionalRegistrationEvaluator.shouldRegister}, whose only {@code src/main} caller is
  * {@code ComponentScanner.shouldRegister}) and are green before any change -- recorded here as
- * evidence rather than forced red, per {@code 13-RECONFIRMATION.md}'s "Rule for the fan-out."
+ * evidence rather than forced red.
  * <p>
  * <b>Reload drift:</b> the framework evaluates {@code @ConditionalOnConfig} once, at component
  * scan; a reload never registers or unregisters anything and only reports drift via
