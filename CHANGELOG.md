@@ -123,6 +123,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A player who hits another player in a world with PvP off is now told "PVP is disabled in this
+  world!". The hit was stopped, but the line never arrived: the server stops such a hit before the
+  module's damage handler runs, so the line is now sent on the attack attempt (UltiKits/UltiWorlds#23).
+- 在关闭 PvP 的世界中攻击其他玩家时，攻击者现在会收到“此世界已禁用 PVP”的提示。此前攻击会被阻止，但提示从未送达：
+  服务器会在模块的伤害处理之前拦下这次攻击，因此提示现在改为在攻击发起时发送（UltiKits/UltiWorlds#23）。
+
 - A world with weather disabled (`/world set <world> weather false`) now also keeps thunder from
   starting. Rain was blocked, but thunder is a separate state, so a world could still turn
   thundering (UltiKits/UltiWorlds#24).

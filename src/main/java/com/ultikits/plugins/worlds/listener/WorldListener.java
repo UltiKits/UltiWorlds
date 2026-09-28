@@ -7,6 +7,8 @@ import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.EventListener;
 
+import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
+
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -106,7 +108,10 @@ public class WorldListener implements Listener {
     }
     
     /**
-     * Handle PVP toggle.
+     * Handle PVP toggle: a player's hit on a player in a world with PvP off does no damage. The
+     * attacker is told by {@link #onPlayerAttackAttempt}, not here: with the world's own PvP rule
+     * off (applied on entering it), the server stops the hit before this event is handled
+     * (UltiKits/UltiWorlds#23), so a message sent here never arrived.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerDamage(EntityDamageByEntityEvent event) {
@@ -118,9 +123,24 @@ public class WorldListener implements Listener {
         
         if (!settings.isPvpEnabled()) {
             event.setCancelled(true);
-            ((Player) event.getDamager()).sendMessage(
-                plugin.i18n("protection.pvp_disabled")
-            );
+        }
+    }
+
+    /**
+     * Tells a player who swings at another player in a world with PvP off why the hit does
+     * nothing. The attack attempt is announced before any damage logic, whatever stops the hit
+     * afterwards, so the line reaches the attacker whenever the protection engages
+     * (UltiKits/UltiWorlds#23).
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerAttackAttempt(PrePlayerAttackEntityEvent event) {
+        if (!event.willAttack() || !(event.getAttacked() instanceof Player)) return;
+
+        World world = event.getAttacked().getWorld();
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
+
+        if (!settings.isPvpEnabled()) {
+            event.getPlayer().sendMessage(plugin.i18n("protection.pvp_disabled"));
         }
     }
     
