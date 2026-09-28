@@ -13,6 +13,7 @@ import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.command.*;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Difficulty;
 import org.bukkit.World;
 import org.bukkit.WorldType;
@@ -372,7 +373,13 @@ public class WorldCommand extends BaseCommandExecutor {
                 settings.setDescription(value);
                 break;
             case "icon":
-                settings.setIcon(value.toUpperCase());
+                // A name that is no item was stored and silently shown as the default icon.
+                Material icon = Material.matchMaterial(value);
+                if (icon == null || !icon.isItem()) {
+                    player.sendMessage(Placeholders.fill(i18n("world.set.invalid_icon"), "{VALUE}", value));
+                    return;
+                }
+                settings.setIcon(icon.name());
                 break;
             case "difficulty":
                 try {

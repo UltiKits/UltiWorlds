@@ -162,6 +162,7 @@ world:
   set:
     invalid_option: "§cInvalid option! Use: pvp, monsters, animals, weather, hidden, locked, blocked, autoUnload, protectBreak, protectPlace, protectInteract, protectExplosion, displayname, description, icon, difficulty"
     success: "§aSet {OPTION} = {VALUE} for world {WORLD}"
+    invalid_icon: "§cUnknown item '{VALUE}': the icon must be an item name, such as GRASS_BLOCK."
 
   protect:
     enabled: "§aFull protection enabled for world {WORLD}"
@@ -236,6 +237,8 @@ log:
   auto_unload: "Auto-unloading empty world: {WORLD}"
   invalid_difficulty: "Invalid difficulty for world {WORLD}: {VALUE}"
   settings_update_failed: "Failed to update world settings"
+  default_world_unknown: "config/worlds.yml sets default_world to '{VALUE}', which is not a loaded world. Players moved out of a world that is unloaded or blocked go to '{FALLBACK}', the server's first world, instead. Correct the value and run /ul reload."
+  load_on_start_failed: "config/worlds.yml lists '{WORLD}' in load_worlds_on_start, but no world by that name could be loaded, so it was skipped. Correct or remove the entry."
   shared_world_duplicate: "config/worlds.yml lists world '{ENTRY}' in world_isolation.shared_worlds, but '{FIRST}' is already listed there, and world names are matched ignoring case. '{ENTRY}' is ignored: the world stays in the group of '{FIRST}'. Remove one of the two entries to silence this warning."
   environment:
     inferred: "World '{WORLD}': this module supplies {ENVIRONMENT} as the environment to load with, because its folder contains a top-level '{ENTRY}' directory and no top-level 'region' directory. What each of these folder shapes means, and what can be done about it, is in this module's CHANGELOG.md changelog entry for this version, and in UltiKits/UltiWorlds#22."

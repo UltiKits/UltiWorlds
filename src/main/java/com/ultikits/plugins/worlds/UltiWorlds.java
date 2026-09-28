@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.ultikits.plugins.worlds.config.RemovedConfigKeys;
 import com.ultikits.plugins.worlds.config.WorldConfig;
+import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.ConfigEntity;
 import com.ultikits.ultitools.annotations.UltiToolsModule;
@@ -53,6 +54,8 @@ public class UltiWorlds extends UltiToolsPlugin {
     @Override
     protected void onReload() {
         warnAboutRemovedConfigKeys();
+        // A default_world edited to a name that is no loaded world is named again after a reload.
+        getContext().getBean(WorldService.class).warnAboutUnknownDefaultWorld();
     }
 
     private void warnAboutRemovedConfigKeys() {

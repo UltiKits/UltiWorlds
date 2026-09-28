@@ -71,15 +71,35 @@ public class WorldService {
     public void init() {
         this.dataOperator = plugin.getDataOperator(WorldSettings.class);
 
-        // Load configured worlds on start
+        // Load configured worlds on start; an entry that cannot be loaded is named, not skipped
+        // silently (maintainer decision 2026-09-27: refuse and name).
         for (String worldName : config.getLoadWorldsOnStart()) {
-            loadWorld(worldName);
+            if (!loadWorld(worldName)) {
+                plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.load_on_start_failed"),
+                    "{WORLD}", String.valueOf(worldName)));
+            }
         }
+        warnAboutUnknownDefaultWorld();
 
         // Initialize settings for existing worlds
         for (World world : Bukkit.getWorlds()) {
             getOrCreateSettings(world.getName());
         }
+    }
+
+    /**
+     * Names a {@code default_world} that is no loaded world, with the world players are sent to
+     * instead: the server's first world. It was silent, so a typo quietly redirected every player
+     * moved out of an unloaded or blocked world. Run at start and on every reload of the module.
+     */
+    public void warnAboutUnknownDefaultWorld() {
+        String configured = config.getDefaultWorld();
+        if (configured == null || Bukkit.getWorld(configured) != null || Bukkit.getWorlds().isEmpty()) {
+            return;
+        }
+        plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.default_world_unknown"),
+            "{VALUE}", configured,
+            "{FALLBACK}", Bukkit.getWorlds().get(0).getName()));
     }
 
     /**

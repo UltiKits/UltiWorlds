@@ -123,6 +123,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A value UltiWorlds cannot use is now named instead of being passed over silently: a
+  `default_world` that is no loaded world is reported at start and on `/ul reload`, with the world
+  players are sent to instead (the server's first world); a `load_worlds_on_start` entry that cannot
+  be loaded is reported at start; and `/world set <world> icon <item>` refuses a name that is no
+  item, where it stored it and showed the default icon.
+- UltiWorlds 无法使用的值现在会被点名，而不是被悄悄忽略：不是已加载世界的 `default_world` 会在启动和 `/ul reload` 时提示，
+  并说明玩家实际会被送往的世界（服务器的第一个世界）；无法加载的 `load_worlds_on_start` 条目会在启动时提示；
+  `/world set <世界> icon <物品>` 会拒绝不是物品的名字，此前它会被保存并显示为默认图标。
+
 - `auto_unload.check_interval` now decides how often empty worlds are checked, in seconds; a value
   changed with `/ul reload` applies within a second. The check ran every 60 seconds whatever the key
   said (UltiKits/UltiWorlds#38).

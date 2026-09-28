@@ -162,6 +162,7 @@ world:
   set:
     invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、autoUnload、protectBreak、protectPlace、protectInteract、protectExplosion、displayname、description、icon、difficulty"
     success: "§a已将世界 {WORLD} 的 {OPTION} 设置为 {VALUE}"
+    invalid_icon: "§c未知的物品 '{VALUE}'：图标必须是物品名，例如 GRASS_BLOCK。"
 
   protect:
     enabled: "§a已为世界 {WORLD} 启用完整保护"
@@ -236,6 +237,8 @@ log:
   auto_unload: "正在自动卸载无人的世界：{WORLD}"
   invalid_difficulty: "世界 {WORLD} 的难度无效：{VALUE}"
   settings_update_failed: "更新世界设置失败"
+  default_world_unknown: "config/worlds.yml 将 default_world 设为 '{VALUE}'，但这不是已加载的世界。从被卸载或被禁止进入的世界中移出的玩家会改为前往服务器的第一个世界 '{FALLBACK}'。请更正该值并执行 /ul reload。"
+  load_on_start_failed: "config/worlds.yml 的 load_worlds_on_start 中列出了 '{WORLD}'，但无法加载这个名字的世界，因此已跳过。请更正或删除该项。"
   shared_world_duplicate: "config/worlds.yml 的 world_isolation.shared_worlds 中列出了世界 '{ENTRY}'，但 '{FIRST}' 已在其中列出，而世界名匹配时不区分大小写。'{ENTRY}' 被忽略：该世界仍属于 '{FIRST}' 所在的组。删除其中一项即可不再提示。"
   environment:
     inferred: "世界 '{WORLD}'：本模块以 {ENVIRONMENT} 作为加载时的环境，因为其文件夹包含顶层 '{ENTRY}' 目录，且没有顶层 'region' 目录。这些文件夹形态各自意味着什么、可以怎么处理，见本模块 CHANGELOG.md 中本版本的变更条目，以及 UltiKits/UltiWorlds#22。"
