@@ -191,4 +191,24 @@ public class WorldSettings extends BaseDataEntity<String> {
         }
         return errors;
     }
+
+    /**
+     * The lines of a world description, split at each line break ({@code \n} or {@code \r\n}).
+     * The world list's icon shows one lore line per element, and teleport one chat line per element:
+     * a line break inside a single lore line is not shown, so everything after it was lost
+     * (UltiKits/UltiWorlds#26).
+     *
+     * @param description the stored description, possibly {@code null} or empty
+     * @return its lines; empty for a {@code null} or empty description
+     */
+    public static List<String> descriptionLines(String description) {
+        List<String> lines = new ArrayList<>();
+        if (description == null || description.isEmpty()) {
+            return lines;
+        }
+        for (String line : description.split("\\r?\\n")) {
+            lines.add(line);
+        }
+        return lines;
+    }
 }

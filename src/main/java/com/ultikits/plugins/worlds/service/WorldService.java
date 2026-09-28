@@ -277,11 +277,7 @@ public class WorldService {
         if (!config.isShowDescriptionOnTeleport()) {
             return;
         }
-        String description = settings.getDescription();
-        if (description == null || description.isEmpty()) {
-            return;
-        }
-        for (String line : description.split("\\n")) {
+        for (String line : WorldSettings.descriptionLines(settings.getDescription())) {
             String parsed = org.bukkit.ChatColor.translateAlternateColorCodes('&',
                 line.replace("{player}", player.getName())
                     .replace("{world}", displayName));

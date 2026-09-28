@@ -123,6 +123,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A world description with several lines shows every line in the world list's icon. The whole
+  description was one lore line, and the client shows nothing after a line break inside one, so
+  only the first line appeared. A Windows line break (`\r\n`) now splits the same way in the list
+  and in the lines shown on teleport (UltiKits/UltiWorlds#26).
+- 多行的世界描述现在会在世界列表图标中显示每一行。此前整段描述是一行 lore，而客户端不显示一行 lore 中换行之后的内容，
+  因此只显示了第一行。Windows 换行（`\r\n`）现在在列表和传送时显示的描述中按同样方式拆分（UltiKits/UltiWorlds#26）。
+
 - A player who hits another player in a world with PvP off is now told "PVP is disabled in this
   world!". The hit was stopped, but the line never arrived: the server stops such a hit before the
   module's damage handler runs, so the line is now sent on the attack attempt (UltiKits/UltiWorlds#23).

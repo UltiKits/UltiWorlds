@@ -68,8 +68,13 @@ public class WorldListPage extends BasePaginationPage {
             
             List<String> lore = new ArrayList<>();
             
-            if (settings.getDescription() != null && !settings.getDescription().isEmpty()) {
-                lore.add("§7" + settings.getDescription());
+            List<String> descriptionLines = WorldSettings.descriptionLines(settings.getDescription());
+            if (!descriptionLines.isEmpty()) {
+                // One lore line per description line: a line break inside one lore line is not
+                // shown (UltiKits/UltiWorlds#26).
+                for (String line : descriptionLines) {
+                    lore.add("§7" + line);
+                }
                 lore.add("");
             }
             
