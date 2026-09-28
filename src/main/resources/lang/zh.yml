@@ -160,7 +160,7 @@ world:
     sender_not_allowed: "§c只有玩家或服务器控制台可以删除世界。"
 
   set:
-    invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、displayname、description、icon、difficulty"
+    invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、autoUnload、protectBreak、protectPlace、protectInteract、protectExplosion、displayname、description、icon、difficulty"
     success: "§a已将世界 {WORLD} 的 {OPTION} 设置为 {VALUE}"
 
   protect:
@@ -182,10 +182,19 @@ world:
     environment: "§7环境: §f{VALUE}"
     seed: "§7种子: §f{VALUE}"
     players: "§7玩家数: §f{VALUE}"
+    difficulty: "§7难度: §f{VALUE}"
     pvp: "§7PVP: §f{VALUE}"
     monsters: "§7怪物: §f{VALUE}"
-    protection: "§7保护: §f{VALUE}"
+    animals: "§7动物: §f{VALUE}"
+    weather: "§7天气: §f{VALUE}"
+    protect_break: "§7禁止破坏方块: §f{VALUE}"
+    protect_place: "§7禁止放置方块: §f{VALUE}"
+    protect_interact: "§7禁止交互: §f{VALUE}"
+    protect_explosion: "§7禁止爆炸破坏: §f{VALUE}"
+    hidden: "§7在列表中隐藏: §f{VALUE}"
+    locked: "§7已锁定: §f{VALUE}"
     blocked: "§7已禁止: §f{VALUE}"
+    auto_unload: "§7无人时自动卸载: §f{VALUE}"
 
 # ==================== 帮助菜单 ====================
 # 由 WorldCommand#help() 通过 "help.*" key 调用；管理员部分还会显示下方四条
@@ -194,7 +203,7 @@ help:
   header: "§6========== UltiWorlds 帮助 =========="
   list: "§e/world list §7- 列出所有已加载的世界"
   tp: "§e/world tp <世界> §7- 传送到指定世界"
-  info: "§e/world info §7- 查看当前世界的信息"
+  info: "§e/world info [世界] §7- 查看世界的设置（省略时为当前世界）"
   wizard: "§e/world wizard §7- 启动世界创建向导"
   admin_header: "§6========== 管理员命令 =========="
   create: "§e/world create <名称> [类型] §7- 创建世界（类型：NORMAL、NETHER、THE_END）"

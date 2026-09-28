@@ -160,7 +160,7 @@ world:
     sender_not_allowed: "§cOnly a player or the server console can delete a world."
 
   set:
-    invalid_option: "§cInvalid option! Use: pvp, monsters, animals, weather, hidden, locked, blocked, displayname, description, icon, difficulty"
+    invalid_option: "§cInvalid option! Use: pvp, monsters, animals, weather, hidden, locked, blocked, autoUnload, protectBreak, protectPlace, protectInteract, protectExplosion, displayname, description, icon, difficulty"
     success: "§aSet {OPTION} = {VALUE} for world {WORLD}"
 
   protect:
@@ -182,10 +182,19 @@ world:
     environment: "§7Environment: §f{VALUE}"
     seed: "§7Seed: §f{VALUE}"
     players: "§7Players: §f{VALUE}"
+    difficulty: "§7Difficulty: §f{VALUE}"
     pvp: "§7PVP: §f{VALUE}"
     monsters: "§7Monsters: §f{VALUE}"
-    protection: "§7Protection: §f{VALUE}"
+    animals: "§7Animals: §f{VALUE}"
+    weather: "§7Weather: §f{VALUE}"
+    protect_break: "§7Block breaking protected: §f{VALUE}"
+    protect_place: "§7Block placing protected: §f{VALUE}"
+    protect_interact: "§7Interaction protected: §f{VALUE}"
+    protect_explosion: "§7Explosions protected: §f{VALUE}"
+    hidden: "§7Hidden from the list: §f{VALUE}"
+    locked: "§7Locked: §f{VALUE}"
     blocked: "§7Blocked: §f{VALUE}"
+    auto_unload: "§7Auto-unload when empty: §f{VALUE}"
 
 # ==================== Help Menu ====================
 # Referenced by WorldCommand#help() via the "help.*" keys; the admin block also shows the
@@ -194,7 +203,7 @@ help:
   header: "§6========== UltiWorlds Help =========="
   list: "§e/world list §7- List all loaded worlds"
   tp: "§e/world tp <world> §7- Teleport to a world"
-  info: "§e/world info §7- Show info about the current world"
+  info: "§e/world info [world] §7- Show a world's settings (the current world when omitted)"
   wizard: "§e/world wizard §7- Start the world creation wizard"
   admin_header: "§6========== Admin Commands =========="
   create: "§e/world create <name> [type] §7- Create a world (type: NORMAL, NETHER, THE_END)"

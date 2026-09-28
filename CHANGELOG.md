@@ -123,6 +123,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/world info` shows every setting a world stores: its difficulty and all twelve flags by name
+  (PvP, monsters, animals, weather, the four protections, hidden, locked, blocked and auto-unload).
+  It showed four, one of them a single "protection" line for all four protections. `/world info
+  <world>` shows a named world. `/world set` now also accepts `autoUnload`, `protectBreak`,
+  `protectPlace`, `protectInteract` and `protectExplosion`, which had no command to change them
+  (UltiKits/UltiWorlds#17).
+- `/world info` 现在显示世界保存的全部设置：难度，以及按名称列出的全部十二个开关（PvP、怪物、动物、天气、四项保护、隐藏、
+  锁定、禁止进入和自动卸载）。此前只显示四项，其中一项是把四种保护合并成的一行。`/world info <世界>` 可查看指定世界。
+  `/world set` 现在还接受 `autoUnload`、`protectBreak`、`protectPlace`、`protectInteract` 与 `protectExplosion`，
+  此前没有任何命令能修改它们（UltiKits/UltiWorlds#17）。
+
 - A world description with several lines shows every line in the world list's icon. The whole
   description was one lore line, and the client shows nothing after a line break inside one, so
   only the first line appeared. A Windows line break (`\r\n`) now splits the same way in the list

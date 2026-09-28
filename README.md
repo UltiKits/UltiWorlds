@@ -62,7 +62,7 @@
 | `/world` | `ultiworlds.use` | 打开世界列表 GUI |
 | `/world list` | `ultiworlds.use` | 列出所有世界 |
 | `/world tp <世界>` | `ultiworlds.use` | 传送到指定世界 |
-| `/world info` | `ultiworlds.use` | 查看当前世界信息 |
+| `/world info [世界]` | `ultiworlds.use` | 查看世界的全部设置（省略时为当前世界） |
 | `/world wizard` | `ultiworlds.admin.create` | 启动创建向导 |
 | `/world create <名称> [类型]` | `ultiworlds.admin.create` | 创建世界 |
 | `/world delete <世界>` | `ultiworlds.admin.delete` | 删除世界 |
@@ -88,6 +88,11 @@
 | `hidden` | true/false | 从列表隐藏 |
 | `locked` | true/false | 锁定世界 |
 | `blocked` | true/false | 禁止进入 |
+| `autoUnload` | true/false | 无人时自动卸载 |
+| `protectBreak` | true/false | 禁止破坏方块 |
+| `protectPlace` | true/false | 禁止放置方块 |
+| `protectInteract` | true/false | 禁止交互 |
+| `protectExplosion` | true/false | 禁止爆炸破坏 |
 | `displayname` | 文本 | 显示名称 |
 | `description` | 文本 | 世界描述 |
 | `icon` | Material | GUI 图标 |
@@ -203,7 +208,7 @@ world_isolation:
 | `/world` | `ultiworlds.use` | Open world list GUI |
 | `/world list` | `ultiworlds.use` | List all worlds |
 | `/world tp <world>` | `ultiworlds.use` | Teleport to world |
-| `/world info` | `ultiworlds.use` | View current world info |
+| `/world info [world]` | `ultiworlds.use` | View all of a world's settings (the current world when omitted) |
 | `/world wizard` | `ultiworlds.admin.create` | Start creation wizard |
 | `/world create <name> [type]` | `ultiworlds.admin.create` | Create world |
 | `/world delete <world>` | `ultiworlds.admin.delete` | Delete world |

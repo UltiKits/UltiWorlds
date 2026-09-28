@@ -50,7 +50,8 @@ public class WorldCommand extends BaseCommandExecutor {
      * The options handled by the boolean-token parser in {@code set &lt;world&gt; &lt;option&gt; &lt;value&gt;}.
      */
     private static final List<String> BOOLEAN_OPTIONS = Arrays.asList(
-            "pvp", "monsters", "animals", "weather", "hidden", "locked", "blocked");
+            "pvp", "monsters", "animals", "weather", "hidden", "locked", "blocked",
+            "autounload", "protectbreak", "protectplace", "protectinteract", "protectexplosion");
 
     @Autowired
     private UltiToolsPlugin plugin;
@@ -346,6 +347,21 @@ public class WorldCommand extends BaseCommandExecutor {
             case "blocked":
                 settings.setBlocked(boolValue);
                 break;
+            case "autounload":
+                settings.setAutoUnload(boolValue);
+                break;
+            case "protectbreak":
+                settings.setProtectBreak(boolValue);
+                break;
+            case "protectplace":
+                settings.setProtectPlace(boolValue);
+                break;
+            case "protectinteract":
+                settings.setProtectInteract(boolValue);
+                break;
+            case "protectexplosion":
+                settings.setProtectExplosion(boolValue);
+                break;
             case "displayname":
             case "name":
                 settings.setDisplayName(value);
@@ -619,9 +635,34 @@ public class WorldCommand extends BaseCommandExecutor {
     @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "info")
     public void worldInfo(@CmdSender Player player) {
-        World world = player.getWorld();
+        showInfo(player, player.getWorld());
+    }
+
+    /**
+     * {@code /world info <world>}: the same lines for a named loaded world (UltiKits/UltiWorlds#17).
+     *
+     * @param player    the sender
+     * @param worldName the world to show
+     */
+    @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
+    @CmdMapping(format = "info <world>")
+    public void worldInfo(@CmdSender Player player,
+                          @CmdParam(value = "world", suggest = "suggestWorlds") String worldName) {
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            player.sendMessage(i18n("world.not_found").replace("{WORLD}", worldName));
+            return;
+        }
+        showInfo(player, world);
+    }
+
+    /**
+     * Every setting a world stores, one line each: all twelve flags by name, so each can be read
+     * back after {@code /world set} (UltiKits/UltiWorlds#17).
+     */
+    private void showInfo(Player player, World world) {
         WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-        
+
         player.sendMessage(i18n("world.info.header"));
         player.sendMessage(i18n("world.info.name").replace("{VALUE}", world.getName()));
         player.sendMessage(i18n("world.info.displayname").replace("{VALUE}", 
@@ -629,14 +670,29 @@ public class WorldCommand extends BaseCommandExecutor {
         player.sendMessage(i18n("world.info.environment").replace("{VALUE}", world.getEnvironment().name()));
         player.sendMessage(i18n("world.info.seed").replace("{VALUE}", String.valueOf(world.getSeed())));
         player.sendMessage(i18n("world.info.players").replace("{VALUE}", String.valueOf(world.getPlayers().size())));
+        player.sendMessage(i18n("world.info.difficulty").replace("{VALUE}", String.valueOf(world.getDifficulty())));
         player.sendMessage(i18n("world.info.pvp").replace("{VALUE}", 
             settings.isPvpEnabled() ? i18n("common.enabled") : i18n("common.disabled")));
         player.sendMessage(i18n("world.info.monsters").replace("{VALUE}", 
             settings.isMonstersEnabled() ? i18n("common.enabled") : i18n("common.disabled")));
-        player.sendMessage(i18n("world.info.protection").replace("{VALUE}", 
-            settings.hasProtection() ? i18n("common.enabled") : i18n("common.disabled")));
-        player.sendMessage(i18n("world.info.blocked").replace("{VALUE}", 
-            settings.isBlocked() ? i18n("common.yes") : i18n("common.no")));
+        player.sendMessage(i18n("world.info.animals").replace("{VALUE}", enabled(settings.isAnimalsEnabled())));
+        player.sendMessage(i18n("world.info.weather").replace("{VALUE}", enabled(settings.isWeatherEnabled())));
+        player.sendMessage(i18n("world.info.protect_break").replace("{VALUE}", enabled(settings.isProtectBreak())));
+        player.sendMessage(i18n("world.info.protect_place").replace("{VALUE}", enabled(settings.isProtectPlace())));
+        player.sendMessage(i18n("world.info.protect_interact").replace("{VALUE}", enabled(settings.isProtectInteract())));
+        player.sendMessage(i18n("world.info.protect_explosion").replace("{VALUE}", enabled(settings.isProtectExplosion())));
+        player.sendMessage(i18n("world.info.hidden").replace("{VALUE}", yes(settings.isHidden())));
+        player.sendMessage(i18n("world.info.locked").replace("{VALUE}", yes(settings.isLocked())));
+        player.sendMessage(i18n("world.info.blocked").replace("{VALUE}", yes(settings.isBlocked())));
+        player.sendMessage(i18n("world.info.auto_unload").replace("{VALUE}", yes(settings.isAutoUnload())));
+    }
+
+    private String enabled(boolean value) {
+        return value ? i18n("common.enabled") : i18n("common.disabled");
+    }
+
+    private String yes(boolean value) {
+        return value ? i18n("common.yes") : i18n("common.no");
     }
     
     @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
@@ -710,7 +766,8 @@ public class WorldCommand extends BaseCommandExecutor {
      */
     public List<String> suggestOptions(Player player, String input) {
         return Arrays.asList("pvp", "monsters", "animals", "weather", "hidden",
-            "locked", "blocked", "displayname", "description", "icon", "difficulty").stream()
+            "locked", "blocked", "autoUnload", "protectBreak", "protectPlace", "protectInteract",
+            "protectExplosion", "displayname", "description", "icon", "difficulty").stream()
             .filter(opt -> opt.toLowerCase().startsWith(input.toLowerCase()))
             .collect(Collectors.toList());
     }
