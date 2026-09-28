@@ -65,6 +65,13 @@ class WorldCommandValidationTest {
         UltiWorldsTestHelper.tearDown();
     }
 
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path tempDir;
+
+    private java.io.File emptyContainer() {
+        return tempDir.toFile();
+    }
+
     @Test
     @DisplayName("deleteRejectsANameThatIsNeitherLoadedNorOnDisk")
     void deleteRejectsANameThatIsNeitherLoadedNorOnDisk() {
@@ -86,24 +93,38 @@ class WorldCommandValidationTest {
     @ValueSource(strings = {"world/evil", "world.bad"})
     @DisplayName("deleteRejectsANameOutsideTheLegalNameForm")
     void deleteRejectsANameOutsideTheLegalNameForm(String illegalName) {
-        Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+        // The guard asks the world container whether an entry exists; MockBukkit does not implement
+        // it, so without this stub the case aborted there and was reported as skipped
+        // (UltiKits/UltiWorlds#33, #35). An empty container: nothing by this name exists.
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld(anyString())).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(emptyContainer());
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-        command.deleteWorld(player, illegalName);
+            command.deleteWorld(player, illegalName);
 
-        verify(mockWorldService, never()).deleteWorld(anyString());
-        verify(player).sendMessage(anyString());
+            verify(mockWorldService, never()).deleteWorld(anyString());
+            verify(player).sendMessage(anyString());
+        }
     }
 
     @ParameterizedTest(name = "deleteRejectsAnEmptyOrBlankName[{0}]")
     @ValueSource(strings = {"", "   "})
     @DisplayName("deleteRejectsAnEmptyOrBlankName")
     void deleteRejectsAnEmptyOrBlankName(String blankName) {
-        Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
+        // The guard asks the world container whether an entry exists; MockBukkit does not implement
+        // it, so without this stub the case aborted there and was reported as skipped
+        // (UltiKits/UltiWorlds#33, #35). An empty container: nothing by this name exists.
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getWorld(anyString())).thenReturn(null);
+            bukkit.when(Bukkit::getWorldContainer).thenReturn(emptyContainer());
+            Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
-        command.deleteWorld(player, blankName);
+            command.deleteWorld(player, blankName);
 
-        verify(mockWorldService, never()).deleteWorld(anyString());
-        verify(player).sendMessage(anyString());
+            verify(mockWorldService, never()).deleteWorld(anyString());
+            verify(player).sendMessage(anyString());
+        }
     }
 
     @Test
