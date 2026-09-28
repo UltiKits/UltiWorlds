@@ -134,10 +134,20 @@ class RemovedConfigKeysTest {
         String first = CatalogueText.text("en", "removed_key_warning").replace("{FILE}", file.getPath())
                 .replace("{KEY}", "gui_title").replace("{REASON}", CatalogueText.text("en", "removed_key_reason_gui_title"));
 
+        // The reload also asks the world service to name an unknown default_world again.
+        com.ultikits.ultitools.context.SimpleContainer context = mock(com.ultikits.ultitools.context.SimpleContainer.class);
+        com.ultikits.plugins.worlds.service.WorldService worldService = mock(com.ultikits.plugins.worlds.service.WorldService.class);
+        when(plugin.getContext()).thenReturn(context);
+        when(context.getBean(com.ultikits.plugins.worlds.service.WorldService.class)).thenReturn(worldService);
+
         plugin.registerSelf();
         onReload.invoke(plugin);
 
         verify(logger, org.mockito.Mockito.times(2)).warn(first);
+        // By name: the check is reached reflectively so this compiles against a tree without it.
+        assertThat(org.mockito.Mockito.mockingDetails(worldService).getInvocations())
+                .extracting(invocation -> invocation.getMethod().getName())
+                .containsExactly("warnAboutUnknownDefaultWorld");
     }
 
     @Test
