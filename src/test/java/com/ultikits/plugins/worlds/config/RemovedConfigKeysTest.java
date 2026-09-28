@@ -135,4 +135,20 @@ class RemovedConfigKeysTest {
 
         verify(logger, org.mockito.Mockito.times(2)).warn(first);
     }
+
+    @Test
+    @DisplayName("A file path containing {KEY} or {REASON} is shown as written (UltiKits/UltiWorlds#43)")
+    void pathIsNotReExpanded() throws Exception {
+        File dir = new File(tempDir.toFile(), "srv{KEY}{REASON}");
+        org.assertj.core.api.Assertions.assertThat(dir.mkdirs()).isTrue();
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("gui_title", "operator text");
+        File file = new File(dir, "worlds.yml");
+        yaml.save(file);
+
+        List<String> warnings = warningsFor(file, pluginIn("en"));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0)).startsWith(file.getPath() + " still contains 'gui_title'");
+    }
 }

@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -946,4 +947,69 @@ class WorldServiceLoadEnvironmentTest {
         }
     }
 
+    // ==================== UltiKits/UltiWorlds#43 ====================
+
+    /**
+     * A world name is inserted into these lines once, as written. The server's own world-key rules
+     * refuse a name with braces when {@code loadWorld} builds its {@code WorldCreator}, so these
+     * lines are reached with such a name only below that point; the two report methods are called
+     * directly, and the fill is made one-pass as a class (maintainer decision 2026-09-27).
+     */
+    @Nested
+    @DisplayName("A world name is inserted into the environment lines as written (UltiKits/UltiWorlds#43)")
+    class NameIsNotReExpanded {
+
+        @Test
+        @DisplayName("the answering line keeps a name containing {ENTRY} and {ENVIRONMENT}")
+        void answeringLine() throws Exception {
+            File container = newContainer();
+            File folder = newWorldFolder(container, "nether-copy", "DIM-1");
+            try {
+                java.lang.reflect.Method infer = WorldService.class.getDeclaredMethod(
+                        "inferEnvironmentFromWorldFolder", String.class, File.class);
+                infer.setAccessible(true); // NOPMD - the report is private; the load path cannot reach it with this name
+                assertThat(infer.invoke(worldService, "n{ENTRY}{ENVIRONMENT}", folder))
+                        .isEqualTo(World.Environment.NETHER);
+
+                assertAnsweredWith(UltiWorldsTestHelper.getMockLogger(), "n{ENTRY}{ENVIRONMENT}",
+                        World.Environment.NETHER, "DIM-1");
+            } finally {
+                deleteRecursively(container);
+            }
+        }
+
+        @Test
+        @DisplayName("the refusal line keeps a name containing {OBSERVATION}")
+        void refusalLine() throws Exception {
+            java.lang.reflect.Method report = WorldService.class.getDeclaredMethod(
+                    "reportNoDecision", String.class, String.class);
+            report.setAccessible(true); // NOPMD - the report is private; the load path cannot reach it with this name
+            report.invoke(worldService, "b{OBSERVATION}", "an observation");
+
+            assertRefusedWith(UltiWorldsTestHelper.getMockLogger(), "b{OBSERVATION}", "an observation");
+        }
+
+        @Test
+        @DisplayName("the invalid-difficulty line keeps a name containing {VALUE}")
+        @SuppressWarnings("unchecked")
+        void invalidDifficultyLine() {
+            WorldSettings stored = UltiWorldsTestHelper.createSampleWorldSettings("d{VALUE}");
+            stored.setDifficulty("BOGUS");
+            com.ultikits.ultitools.interfaces.Query<WorldSettings> query = mock(com.ultikits.ultitools.interfaces.Query.class);
+            when(mockDataOperator.query()).thenReturn(query);
+            when(query.where(anyString())).thenReturn(query);
+            when(query.eq(any())).thenReturn(query);
+            when(query.first()).thenReturn(stored);
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World live = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("d{VALUE}")).thenReturn(live);
+
+                worldService.getOrCreateSettings("d{VALUE}");
+
+                ArgumentCaptor<String> lines = ArgumentCaptor.forClass(String.class);
+                verify(UltiWorldsTestHelper.getMockLogger()).warn(lines.capture());
+                assertThat(lines.getValue()).contains("d{VALUE}").contains("BOGUS");
+            }
+        }
+    }
 }
