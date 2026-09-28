@@ -46,13 +46,6 @@ public class WorldConfig extends AbstractConfigEntity {
     @ConfigEntry(path = "auto_unload.unload_after", comment = "Unload world after being empty for this many seconds")
     private int emptyWorldUnloadAfter = 300;
     
-    // Legacy compat
-    @ConfigEntry(path = "unload_empty_worlds", comment = "Deprecated: use auto_unload.enabled instead")
-    private boolean unloadEmptyWorlds = false;
-    
-    @ConfigEntry(path = "unload_delay", comment = "Deprecated: use auto_unload.unload_after instead")
-    private int unloadDelay = 300;
-    
     // ==================== Teleport Settings ====================
 
     @ConfigEntry(path = "tp_to_world.enabled", comment = "Allow players to teleport between worlds")

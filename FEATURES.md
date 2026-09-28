@@ -55,7 +55,7 @@ for UAT execution and issue reconciliation — the public description of these f
   names the specific `ultiworlds.admin.*` (or `ultiworlds.use`) node the method checks by hand —
   see the Tier note above for why this is a hand-written check, not a framework attribute.
 - **Source:** `ClassName#member` — the class and member that actually reads or applies the
-  feature — for every Kind, `config` included: all 21 `config` rows below cite the reading
+  feature — for every Kind, `config` included: all 19 `config` rows below cite the reading
   member. This module's one configuration file (`worlds.yml`) is a real
   `@ConfigEntity`/`@ConfigEntry`-bound class, so a config row's Source cites whichever class and
   method actually calls the generated getter — not the config class's own field declaration.
@@ -99,7 +99,7 @@ rather than an error:
 
 **Positive control:** the line-start form returns `@CmdExecutor` = 1, `@CmdMapping` = 22,
 `@EventListener` = 1 (class), `@EventHandler` = 9 (handler methods), `@Scheduled` = 1,
-`@ConditionalOnConfig` = 1, `@ConfigEntity` = 1 (class), `@ConfigEntry` = 21, `@Table` = 2
+`@ConditionalOnConfig` = 1, `@ConfigEntity` = 1 (class), `@ConfigEntry` = 19, `@Table` = 2
 (`WorldSettings`, `WorldInventory`) — confirmed by reading all 11 source files directly (12 before `WorldListGUI` was deleted, which carried none of these annotations), not by
 trusting the count alone. `WorldCommand`'s own 22 `@CmdMapping` sites, all behind the single
 `@CmdExecutor(alias = {"world", "worlds"})` site, are this module's standing positive
@@ -183,7 +183,7 @@ Two remain below, and both are reachable: `WorldListPage` from bare `/world`, an
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
-| ultiworlds.task.auto-unload-empty-worlds | Every 60 seconds, when `auto_unload.enabled`, unload any non-protected world (per `protected_worlds` AND its own `WorldSettings#autoUnload` flag) that has had zero players for at least `auto_unload.unload_after` seconds | scheduled | runs automatically every 1200 ticks (60s) while the server is up | n/a | n/a | internal | brief | WorldService#checkAutoUnloadEmptyWorlds |
+| ultiworlds.task.auto-unload-empty-worlds | Every `auto_unload.check_interval` seconds (default 60), when `auto_unload.enabled`, unload any non-protected world (per `protected_worlds` AND its own `WorldSettings#autoUnload` flag) that has had zero players for at least `auto_unload.unload_after` seconds | scheduled | a one-second tick (20 ticks) counts toward `auto_unload.check_interval` while the server is up; a changed value applies within a second of `/ul reload` (`UltiKits/UltiWorlds#38`: the check ran every 60 seconds whatever the key said) | n/a | n/a | internal | brief | WorldService#autoUnloadTick, WorldService#checkAutoUnloadEmptyWorlds |
 
 ## Lifecycle Hooks
 
@@ -201,7 +201,7 @@ reload row's Source cell names that inherited framework member.
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
 | ultiworlds.lifecycle.reload | `/ul reload UltiWorlds` re-reads `config/worlds.yml` and, when `world_isolation.enabled` now evaluates differently from its value at startup, logs a warning-level `@ConditionalOnConfig` drift line naming `InventoryIsolationService`, `config/worlds.yml` and `world_isolation.enabled` — it never registers or unregisters the service, which still needs a restart; then logs the framework's `Module 'UltiWorlds' reloaded.` line. No drift line when the value is unchanged | event | `/ul reload UltiWorlds` (framework calls the module's inherited final `reloadSelf()`) | n/a | n/a | admin | brief | UltiToolsPlugin#reloadSelf |
-| ultiworlds.lifecycle.removed-key-warning | When the module is enabled and again on every reload of it (`/ul reload` or `/ul reload UltiWorlds`), read the operator's own `config/worlds.yml` and, for each of the six keys this version no longer reads that is still in it (`gui_title`, `messages.world_teleport`, `messages.world_not_found`, `messages.no_permission`, `messages.world_created`, `messages.world_deleted` — nothing ever read them; their text comes from the language file), log one console WARNING naming the file, the key, where the text comes from and that the key can be deleted (`removed_key_warning`). Silent for a file without those keys | event | module enable; `/ul reload UltiWorlds` | n/a | n/a | admin | brief | UltiWorlds#registerSelf, UltiWorlds#onReload, RemovedConfigKeys#warnAboutLeftovers |
+| ultiworlds.lifecycle.removed-key-warning | When the module is enabled and again on every reload of it (`/ul reload` or `/ul reload UltiWorlds`), read the operator's own `config/worlds.yml` and, for each of the eight keys this version no longer reads that is still in it (`gui_title`, `messages.world_teleport`, `messages.world_not_found`, `messages.no_permission`, `messages.world_created`, `messages.world_deleted` — nothing ever read them; their text comes from the language file — and the deprecated aliases `unload_empty_worlds` and `unload_delay`, which nothing read either: `auto_unload.enabled` and `auto_unload.unload_after` decide), log one console WARNING naming the file, the key, where the text comes from and that the key can be deleted (`removed_key_warning`). Silent for a file without those keys | event | module enable; `/ul reload UltiWorlds` | n/a | n/a | admin | brief | UltiWorlds#registerSelf, UltiWorlds#onReload, RemovedConfigKeys#warnAboutLeftovers |
 
 ## Configuration Gate
 
@@ -217,24 +217,22 @@ reload row's Source cell names that inherited framework member.
 
 ## Configuration
 
-Every `@ConfigEntry`-annotated field on this module's one `@ConfigEntity` class (21 keys total,
+Every `@ConfigEntry`-annotated field on this module's one `@ConfigEntity` class (19 keys total,
 matching the reconciliation table's own `@ConfigEntry` count exactly). Several of these keys
 already have a behavioural row above (block/protect/teleport/wizard/auto-unload/inventory
 isolation) — that row documents the *feature* the key drives, this row documents the *key*
 itself, at key granularity, so the reconciliation table can prove every key is accounted for
 without also making every behavioural row carry a `config` Kind.
 
-**Two keys are declared, self-documented in this module's own comments (both the Java field
-comment and the shipped `worlds.yml` file) as legacy/deprecated, and never read by any production
-code** — this is a documented, deliberate deprecation, not a silent defect, and is called out per
-row below: `unload_empty_worlds` and `unload_delay` (both explicitly commented "Deprecated: use ...
-instead"; UltiKits/UltiWorlds#38). The five `messages.*` keys and `gui_title`, which nothing read
-either, were removed from `WorldConfig` and from the shipped `worlds.yml`; a copy left in an
-operator's file is reported by `ultiworlds.lifecycle.removed-key-warning`.
+Eight keys that nothing read were removed from `WorldConfig` and from the shipped `worlds.yml`
+(UltiKits/UltiWorlds#38): the five `messages.*` keys and `gui_title`, and the two deprecated
+aliases `unload_empty_worlds` and `unload_delay` (`auto_unload.enabled` and
+`auto_unload.unload_after` are the keys that decide). A copy left in an operator's file is
+reported by `ultiworlds.lifecycle.removed-key-warning`.
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
-| ultiworlds.config.worlds.auto_unload.check_interval | Declared as the auto-unload check interval; never read — `WorldService#checkAutoUnloadEmptyWorlds`'s own `@Scheduled(period = 1200, ...)` annotation is a fixed, hardcoded 60-second period regardless of this key's value | config | `config/worlds.yml: auto_unload.check_interval (default: 60, has no effect)` | n/a | n/a | admin | brief | WorldConfig#emptyWorldCheckInterval (declared, never read outside this class) |
+| ultiworlds.config.worlds.auto_unload.check_interval | Seconds between two auto-unload checks (range 10-3600, enforced by `@Range`), counted by a one-second tick, so a value changed by `/ul reload` applies within a second. It was never read before `UltiKits/UltiWorlds#38`: the check ran every 60 seconds | config | `config/worlds.yml: auto_unload.check_interval (default: 60)` | n/a | n/a | admin | brief | WorldService#autoUnloadTick |
 | ultiworlds.config.worlds.auto_unload.enabled | Master switch for the empty-world auto-unload scheduled task | config | `config/worlds.yml: auto_unload.enabled (default: false)` | n/a | n/a | admin | brief | WorldService#checkAutoUnloadEmptyWorlds |
 | ultiworlds.config.worlds.auto_unload.unload_after | Seconds a non-protected, `autoUnload`-eligible world must sit empty before the scheduled task unloads it | config | `config/worlds.yml: auto_unload.unload_after (default: 300)` | n/a | n/a | admin | brief | WorldService#checkAutoUnloadEmptyWorlds |
 | ultiworlds.config.worlds.default_world | The world name treated as the server's default — `/world unload`/`/world delete` both refuse to act on it, and it is the fallback teleport target when kicking players out of a blocked/unloading world. Every site that compares a name against this key does so without regard to letter case — `/world unload`, `/world delete`'s own `world.delete.default` message, `WorldDeleteConfirmPage`, and the service-level refusal in `WorldService#deleteWorld` — because `CraftServer#getWorld` resolves a world name as `name.toLowerCase(Locale.ROOT)`, so an exact comparison was bypassable by typing the name in another case | config | `config/worlds.yml: default_world (default: "world")` | n/a | n/a | admin | detailed | WorldCommand#unloadWorld, WorldCommand#deleteWorld, WorldDeleteConfirmPage#onConfirm, WorldCommand#blockWorld, WorldService#deleteWorld |
@@ -244,8 +242,6 @@ operator's file is reported by `ultiworlds.lifecycle.removed-key-warning`.
 | ultiworlds.config.worlds.tp_to_world.enabled | Master switch for `/world tp` specifically; does NOT gate teleports triggered by clicking a world in the GUI, nor any other cross-world teleport `WorldListener#onPlayerTeleport` intercepts | config | `config/worlds.yml: tp_to_world.enabled (default: true)` | n/a | n/a | admin | detailed | WorldCommand#teleportToWorld |
 | ultiworlds.config.worlds.tp_to_world.permission_per_world | Whether entering a world requires the specific `ultiworlds.world.<name>` (or `ultiworlds.world.*`) permission node, checked both by `/world tp` and by the general cross-world teleport guard | config | `config/worlds.yml: tp_to_world.permission_per_world (default: false)` | n/a | n/a | admin | brief | WorldService#checkTeleportPermissions |
 | ultiworlds.config.worlds.tp_to_world.show_description | Whether a world's configured description is sent to the player immediately after a successful teleport | config | `config/worlds.yml: tp_to_world.show_description (default: true)` | n/a | n/a | admin | brief | WorldService#sendDescription |
-| ultiworlds.config.worlds.unload_delay | Declared as the deprecated predecessor to `auto_unload.unload_after`; both this module's own field comment and the shipped `worlds.yml` label it "Deprecated: use auto_unload.unload_after instead"; never read by any production code | config | `config/worlds.yml: unload_delay (default: 300, deprecated, has no effect)` | n/a | n/a | admin | none | WorldConfig#unloadDelay (declared, never read outside this class) |
-| ultiworlds.config.worlds.unload_empty_worlds | Declared as the deprecated predecessor to `auto_unload.enabled`; both this module's own field comment and the shipped `worlds.yml` label it "Deprecated: use auto_unload.enabled instead"; never read by any production code | config | `config/worlds.yml: unload_empty_worlds (default: false, deprecated, has no effect)` | n/a | n/a | admin | none | WorldConfig#unloadEmptyWorlds (declared, never read outside this class) |
 | ultiworlds.config.worlds.world_isolation.enabled | Master switch for per-world inventory isolation — see `## Configuration Gate`'s own row for this key's boot-time-only, `@ConditionalOnConfig` semantics | config | `config/worlds.yml: world_isolation.enabled (default: false)` | n/a | n/a | admin | detailed | InventoryIsolationService#InventoryIsolationService |
 | ultiworlds.config.worlds.world_isolation.separate_effects | Whether active potion effects are saved/restored per inventory-isolation group | config | `config/worlds.yml: world_isolation.separate_effects (default: false)` | n/a | n/a | admin | brief | InventoryIsolationService#saveInventory |
 | ultiworlds.config.worlds.world_isolation.separate_ender_chest | Whether ender chest contents are saved/restored per inventory-isolation group | config | `config/worlds.yml: world_isolation.separate_ender_chest (default: true)` | n/a | n/a | admin | brief | InventoryIsolationService#saveInventory |

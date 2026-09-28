@@ -10,13 +10,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - On startup, and again on every `/ul reload`, this module now checks your own `config/worlds.yml`
-  for the six keys this version no longer reads (next entry under Removed) and logs one warning per
+  for the eight keys this version no longer reads (the entries under Removed) and logs one warning per
   leftover, naming the module, the file and the key, and saying where the text comes from. Deleting
   a key from the module stops a *fresh* file being written with it but does nothing to the file you
   already have, so without this warning an edited value would go on meaning nothing, silently. Delete
   the keys from the file to silence it (part of UltiKits/UltiWorlds#38).
 - 本模块现在会在启动时、以及每次 `/ul reload` 时检查你自己的 `config/worlds.yml` 中是否仍存在本版本不再读取的
-  六个配置键（见下方 Removed 中的条目），并为每个残留键各记一条警告，点明模块、文件与键名，并说明文本来自哪里。
+  八个配置键（见下方 Removed 中的条目），并为每个残留键各记一条警告，点明模块、文件与键名，并说明文本来自哪里。
   从模块中删除一个键，只会让**新生成**的文件里不再有它，对你已有的文件没有任何影响，因此若没有这条警告，被改过的值
   会继续悄无声息地不起作用。把这些键从文件中删除即可不再提示（UltiKits/UltiWorlds#38 的一部分）。
 
@@ -122,6 +122,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   新创建的世界（UltiKits/UltiWorlds#19）。
 
 ### Fixed
+
+- `auto_unload.check_interval` now decides how often empty worlds are checked, in seconds; a value
+  changed with `/ul reload` applies within a second. The check ran every 60 seconds whatever the key
+  said (UltiKits/UltiWorlds#38).
+- `auto_unload.check_interval` 现在决定检查无人世界的间隔（秒）；用 `/ul reload` 修改后一秒内生效。此前无论该键为何值，
+  都每 60 秒检查一次（UltiKits/UltiWorlds#38）。
 
 - `world_isolation.shared_worlds` now matches world names ignoring case, as the server does. An
   entry typed in another case than the world's name (`MyWorld` for `myworld`) matched nothing, so
@@ -331,6 +337,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   change them. They are gone from the shipped `config/worlds.yml` too, so a new server's file no
   longer carries them. A leftover key in an existing file is reported at startup and on reload (see
   Added) (part of UltiKits/UltiWorlds#38).
+- Two deprecated `config/worlds.yml` keys that no code read: `unload_empty_worlds` (the key that
+  decides is `auto_unload.enabled`) and `unload_delay` (`auto_unload.unload_after`). They are gone
+  from the shipped file, and a leftover in an existing file is reported like the six above
+  (UltiKits/UltiWorlds#38).
+- 移除 `config/worlds.yml` 中两个从未被任何代码读取的已弃用键：`unload_empty_worlds`（起作用的是 `auto_unload.enabled`）
+  与 `unload_delay`（起作用的是 `auto_unload.unload_after`）。它们已从出厂文件中删除，已有文件中残留的这两个键会像上面六个键一样被提示
+  （UltiKits/UltiWorlds#38）。
 - 38 language-file entries that no code displayed, from `lang/en.yml` and `lang/zh.yml`: the older
   `command.help.*` help lines (other than `unprotect`, `unblock`, `difficulty` and `postcmd`, which
   `/world help` shows), `command.usage`, `command.set_options`, the unused `common` words for on and

@@ -45,6 +45,8 @@ public final class RemovedConfigKeys {
         removed.put("messages.no_permission", "removed_key_reason_message");
         removed.put("messages.world_created", "removed_key_reason_message");
         removed.put("messages.world_deleted", "removed_key_reason_message");
+        removed.put("unload_empty_worlds", "removed_key_reason_unload_empty_worlds");
+        removed.put("unload_delay", "removed_key_reason_unload_delay");
         REMOVED = Collections.unmodifiableMap(removed);
     }
 
@@ -77,6 +79,10 @@ public final class RemovedConfigKeys {
             case "messages.world_created":
             case "messages.world_deleted":
                 return plugin.i18n("removed_key_reason_message");
+            case "unload_empty_worlds":
+                return plugin.i18n("removed_key_reason_unload_empty_worlds");
+            case "unload_delay":
+                return plugin.i18n("removed_key_reason_unload_delay");
             default:
                 throw new IllegalStateException("No guidance for removed key " + removedKey);
         }

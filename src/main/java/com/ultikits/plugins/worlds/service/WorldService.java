@@ -47,6 +47,9 @@ public class WorldService {
     // Empty world timer (tracks how long a world has been empty)
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
 
+    /** Seconds counted since the last auto-unload check, by {@link #autoUnloadTick()}. Main thread only. */
+    private int secondsSinceAutoUnloadCheck = 0;
+
     // The time limit and the deletion record both /world delete confirmations follow
     // (UltiKits/UltiWorlds#19); every deletion below voids earlier confirmations before it starts.
     private DeleteConfirmationWindow deleteConfirmationWindow = new DeleteConfirmationWindow();
@@ -73,10 +76,29 @@ public class WorldService {
     }
 
     /**
-     * Auto-unload empty worlds periodically.
-     * Scheduled task runs every 60 seconds (1200 ticks).
+     * Counts seconds toward {@code auto_unload.check_interval} and runs
+     * {@link #checkAutoUnloadEmptyWorlds()} each time that many seconds have passed.
+     * <p>
+     * The interval used to be read by nothing: the check ran on a fixed 1200-tick schedule, every
+     * 60 seconds whatever the file said (UltiKits/UltiWorlds#38). The framework's config-bound
+     * {@code @Scheduled} would read the key directly, but a module using it must declare
+     * {@code api-version: 630}, and this module still declares 621 until the release pins it; the
+     * framework refuses such a module at load. Counting here applies the key, and a value changed by
+     * {@code /ul reload} or the panel, within a second.
      */
-    @Scheduled(period = 1200, async = false)
+    @Scheduled(delay = 20, period = 20, async = false)
+    public void autoUnloadTick() {
+        secondsSinceAutoUnloadCheck++;
+        if (secondsSinceAutoUnloadCheck >= config.getEmptyWorldCheckInterval()) {
+            secondsSinceAutoUnloadCheck = 0;
+            checkAutoUnloadEmptyWorlds();
+        }
+    }
+
+    /**
+     * Auto-unload empty worlds. Run by {@link #autoUnloadTick()} every
+     * {@code auto_unload.check_interval} seconds.
+     */
     public void checkAutoUnloadEmptyWorlds() {
         if (!config.isAutoUnloadEmptyWorlds()) {
             return;

@@ -24,11 +24,6 @@ auto_unload:
   # Unload world after being empty for this many seconds
   unload_after: 300
 
-# Deprecated: use auto_unload.enabled instead
-unload_empty_worlds: false
-# Deprecated: use auto_unload.unload_after instead
-unload_delay: 300
-
 tp_to_world:
   # Allow players to teleport between worlds
   enabled: true
