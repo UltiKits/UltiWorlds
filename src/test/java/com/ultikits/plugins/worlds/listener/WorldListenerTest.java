@@ -1161,16 +1161,17 @@ class WorldListenerTest {
     @DisplayName("The attacker is told PvP is off on the attack attempt (UltiKits/UltiWorlds#23)")
     class PvpMessageOnAttempt {
 
+        /** The attempt handler, found by name, taking the event under whatever parameter type it declares. */
         private void fire(io.papermc.paper.event.player.PrePlayerAttackEntityEvent event) throws Exception {
             java.lang.reflect.Method handler = null;
-            for (java.lang.reflect.Method m : WorldListener.class.getMethods()) {
-                if (m.isAnnotationPresent(org.bukkit.event.EventHandler.class)
-                        && m.getParameterCount() == 1
-                        && m.getParameterTypes()[0] == io.papermc.paper.event.player.PrePlayerAttackEntityEvent.class) {
+            for (java.lang.reflect.Method m : WorldListener.class.getDeclaredMethods()) {
+                if ("onPlayerAttackAttempt".equals(m.getName()) && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0].isInstance(event)) {
                     handler = m;
                 }
             }
-            assertThat(handler).as("an @EventHandler for PrePlayerAttackEntityEvent").isNotNull();
+            assertThat(handler).as("an attack-attempt handler").isNotNull();
+            handler.setAccessible(true); // NOPMD - the handler is package-private once it takes a plain Event
             handler.invoke(listener, event);
         }
 
@@ -1212,6 +1213,63 @@ class WorldListenerTest {
             Player victim = UltiWorldsTestHelper.createMockPlayer("Victim", UUID.randomUUID());
             fire(attempt(false, victim, false));
             verify(attacker, never()).sendMessage(anyString());
+        }
+    }
+
+    // ==================== UltiKits/UltiWorlds#23, third-party review round 1 ====================
+
+    /**
+     * The attack-attempt event exists only on Paper builds from November 2022 on. A method that names
+     * it would make {@code WorldListener} fail to load on an older server (resolving a class's methods
+     * resolves their parameter types), so the handler is registered by the event's name at start and
+     * takes a plain {@code Event}; on a server without the event nothing is registered and the rest of
+     * the listener works.
+     */
+    @Nested
+    @DisplayName("The listener names no Paper-only type, and registers the attempt handler only where it exists")
+    class PaperOnlyEventIsOptional {
+
+        @Test
+        @DisplayName("no method of WorldListener names a class from io.papermc")
+        void noPaperTypeInSignatures() {
+            for (java.lang.reflect.Method m : WorldListener.class.getDeclaredMethods()) {
+                for (Class<?> type : m.getParameterTypes()) {
+                    assertThat(type.getName()).as("%s parameter", m.getName()).doesNotStartWith("io.papermc.");
+                }
+                assertThat(m.getReturnType().getName()).as("%s return", m.getName()).doesNotStartWith("io.papermc.");
+            }
+        }
+
+        @Test
+        @DisplayName("registered at start, a real attack attempt reaches it and the attacker is told")
+        void registeredHandlerReceivesTheEvent() throws Exception {
+            org.mockbukkit.mockbukkit.MockBukkit.createMockPlugin("UltiTools");
+            java.lang.reflect.Method register = WorldListener.class.getMethod("registerAttackAttemptHandler");
+            register.invoke(listener);
+
+            Player attacker = UltiWorldsTestHelper.createMockPlayer("Attacker", UUID.randomUUID());
+            Player victim = UltiWorldsTestHelper.createMockPlayer("Victim", UUID.randomUUID());
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(victim.getWorld()).thenReturn(world);
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPvpEnabled(false);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            org.bukkit.Bukkit.getPluginManager().callEvent(
+                    new io.papermc.paper.event.player.PrePlayerAttackEntityEvent(attacker, victim, true));
+
+            verify(attacker).sendMessage("protection.pvp_disabled");
+        }
+
+        @Test
+        @DisplayName("an event class the server does not have is looked up as absent, so nothing is registered")
+        void absentEventTypeIsAbsent() throws Exception {
+            java.lang.reflect.Method lookup = WorldListener.class.getDeclaredMethod("eventType", String.class);
+            lookup.setAccessible(true); // NOPMD - package-private lookup
+            assertThat(lookup.invoke(null, "io.papermc.paper.event.player.NoSuchEvent")).isNull();
+            assertThat(lookup.invoke(null, "io.papermc.paper.event.player.PrePlayerAttackEntityEvent"))
+                    .as("control: a present class is found").isNotNull();
         }
     }
 }
