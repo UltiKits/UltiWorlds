@@ -110,8 +110,8 @@ none merged or dropped for sharing a class.
 ## World
 
 `WorldCommand` — the sole `@CmdExecutor(alias = {"world", "worlds"}, permission =
-"ultiworlds.use")` (`w` was removed because it is a vanilla command label, `UltiKits/UltiWorlds#45`) (its `description` attribute is Simplified Chinese, not reproduced in this
-English-only document), class-level `@CmdTarget(BOTH)` with a method-level `@CmdTarget(PLAYER)` on
+"ultiworlds.use")` (`w` was removed because it is a vanilla command label, `UltiKits/UltiWorlds#45`) (its `description` attribute is the language-catalogue key `command.description`, whose
+`language: en` text in `lang/en.yml` is "World management", `UltiKits/UltiWorlds#44`), class-level `@CmdTarget(BOTH)` with a method-level `@CmdTarget(PLAYER)` on
 every mapping except
 `delete <name>` — the class admits the console only so that `/world delete` can reach it, and the
 narrowing keeps every other subcommand exactly as player-only as it was when the whole class was
