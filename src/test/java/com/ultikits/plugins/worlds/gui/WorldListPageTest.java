@@ -387,4 +387,53 @@ class WorldListPageTest {
             assertThat(icon).isNotNull();
         }
     }
+
+    // ==================== UltiKits/UltiWorlds#26 ====================
+
+    @Nested
+    @DisplayName("A multi-line description shows every line in the icon's lore (UltiKits/UltiWorlds#26)")
+    class MultiLineDescription {
+
+        private List<String> loreFor(String description) throws Exception {
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            WorldListPage page = createPage(player);
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(world.getEnvironment()).thenReturn(World.Environment.NORMAL);
+            when(world.getPlayers()).thenReturn(Collections.emptyList());
+            when(world.getTime()).thenReturn(6000L);
+            when(world.isThundering()).thenReturn(false);
+            when(world.hasStorm()).thenReturn(false);
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setDescription(description);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            Method method = WorldListPage.class.getDeclaredMethod("createWorldIcon", World.class);
+            method.setAccessible(true); // NOPMD - test reflection
+            Icon icon = (Icon) method.invoke(page, world);
+            return icon.getItem().getItemMeta().getLore();
+        }
+
+        @Test
+        @DisplayName("two lines become two lore lines, in order, each grey")
+        void twoLines() throws Exception {
+            List<String> lore = loreFor("First line\nSecond line");
+            assertThat(lore).containsSubsequence("§7First line", "§7Second line");
+            assertThat(lore).noneMatch(line -> line.contains("\n"));
+        }
+
+        @Test
+        @DisplayName("a Windows line break splits the same way")
+        void crLf() throws Exception {
+            List<String> lore = loreFor("First line\r\nSecond line");
+            assertThat(lore).containsSubsequence("§7First line", "§7Second line");
+            assertThat(lore).noneMatch(line -> line.contains("\r") || line.contains("\n"));
+        }
+
+        @Test
+        @DisplayName("control: a one-line description is one lore line")
+        void oneLine() throws Exception {
+            assertThat(loreFor("Only line")).startsWith("§7Only line", "");
+        }
+    }
 }

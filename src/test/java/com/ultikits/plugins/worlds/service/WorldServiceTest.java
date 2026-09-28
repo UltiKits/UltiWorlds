@@ -1127,6 +1127,33 @@ class WorldServiceTest {
         }
 
         @Test
+        @DisplayName("a Windows line break in the description splits the same way as in the world list (UltiKits/UltiWorlds#26)")
+        void teleportDescriptionCrLf() {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                Location spawnLocation = mock(Location.class);
+                when(world.getSpawnLocation()).thenReturn(spawnLocation);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+                WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+                settings.setDescription("Line 1\r\nLine 2");
+                mockQueryReturning(settings);
+
+                when(mockConfig.isUseSpawnLocation()).thenReturn(false);
+                when(mockConfig.getTpCooldown()).thenReturn(0);
+                when(mockConfig.isShowDescriptionOnTeleport()).thenReturn(true);
+
+                worldService.teleportToWorld(player, "world");
+
+                ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+                verify(player, atLeast(3)).sendMessage(captor.capture());
+                assertThat(captor.getAllValues()).contains("Line 1", "Line 2");
+            }
+        }
+
+        @Test
         @DisplayName("teleportToWorld should NOT show description when disabled in config")
         void teleportNoDescriptionWhenDisabled() {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
