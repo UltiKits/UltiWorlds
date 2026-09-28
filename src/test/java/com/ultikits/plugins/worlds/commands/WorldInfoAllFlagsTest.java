@@ -129,6 +129,13 @@ class WorldInfoAllFlagsTest {
     }
 
     @Test
+    @DisplayName("/world info shows the world's difficulty, so /world difficulty can be read back")
+    void difficultyIsDisplayed() {
+        when(world.getDifficulty()).thenReturn(org.bukkit.Difficulty.HARD);
+        assertThat(infoLines()).contains("§7Difficulty: §fHARD");
+    }
+
+    @Test
     @DisplayName("/world set accepts every flag by name, on and off")
     void everyFlagCanBeSet() throws Exception {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
