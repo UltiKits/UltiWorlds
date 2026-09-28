@@ -1010,20 +1010,21 @@ class WorldServiceTest {
         }
 
         @Test
-        @DisplayName("canTeleport should return false immediately when cooldown is 0 (same millisecond)")
-        void canTeleportZeroCooldown() {
+        @DisplayName("canTeleport with cooldown 0: false in the same millisecond, true one millisecond later (UltiKits/UltiWorlds#30)")
+        void canTeleportZeroCooldown() throws Exception {
+            // A controlled clock, so the result does not depend on whether the real clock ticks over
+            // between two calls (it did, and the test failed at random).
+            java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000L);
+            UltiWorldsTestHelper.setField(worldService, "clock", (java.util.function.LongSupplier) now::get);
             UUID playerUuid = UUID.randomUUID();
             when(mockConfig.getTpCooldown()).thenReturn(0);
 
             worldService.setTpCooldown(playerUuid);
-            // 0 cooldown means > 0ms must have passed. In the same millisecond, this is false.
-            // This tests the exact boundary condition.
-            boolean result = worldService.canTeleport(playerUuid);
 
-            // canTeleport checks: currentTime - lastTp > 0*1000 => diff > 0
-            // If called in same ms, diff == 0, so returns false
-            // This is expected behavior - 0s cooldown still requires at least 1ms to pass
-            assertThat(result).isFalse();
+            // canTeleport checks: now - lastTp > 0 * 1000, so 0 seconds still needs 1 ms to pass.
+            assertThat(worldService.canTeleport(playerUuid)).isFalse();
+            now.addAndGet(1);
+            assertThat(worldService.canTeleport(playerUuid)).isTrue();
         }
 
         @Test
@@ -1799,4 +1800,82 @@ class WorldServiceTest {
         }
     }
 
+    // ==================== teleport cooldown table (maintainer decision 2026-09-27) ====================
+
+    /**
+     * The teleport cooldown table keeps an entry only while some allowed {@code tp_to_world.cooldown}
+     * (at most 300 seconds) could still block its player; an older one is dropped when read and
+     * whenever a teleport is recorded. The cooldown itself is unchanged, and a reconnect does not
+     * reset it.
+     */
+    @Nested
+    @DisplayName("Teleport cooldown entries no allowed cooldown can reach are dropped")
+    class CooldownTableEviction {
+
+        private java.util.concurrent.atomic.AtomicLong now;
+
+        @BeforeEach
+        void clock() throws Exception {
+            now = new java.util.concurrent.atomic.AtomicLong(10_000_000L);
+            UltiWorldsTestHelper.setField(worldService, "clock", (java.util.function.LongSupplier) now::get);
+        }
+
+        @SuppressWarnings("unchecked")
+        private Map<UUID, Long> table() throws Exception {
+            java.lang.reflect.Field field = WorldService.class.getDeclaredField("tpCooldowns");
+            field.setAccessible(true); // NOPMD - the table is private; its size is what is under test
+            return (Map<UUID, Long>) field.get(worldService);
+        }
+
+        @Test
+        @DisplayName("recording a teleport drops entries older than the longest allowed cooldown, keeps younger ones")
+        void writeSweeps() throws Exception {
+            when(mockConfig.getTpCooldown()).thenReturn(10);
+            UUID gone = UUID.randomUUID();
+            UUID recent = UUID.randomUUID();
+            worldService.setTpCooldown(gone);
+            now.addAndGet(200_000L);
+            worldService.setTpCooldown(recent);
+            now.addAndGet(101_000L);
+
+            worldService.setTpCooldown(UUID.randomUUID());
+
+            assertThat(table()).doesNotContainKey(gone)
+                    .as("past the 10-second cooldown, but a raised cooldown could still reach it")
+                    .containsKey(recent);
+        }
+
+        @Test
+        @DisplayName("reading a player's expired entry drops it and allows the teleport")
+        void readDrops() throws Exception {
+            when(mockConfig.getTpCooldown()).thenReturn(10);
+            UUID player = UUID.randomUUID();
+            worldService.setTpCooldown(player);
+            now.addAndGet(301_000L);
+
+            assertThat(worldService.canTeleport(player)).isTrue();
+            assertThat(table()).doesNotContainKey(player);
+        }
+
+        @Test
+        @DisplayName("control: at the longest cooldown, an entry inside it still blocks and is kept")
+        void longestCooldownStillBlocks() throws Exception {
+            when(mockConfig.getTpCooldown()).thenReturn(300);
+            UUID player = UUID.randomUUID();
+            worldService.setTpCooldown(player);
+            now.addAndGet(200_000L);
+
+            assertThat(worldService.canTeleport(player)).isFalse();
+            assertThat(worldService.getRemainingCooldown(player)).isEqualTo(100);
+            assertThat(table()).containsKey(player);
+        }
+
+        @Test
+        @DisplayName("the longest cooldown the setting accepts is the one the table is kept for")
+        void rangeMatchesTheKeptWindow() throws Exception {
+            com.ultikits.ultitools.annotations.config.Range range = com.ultikits.plugins.worlds.config.WorldConfig.class
+                    .getDeclaredField("tpCooldown").getAnnotation(com.ultikits.ultitools.annotations.config.Range.class);
+            assertThat(range.max()).isEqualTo(300);
+        }
+    }
 }
