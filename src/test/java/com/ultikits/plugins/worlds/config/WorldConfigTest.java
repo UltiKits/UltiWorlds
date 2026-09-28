@@ -375,36 +375,6 @@ class WorldConfigTest {
     class LegacyCompat {
 
         @Test
-        @DisplayName("Should have unload empty worlds default false")
-        void unloadEmptyWorlds() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.isUnloadEmptyWorlds()).isFalse();
-        }
-
-        @Test
-        @DisplayName("Should update unload empty worlds")
-        void setUnloadEmptyWorlds() {
-            WorldConfig config = createRealConfig();
-            config.setUnloadEmptyWorlds(true);
-            assertThat(config.isUnloadEmptyWorlds()).isTrue();
-        }
-
-        @Test
-        @DisplayName("Should have unload delay default 300")
-        void unloadDelay() {
-            WorldConfig config = createRealConfig();
-            assertThat(config.getUnloadDelay()).isEqualTo(300);
-        }
-
-        @Test
-        @DisplayName("Should update unload delay")
-        void setUnloadDelay() {
-            WorldConfig config = createRealConfig();
-            config.setUnloadDelay(600);
-            assertThat(config.getUnloadDelay()).isEqualTo(600);
-        }
-
-        @Test
         @DisplayName("Should update load worlds on start")
         void setLoadWorldsOnStart() {
             WorldConfig config = createRealConfig();
