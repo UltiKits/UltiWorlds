@@ -44,6 +44,13 @@ public class WorldService {
     // Teleport cooldowns
     private final Map<UUID, Long> tpCooldowns = new ConcurrentHashMap<>();
 
+    /**
+     * The time source of the teleport cooldown, in milliseconds. A field so a test can hold time
+     * still: a cooldown boundary read off the real clock depends on whether it ticks between two
+     * calls (UltiKits/UltiWorlds#30).
+     */
+    private java.util.function.LongSupplier clock = System::currentTimeMillis;
+
     // Empty world timer (tracks how long a world has been empty)
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
 
@@ -821,14 +828,14 @@ public class WorldService {
         if (lastTp == null) {
             return true;
         }
-        return System.currentTimeMillis() - lastTp > config.getTpCooldown() * 1000L;
+        return clock.getAsLong() - lastTp > config.getTpCooldown() * 1000L;
     }
     
     /**
      * Set teleport cooldown.
      */
     public void setTpCooldown(UUID playerUuid) {
-        tpCooldowns.put(playerUuid, System.currentTimeMillis());
+        tpCooldowns.put(playerUuid, clock.getAsLong());
     }
     
     /**
@@ -839,7 +846,7 @@ public class WorldService {
         if (lastTp == null) {
             return 0;
         }
-        long remaining = (config.getTpCooldown() * 1000L) - (System.currentTimeMillis() - lastTp);
+        long remaining = (config.getTpCooldown() * 1000L) - (clock.getAsLong() - lastTp);
         return Math.max(0, (int) (remaining / 1000));
     }
     
