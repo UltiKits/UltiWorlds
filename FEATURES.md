@@ -207,7 +207,7 @@ reload row's Source cell names that inherited framework member.
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
 |---|---|---|---|---|---|---|---|---|
-| ultiworlds.gate.inventory-isolation | Register the `InventoryIsolationService` bean (and therefore every inventory/ender-chest/XP/health/hunger/effects save-swap behaviour in `## Protection and World Rules`'s `ultiworlds.world.change-effects` row) only if `world_isolation.enabled` is `true` at component-scan time; a change to this key takes effect only on a full server restart, not `/ul reload` — `@ConditionalOnConfig` is evaluated once, at boot | gate | `world_isolation.enabled` in `plugins/UltiTools/UltiWorlds/config/worlds.yml`, applied only on a full server restart | n/a | n/a | admin | brief | InventoryIsolationService#InventoryIsolationService |
+| ultiworlds.gate.inventory-isolation | Register the `InventoryIsolationService` bean (and therefore every inventory/ender-chest/XP/health/hunger/effects save-swap behaviour in `## Protection and World Rules`'s `ultiworlds.world.change-effects` row) only if `world_isolation.enabled` is `true` at component-scan time; a change to this key takes effect only on a full server restart, not `/ul reload` — `@ConditionalOnConfig` is evaluated once, at boot | gate | `world_isolation.enabled` in `plugins/UltiTools/pluginConfig/UltiWorlds/config/worlds.yml`, applied only on a full server restart | n/a | n/a | admin | brief | InventoryIsolationService#InventoryIsolationService |
 
 ## Data persistence
 
