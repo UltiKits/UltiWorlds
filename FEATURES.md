@@ -98,9 +98,9 @@ rather than an error:
    every repository in the fan-out.
 
 **Positive control:** the line-start form returns `@CmdExecutor` = 1, `@CmdMapping` = 22,
-`@EventListener` = 1 (class), `@EventHandler` = 9 (handler methods), `@Scheduled` = 1,
+`@EventListener` = 1 (class), `@EventHandler` = 11 (handler methods; 9 before `WorldListener#onThunderChange` and `#onPlayerAttackAttempt`, `UltiKits/UltiWorlds#24`, `#23`), `@Scheduled` = 1,
 `@ConditionalOnConfig` = 1, `@ConfigEntity` = 1 (class), `@ConfigEntry` = 19, `@Table` = 2
-(`WorldSettings`, `WorldInventory`) — confirmed by reading all 11 source files directly (12 before `WorldListGUI` was deleted, which carried none of these annotations), not by
+(`WorldSettings`, `WorldInventory`) — confirmed by reading every file under `src/main/java` directly (15 at this revision), not by
 trusting the count alone. `WorldCommand`'s own 22 `@CmdMapping` sites, all behind the single
 `@CmdExecutor(alias = {"world", "worlds"})` site, are this module's standing positive
 control and the reconciliation table's clearest illustration of the executor-versus-mapping
