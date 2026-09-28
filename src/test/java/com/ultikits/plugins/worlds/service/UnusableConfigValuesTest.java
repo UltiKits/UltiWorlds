@@ -143,7 +143,9 @@ class UnusableConfigValuesTest {
         when(worldService.getOrCreateSettings("world")).thenReturn(settings);
         Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
         World world = world("world");
-        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+        // Real methods except the one stubbed: whether a name is an item is answered by the test
+        // server's registry, which a fully mocked Bukkit cannot reach.
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
             bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
 
             command.setWorldOption(player, "world", "icon", "grass_blok");
