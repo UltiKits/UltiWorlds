@@ -1870,6 +1870,28 @@ class WorldServiceTest {
             assertThat(table()).containsKey(player);
         }
 
+        /**
+         * The cooldown blocks while {@code elapsed > cooldown} is false, so at exactly the longest
+         * cooldown the player is still blocked; the entry may go only a millisecond later
+         * (third-party review, round 2).
+         */
+        @Test
+        @DisplayName("at exactly the longest cooldown the player is still blocked and the entry kept; a millisecond later both change")
+        void longestCooldownBoundary() throws Exception {
+            when(mockConfig.getTpCooldown()).thenReturn(300);
+            UUID player = UUID.randomUUID();
+            worldService.setTpCooldown(player);
+            now.addAndGet(300_000L);
+
+            assertThat(worldService.canTeleport(player)).isFalse();
+            worldService.setTpCooldown(UUID.randomUUID());
+            assertThat(table()).containsKey(player);
+
+            now.addAndGet(1L);
+            assertThat(worldService.canTeleport(player)).isTrue();
+            assertThat(table()).doesNotContainKey(player);
+        }
+
         @Test
         @DisplayName("the longest cooldown the setting accepts is the one the table is kept for")
         void rangeMatchesTheKeptWindow() throws Exception {
