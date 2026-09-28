@@ -123,6 +123,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Console and chat lines show a path, a world name or text you typed exactly as it is. A value that
+  contained a later placeholder of its line, such as `{KEY}` in the configuration file's path, or
+  `{WORLD}` in a description set with `/world set`, was rewritten by it. This covers the removed-key
+  warning, the world-environment and invalid-difficulty warnings, the `/world list` lines and the
+  `/world set` confirmation (UltiKits/UltiWorlds#43).
+- 控制台与聊天中的行现在按原样显示路径、世界名或你输入的文字。此前若值中含有该行随后的占位符（例如配置文件路径中的
+  `{KEY}`，或用 `/world set` 设置的描述中的 `{WORLD}`），会被其改写。涉及已移除配置键的警告、世界环境与无效难度的警告、
+  `/world list` 的各行以及 `/world set` 的确认消息（UltiKits/UltiWorlds#43）。
+
 - `/world info` shows every setting a world stores: its difficulty and all twelve flags by name
   (PvP, monsters, animals, weather, the four protections, hidden, locked, blocked and auto-unload).
   It showed four, one of them a single "protection" line for all four protections. `/world info

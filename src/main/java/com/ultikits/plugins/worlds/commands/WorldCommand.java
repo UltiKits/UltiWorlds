@@ -6,6 +6,7 @@ import com.ultikits.plugins.worlds.gui.WorldDeleteConfirmPage;
 import com.ultikits.plugins.worlds.gui.WorldListPage;
 import com.ultikits.plugins.worlds.service.DeleteConfirmationWindow;
 import com.ultikits.plugins.worlds.service.WorldService;
+import com.ultikits.plugins.worlds.util.Placeholders;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.command.BaseCommandExecutor;
 import com.ultikits.ultitools.annotations.Autowired;
@@ -80,9 +81,9 @@ public class WorldCommand extends BaseCommandExecutor {
         for (World world : worlds) {
             WorldSettings settings = worldService.getOrCreateSettings(world.getName());
             String displayName = settings.getDisplayName() != null ? settings.getDisplayName() : world.getName();
-            player.sendMessage(i18n("world.list.item")
-                .replace("{NAME}", displayName)
-                .replace("{PLAYERS}", String.valueOf(world.getPlayers().size())));
+            player.sendMessage(Placeholders.fill(i18n("world.list.item"),
+                "{NAME}", displayName,
+                "{PLAYERS}", String.valueOf(world.getPlayers().size())));
         }
     }
     
@@ -392,10 +393,11 @@ public class WorldCommand extends BaseCommandExecutor {
         }
         
         worldService.updateSettings(settings);
-        player.sendMessage(i18n("world.set.success")
-            .replace("{OPTION}", option)
-            .replace("{VALUE}", value)
-            .replace("{WORLD}", worldName));
+        // One pass: a value (a description, say) is shown as written, never rescanned for {WORLD}.
+        player.sendMessage(Placeholders.fill(i18n("world.set.success"),
+            "{OPTION}", option,
+            "{VALUE}", value,
+            "{WORLD}", worldName));
     }
     
     // ==================== Protection Commands ====================

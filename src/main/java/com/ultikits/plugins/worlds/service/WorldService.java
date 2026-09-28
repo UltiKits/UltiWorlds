@@ -3,6 +3,7 @@ package com.ultikits.plugins.worlds.service;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.util.Placeholders;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.PostConstruct;
@@ -140,9 +141,9 @@ public class WorldService {
                 try {
                     world.setDifficulty(Difficulty.valueOf(settings.getDifficulty()));
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warn(plugin.i18n("log.invalid_difficulty")
-                        .replace("{WORLD}", worldName)
-                        .replace("{VALUE}", String.valueOf(settings.getDifficulty())));
+                    plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.invalid_difficulty"),
+                        "{WORLD}", worldName,
+                        "{VALUE}", String.valueOf(settings.getDifficulty())));
                 }
             }
         }
@@ -482,10 +483,10 @@ public class WorldService {
         }
 
         World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
-        plugin.getLogger().warn(plugin.i18n("log.environment.inferred")
-            .replace("{WORLD}", name)
-            .replace("{ENVIRONMENT}", String.valueOf(inferred))
-            .replace("{ENTRY}", marker));
+        plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.environment.inferred"),
+            "{WORLD}", name,
+            "{ENVIRONMENT}", String.valueOf(inferred),
+            "{ENTRY}", marker));
         return inferred;
     }
 
@@ -525,9 +526,9 @@ public class WorldService {
         // states an outcome that has not happened and may not: `createWorld` can return null, and
         // the operator would then hold one line saying the world was loaded and another saying the
         // command failed. What is true at this moment is what this module supplies.
-        plugin.getLogger().warn(plugin.i18n("log.environment.none")
-            .replace("{WORLD}", name)
-            .replace("{OBSERVATION}", observation));
+        plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.environment.none"),
+            "{WORLD}", name,
+            "{OBSERVATION}", observation));
     }
 
 
