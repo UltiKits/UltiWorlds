@@ -36,7 +36,7 @@ class RemovedConfigKeysTest {
 
     private static final List<String> REMOVED = Arrays.asList("gui_title", "messages.world_teleport",
             "messages.world_not_found", "messages.no_permission", "messages.world_created",
-            "messages.world_deleted");
+            "messages.world_deleted", "unload_empty_worlds", "unload_delay");
 
     @TempDir
     Path tempDir;
@@ -70,7 +70,7 @@ class RemovedConfigKeysTest {
     }
 
     @Test
-    @DisplayName("Positive control: each of the six keys still in the file gets its own warning, in the server's language")
+    @DisplayName("Positive control: each of the eight keys still in the file gets its own warning, in the server's language")
     void warnsOncePerLeftoverKey() throws Exception {
         File file = writeConfig(true);
         for (String code : new String[] {"en", "zh"}) {
@@ -78,6 +78,10 @@ class RemovedConfigKeysTest {
             for (String key : REMOVED) {
                 String reason = "gui_title".equals(key)
                         ? CatalogueText.text(code, "removed_key_reason_gui_title")
+                        : "unload_empty_worlds".equals(key)
+                        ? CatalogueText.text(code, "removed_key_reason_unload_empty_worlds")
+                        : "unload_delay".equals(key)
+                        ? CatalogueText.text(code, "removed_key_reason_unload_delay")
                         : CatalogueText.text(code, "removed_key_reason_message");
                 expected.add(CatalogueText.text(code, "removed_key_warning")
                         .replace("{FILE}", file.getPath()).replace("{KEY}", key).replace("{REASON}", reason));
