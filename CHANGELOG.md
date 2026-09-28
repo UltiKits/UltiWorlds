@@ -123,6 +123,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A world with weather disabled (`/world set <world> weather false`) now also keeps thunder from
+  starting. Rain was blocked, but thunder is a separate state, so a world could still turn
+  thundering (UltiKits/UltiWorlds#24).
+- 关闭天气的世界（`/world set <世界> weather false`）现在也会阻止雷暴开始。此前只阻止了下雨，而雷暴是独立的状态，
+  因此世界仍可能进入雷暴（UltiKits/UltiWorlds#24）。
+
 - `language: zh` now applies to this module's console lines that were fixed English text: the
   lines about a world's environment when it is loaded, the refusal to delete a protected world, the
   symbolic-link and incomplete-deletion lines of `/world delete`, the empty-world auto-unload line,

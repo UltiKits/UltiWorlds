@@ -20,6 +20,7 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.weather.ThunderChangeEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
 
 /**
@@ -212,6 +213,19 @@ public class WorldListener implements Listener {
         WorldSettings settings = worldService.getOrCreateSettings(world.getName());
         
         if (!settings.isWeatherEnabled() && event.toWeatherState()) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Rain and thunder are two independent states, so disabled weather also keeps thunder from
+     * starting; thunder stopping is always allowed (UltiKits/UltiWorlds#24).
+     */
+    @EventHandler
+    public void onThunderChange(ThunderChangeEvent event) {
+        WorldSettings settings = worldService.getOrCreateSettings(event.getWorld().getName());
+
+        if (!settings.isWeatherEnabled() && event.toThunderState()) {
             event.setCancelled(true);
         }
     }
