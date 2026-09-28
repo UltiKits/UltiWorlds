@@ -1031,4 +1031,71 @@ class InventoryIsolationServiceTest {
             assertThat(service.getWorldGroup("world")).isEqualTo(service.getWorldGroup("world_nether"));
         }
     }
+
+    // ==================== UltiKits/UltiWorlds#34 ====================
+
+    /**
+     * {@code world_isolation.shared_worlds} is typed by the operator, and the server names worlds
+     * ignoring case, so the lookup ignores case too (with {@code Locale.ROOT}); two entries that
+     * name the same world are reported and the first one kept (UltiKits/UltiWorlds#34).
+     */
+    @Nested
+    @DisplayName("shared_worlds is matched ignoring case (UltiKits/UltiWorlds#34)")
+    class CaseInsensitiveGroups {
+
+        private List<String> warnings() {
+            org.mockito.ArgumentCaptor<String> lines = org.mockito.ArgumentCaptor.forClass(String.class);
+            verify(UltiWorldsTestHelper.getMockLogger(), atLeast(0)).warn(lines.capture());
+            return lines.getAllValues();
+        }
+
+        @Test
+        @DisplayName("entries typed in another case still share one group")
+        void mixedCaseSharesTheGroup() {
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("MyWorld,MyWorld_nether"));
+            service.init();
+
+            assertThat(service.areWorldsShared("myworld", "myworld_nether")).isTrue();
+            assertThat(service.getWorldGroup("myworld")).isEqualTo(service.getWorldGroup("MYWORLD"));
+            assertThat(warnings()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("control: a world in no group is its own group, under its name as the server gives it")
+        void ungroupedWorldKeepsItsName() {
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("MyWorld,MyWorld_nether"));
+            service.init();
+
+            assertThat(service.getWorldGroup("Custom_World")).isEqualTo("Custom_World");
+            assertThat(service.areWorldsShared("myworld", "Custom_World")).isFalse();
+        }
+
+        @Test
+        @DisplayName("folding does not depend on the server's locale (a Turkish default locale folds I to i)")
+        void rootLocale() {
+            java.util.Locale previous = java.util.Locale.getDefault();
+            try {
+                java.util.Locale.setDefault(new java.util.Locale("tr", "TR"));
+                when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("ISLAND,ISLAND_nether"));
+                service.init();
+
+                assertThat(service.areWorldsShared("island", "island_nether")).isTrue();
+            } finally {
+                java.util.Locale.setDefault(previous);
+            }
+        }
+
+        @Test
+        @DisplayName("a world listed twice, differing only by case, is reported and stays in the first group")
+        void caseDuplicateIsReported() {
+            when(mockPlugin.i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world,world_nether", "WORLD,other"));
+            service.init();
+
+            assertThat(service.areWorldsShared("world", "world_nether")).isTrue();
+            assertThat(service.areWorldsShared("world", "other")).isFalse();
+            assertThat(warnings()).hasSize(1);
+            assertThat(warnings().get(0)).contains("'WORLD'").contains("'world'").contains("world_isolation.shared_worlds");
+        }
+    }
 }
