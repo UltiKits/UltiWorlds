@@ -3,10 +3,13 @@
 <div align="center">
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/UltiKits/UltiTools-Reborn)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.13--1.21-green.svg)](https://www.spigotmc.org)
+[![Paper](https://img.shields.io/badge/Paper-1.19%2B-green.svg)](https://papermc.io)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 **UltiWorlds** 是 UltiTools-API 框架下的多世界管理模块，提供完整的世界创建、传送、保护和背包隔离功能。
+
+Runs on Paper, like the UltiTools-API framework it is a module of (Spigot is not supported). On a Paper build older than 1.19.3 everything works except the line that tells an attacker PvP is off in a world. /
+与所依附的 UltiTools-API 框架一样只支持 Paper（不支持 Spigot）。在早于 1.19.3 的 Paper 上，除「此世界已禁用 PVP」提示外其余功能均可用。
 
 [English](#english) | [简体中文](#简体中文)
 
