@@ -102,15 +102,15 @@ rather than an error:
 `@ConditionalOnConfig` = 1, `@ConfigEntity` = 1 (class), `@ConfigEntry` = 21, `@Table` = 2
 (`WorldSettings`, `WorldInventory`) — confirmed by reading all 11 source files directly (12 before `WorldListGUI` was deleted, which carried none of these annotations), not by
 trusting the count alone. `WorldCommand`'s own 21 `@CmdMapping` sites, all behind the single
-`@CmdExecutor(alias = {"world", "worlds", "w"})` site, are this module's standing positive
+`@CmdExecutor(alias = {"world", "worlds"})` site, are this module's standing positive
 control and the reconciliation table's clearest illustration of the executor-versus-mapping
 distinction described above — every one of the 21 is confirmed present as its own row below,
 none merged or dropped for sharing a class.
 
 ## World
 
-`WorldCommand` — the sole `@CmdExecutor(alias = {"world", "worlds", "w"}, permission =
-"ultiworlds.use")` (its `description` attribute is Simplified Chinese, not reproduced in this
+`WorldCommand` — the sole `@CmdExecutor(alias = {"world", "worlds"}, permission =
+"ultiworlds.use")` (`w` was removed because it is a vanilla command label, `UltiKits/UltiWorlds#45`) (its `description` attribute is Simplified Chinese, not reproduced in this
 English-only document), class-level `@CmdTarget(BOTH)` with a method-level `@CmdTarget(PLAYER)` on
 every mapping except
 `delete <name>` — the class admits the console only so that `/world delete` can reach it, and the

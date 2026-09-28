@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
  */
 @CmdTarget(CmdTarget.CmdTargetType.BOTH)
 @CmdExecutor(
-    alias = {"world", "worlds", "w"},
+    alias = {"world", "worlds"},
     permission = "ultiworlds.use",
     description = "command.description"
 )

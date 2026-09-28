@@ -270,6 +270,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- The `/w` alias of `/world`. `w` is a vanilla command label (`/msg`'s alias, with `/tell`), so
+  `/w <player> <message>` could reach this module instead of a private message. Use `/world` or
+  `/worlds` (UltiKits/UltiWorlds#45).
+- 移除 `/world` 的别名 `/w`。`w` 是原版命令标签（`/msg` 的别名，与 `/tell` 相同），因此 `/w <玩家> <消息>`
+  可能被本模块接收，而不是发送私聊。请使用 `/world` 或 `/worlds`（UltiKits/UltiWorlds#45）。
+
 - Six `config/worlds.yml` keys that no code ever read: `gui_title` and `messages.world_teleport`,
   `messages.world_not_found`, `messages.no_permission`, `messages.world_created`,
   `messages.world_deleted`. Changing any of them never changed anything: the world list's title and
