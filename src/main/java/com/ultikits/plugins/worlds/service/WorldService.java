@@ -824,25 +824,44 @@ public class WorldService {
      * Check teleport cooldown.
      */
     public boolean canTeleport(UUID playerUuid) {
-        Long lastTp = tpCooldowns.get(playerUuid);
+        Long lastTp = liveCooldownEntry(playerUuid);
         if (lastTp == null) {
             return true;
         }
         return clock.getAsLong() - lastTp > config.getTpCooldown() * 1000L;
     }
+
+    /**
+     * A player's last teleport time, or {@code null}. An entry older than the longest cooldown the
+     * setting accepts can no longer block anyone, so it is dropped here and whenever a teleport is
+     * recorded: the table holds only players who teleported within that window. An entry past the
+     * current cooldown but inside it is kept, so raising the cooldown and reloading still counts it.
+     */
+    private Long liveCooldownEntry(UUID playerUuid) {
+        Long lastTp = tpCooldowns.get(playerUuid);
+        if (lastTp != null && clock.getAsLong() - lastTp >= KEEP_COOLDOWN_MS) {
+            tpCooldowns.remove(playerUuid, lastTp);
+            return null;
+        }
+        return lastTp;
+    }
+
+    private static final long KEEP_COOLDOWN_MS = WorldConfig.MAX_TP_COOLDOWN_SECONDS * 1000L;
     
     /**
      * Set teleport cooldown.
      */
     public void setTpCooldown(UUID playerUuid) {
-        tpCooldowns.put(playerUuid, clock.getAsLong());
+        long now = clock.getAsLong();
+        tpCooldowns.values().removeIf(time -> now - time >= KEEP_COOLDOWN_MS);
+        tpCooldowns.put(playerUuid, now);
     }
     
     /**
      * Get remaining cooldown.
      */
     public int getRemainingCooldown(UUID playerUuid) {
-        Long lastTp = tpCooldowns.get(playerUuid);
+        Long lastTp = liveCooldownEntry(playerUuid);
         if (lastTp == null) {
             return 0;
         }
