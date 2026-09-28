@@ -123,6 +123,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `world_isolation.shared_worlds` now matches world names ignoring case, as the server does. An
+  entry typed in another case than the world's name (`MyWorld` for `myworld`) matched nothing, so
+  each world became its own group and walking through a portal between them emptied the player's
+  inventory. A world listed twice, in any case, is reported at start and stays in the group of its
+  first entry (UltiKits/UltiWorlds#34).
+- `world_isolation.shared_worlds` 现在与服务器一样按不区分大小写的方式匹配世界名。此前大小写与世界名不同的条目（例如用
+  `MyWorld` 指 `myworld`）匹配不到任何世界，于是每个世界各自成组，玩家在它们之间穿过传送门时背包会被清空。
+  同一个世界（不论大小写）被列出两次时，会在启动时提示，并保留在第一次出现的组中（UltiKits/UltiWorlds#34）。
+
 - Console and chat lines show a path, a world name or text you typed exactly as it is. A value that
   contained a later placeholder of its line, such as `{KEY}` in the configuration file's path, or
   `{WORLD}` in a description set with `/world set`, was rewritten by it. This covers the removed-key

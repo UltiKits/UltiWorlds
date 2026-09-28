@@ -236,6 +236,7 @@ log:
   auto_unload: "Auto-unloading empty world: {WORLD}"
   invalid_difficulty: "Invalid difficulty for world {WORLD}: {VALUE}"
   settings_update_failed: "Failed to update world settings"
+  shared_world_duplicate: "config/worlds.yml lists world '{ENTRY}' in world_isolation.shared_worlds, but '{FIRST}' is already listed there, and world names are matched ignoring case. '{ENTRY}' is ignored: the world stays in the group of '{FIRST}'. Remove one of the two entries to silence this warning."
   environment:
     inferred: "World '{WORLD}': this module supplies {ENVIRONMENT} as the environment to load with, because its folder contains a top-level '{ENTRY}' directory and no top-level 'region' directory. What each of these folder shapes means, and what can be done about it, is in this module's CHANGELOG.md changelog entry for this version, and in UltiKits/UltiWorlds#22."
     none: "World '{WORLD}': this module supplies no environment, because {OBSERVATION}. It does not guess an environment it cannot read from the folder, so the server's own default applies -- the same as before this version. What each of these folder shapes means, and what can be done about it, is in this module's CHANGELOG.md changelog entry for this version, and in UltiKits/UltiWorlds#22."

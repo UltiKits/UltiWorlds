@@ -2,6 +2,7 @@ package com.ultikits.plugins.worlds.service;
 
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldInventory;
+import com.ultikits.plugins.worlds.util.Placeholders;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.ConditionalOnConfig;
@@ -38,7 +39,7 @@ public class InventoryIsolationService {
 
     private DataOperator<WorldInventory> dataOperator;
     
-    // Cache world groups for fast lookup
+    // Cache world groups for fast lookup, keyed by the world name folded to lower case
     private final Map<String, String> worldGroupCache = new ConcurrentHashMap<>();
     
     @PostConstruct
@@ -54,23 +55,42 @@ public class InventoryIsolationService {
      */
     private void parseWorldGroups() {
         worldGroupCache.clear();
+        // folded name -> the entry as the operator typed it, to name both sides of a duplicate
+        Map<String, String> firstEntries = new HashMap<>();
         int groupIndex = 0;
         
         for (String groupStr : config.getSharedWorldGroups()) {
             String groupName = "group_" + groupIndex++;
             String[] worlds = groupStr.split(",");
             for (String world : worlds) {
-                worldGroupCache.put(world.trim(), groupName);
+                String entry = world.trim();
+                String key = fold(entry);
+                String first = firstEntries.putIfAbsent(key, entry);
+                if (first != null) {
+                    // The server names worlds ignoring case, so two entries that differ only by case
+                    // name one world: the first one keeps it (UltiKits/UltiWorlds#34).
+                    plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.shared_world_duplicate"),
+                            "{ENTRY}", entry, "{FIRST}", first));
+                    continue;
+                }
+                worldGroupCache.put(key, groupName);
             }
         }
     }
     
     /**
      * Get the world group for a world.
-     * Worlds not in any group are their own group.
+     * Worlds not in any group are their own group, under the name the server gives them, as
+     * before. The lookup ignores case, like the server's own world lookup, so an entry typed in
+     * another case still applies (UltiKits/UltiWorlds#34).
      */
     public String getWorldGroup(String worldName) {
-        return worldGroupCache.getOrDefault(worldName, worldName);
+        return worldGroupCache.getOrDefault(fold(worldName), worldName);
+    }
+
+    /** A world name folded for comparison: lower case in {@code Locale.ROOT}, whatever the server's locale. */
+    private static String fold(String worldName) {
+        return worldName.toLowerCase(Locale.ROOT);
     }
     
     /**
