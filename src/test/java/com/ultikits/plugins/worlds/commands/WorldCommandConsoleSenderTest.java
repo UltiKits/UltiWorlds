@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
  * method matching, the validator chain, parameter building -- not through a direct method call,
  * because the sender restriction is enforced there and a direct call would bypass it.
  *
- * <p>Every one of the 20 other mappings is walked, not sampled: {@link #everyMappingIsWalked()}
+ * <p>Every one of the 21 other mappings (20 before {@code info <world>}, UltiKits/UltiWorlds#17) is walked, not sampled: {@link #everyMappingIsWalked()}
  * reads the {@code @CmdMapping} formats off the class and fails if this table and the class ever
  * disagree.
  *
@@ -89,6 +89,7 @@ class WorldCommandConsoleSenderTest {
         OTHER_TWENTY.put("postcmd <world> list", new String[]{"postcmd", "scratchw", "list"});
         OTHER_TWENTY.put("postcmd <world> clear", new String[]{"postcmd", "scratchw", "clear"});
         OTHER_TWENTY.put("info", new String[]{"info"});
+        OTHER_TWENTY.put("info <world>", new String[]{"info", "scratchw"});
         OTHER_TWENTY.put("help", new String[]{"help"});
     }
 
@@ -157,7 +158,7 @@ class WorldCommandConsoleSenderTest {
                 .filter(f -> !"delete <name>".equals(f))
                 .sorted()
                 .collect(Collectors.toList());
-        assertThat(formats).hasSize(20).containsExactlyElementsOf(OTHER_TWENTY.keySet());
+        assertThat(formats).hasSize(21).containsExactlyElementsOf(OTHER_TWENTY.keySet());
     }
 
     @Test

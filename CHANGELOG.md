@@ -10,13 +10,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - On startup, and again on every `/ul reload`, this module now checks your own `config/worlds.yml`
-  for the six keys this version no longer reads (next entry under Removed) and logs one warning per
+  for the eight keys this version no longer reads (the entries under Removed) and logs one warning per
   leftover, naming the module, the file and the key, and saying where the text comes from. Deleting
   a key from the module stops a *fresh* file being written with it but does nothing to the file you
   already have, so without this warning an edited value would go on meaning nothing, silently. Delete
   the keys from the file to silence it (part of UltiKits/UltiWorlds#38).
 - 本模块现在会在启动时、以及每次 `/ul reload` 时检查你自己的 `config/worlds.yml` 中是否仍存在本版本不再读取的
-  六个配置键（见下方 Removed 中的条目），并为每个残留键各记一条警告，点明模块、文件与键名，并说明文本来自哪里。
+  八个配置键（见下方 Removed 中的条目），并为每个残留键各记一条警告，点明模块、文件与键名，并说明文本来自哪里。
   从模块中删除一个键，只会让**新生成**的文件里不再有它，对你已有的文件没有任何影响，因此若没有这条警告，被改过的值
   会继续悄无声息地不起作用。把这些键从文件中删除即可不再提示（UltiKits/UltiWorlds#38 的一部分）。
 
@@ -122,6 +122,69 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   新创建的世界（UltiKits/UltiWorlds#19）。
 
 ### Fixed
+
+- A value UltiWorlds cannot use is now named instead of being passed over silently: a
+  `default_world` that is no loaded world is reported at start and on `/ul reload`, with the world
+  players are sent to instead (the server's first world); a `load_worlds_on_start` entry that cannot
+  be loaded is reported at start; and `/world set <world> icon <item>` refuses a name that is no
+  item, where it stored it and showed the default icon.
+- UltiWorlds 无法使用的值现在会被点名，而不是被悄悄忽略：不是已加载世界的 `default_world` 会在启动和 `/ul reload` 时提示，
+  并说明玩家实际会被送往的世界（服务器的第一个世界）；无法加载的 `load_worlds_on_start` 条目会在启动时提示；
+  `/world set <世界> icon <物品>` 会拒绝不是物品的名字，此前它会被保存并显示为默认图标。
+
+- `auto_unload.check_interval` now decides how often empty worlds are checked, in seconds; a value
+  changed with `/ul reload` applies within a second. The check ran every 60 seconds whatever the key
+  said (UltiKits/UltiWorlds#38).
+- `auto_unload.check_interval` 现在决定检查无人世界的间隔（秒）；用 `/ul reload` 修改后一秒内生效。此前无论该键为何值，
+  都每 60 秒检查一次（UltiKits/UltiWorlds#38）。
+
+- `world_isolation.shared_worlds` now matches world names ignoring case, as the server does. An
+  entry typed in another case than the world's name (`MyWorld` for `myworld`) matched nothing, so
+  each world became its own group and walking through a portal between them emptied the player's
+  inventory. A world listed twice, in any case, is reported at start and stays in the group of its
+  first entry (UltiKits/UltiWorlds#34).
+- `world_isolation.shared_worlds` 现在与服务器一样按不区分大小写的方式匹配世界名。此前大小写与世界名不同的条目（例如用
+  `MyWorld` 指 `myworld`）匹配不到任何世界，于是每个世界各自成组，玩家在它们之间穿过传送门时背包会被清空。
+  同一个世界（不论大小写）被列出两次时，会在启动时提示，并保留在第一次出现的组中（UltiKits/UltiWorlds#34）。
+
+- Console and chat lines show a path, a world name or text you typed exactly as it is. A value that
+  contained a later placeholder of its line, such as `{KEY}` in the configuration file's path, or
+  `{WORLD}` in a description set with `/world set`, was rewritten by it. This covers the removed-key
+  warning, the world-environment and invalid-difficulty warnings, the `/world list` lines and the
+  `/world set` confirmation (UltiKits/UltiWorlds#43).
+- 控制台与聊天中的行现在按原样显示路径、世界名或你输入的文字。此前若值中含有该行随后的占位符（例如配置文件路径中的
+  `{KEY}`，或用 `/world set` 设置的描述中的 `{WORLD}`），会被其改写。涉及已移除配置键的警告、世界环境与无效难度的警告、
+  `/world list` 的各行以及 `/world set` 的确认消息（UltiKits/UltiWorlds#43）。
+
+- `/world info` shows every setting a world stores: its difficulty and all twelve flags by name
+  (PvP, monsters, animals, weather, the four protections, hidden, locked, blocked and auto-unload).
+  It showed four, one of them a single "protection" line for all four protections. `/world info
+  <world>` shows a named world. `/world set` now also accepts `autoUnload`, `protectBreak`,
+  `protectPlace`, `protectInteract` and `protectExplosion`, which had no command to change them
+  (UltiKits/UltiWorlds#17).
+- `/world info` 现在显示世界保存的全部设置：难度，以及按名称列出的全部十二个开关（PvP、怪物、动物、天气、四项保护、隐藏、
+  锁定、禁止进入和自动卸载）。此前只显示四项，其中一项是把四种保护合并成的一行。`/world info <世界>` 可查看指定世界。
+  `/world set` 现在还接受 `autoUnload`、`protectBreak`、`protectPlace`、`protectInteract` 与 `protectExplosion`，
+  此前没有任何命令能修改它们（UltiKits/UltiWorlds#17）。
+
+- A world description with several lines shows every line in the world list's icon. The whole
+  description was one lore line, and the client shows nothing after a line break inside one, so
+  only the first line appeared. A Windows line break (`\r\n`) now splits the same way in the list
+  and in the lines shown on teleport (UltiKits/UltiWorlds#26).
+- 多行的世界描述现在会在世界列表图标中显示每一行。此前整段描述是一行 lore，而客户端不显示一行 lore 中换行之后的内容，
+  因此只显示了第一行。Windows 换行（`\r\n`）现在在列表和传送时显示的描述中按同样方式拆分（UltiKits/UltiWorlds#26）。
+
+- A player who hits another player in a world with PvP off is now told "PVP is disabled in this
+  world!". The hit was stopped, but the line never arrived: the server stops such a hit before the
+  module's damage handler runs, so the line is now sent on the attack attempt (UltiKits/UltiWorlds#23).
+- 在关闭 PvP 的世界中攻击其他玩家时，攻击者现在会收到“此世界已禁用 PVP”的提示。此前攻击会被阻止，但提示从未送达：
+  服务器会在模块的伤害处理之前拦下这次攻击，因此提示现在改为在攻击发起时发送（UltiKits/UltiWorlds#23）。
+
+- A world with weather disabled (`/world set <world> weather false`) now also keeps thunder from
+  starting. Rain was blocked, but thunder is a separate state, so a world could still turn
+  thundering (UltiKits/UltiWorlds#24).
+- 关闭天气的世界（`/world set <世界> weather false`）现在也会阻止雷暴开始。此前只阻止了下雨，而雷暴是独立的状态，
+  因此世界仍可能进入雷暴（UltiKits/UltiWorlds#24）。
 
 - `language: zh` now applies to this module's console lines that were fixed English text: the
   lines about a world's environment when it is loaded, the refusal to delete a protected world, the
@@ -270,6 +333,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- The `/w` alias of `/world`. `w` is a vanilla command label (`/msg`'s alias, with `/tell`), so
+  `/w <player> <message>` could reach this module instead of a private message. Use `/world` or
+  `/worlds` (UltiKits/UltiWorlds#45).
+- 移除 `/world` 的别名 `/w`。`w` 是原版命令标签（`/msg` 的别名，与 `/tell` 相同），因此 `/w <玩家> <消息>`
+  可能被本模块接收，而不是发送私聊。请使用 `/world` 或 `/worlds`（UltiKits/UltiWorlds#45）。
+
 - Six `config/worlds.yml` keys that no code ever read: `gui_title` and `messages.world_teleport`,
   `messages.world_not_found`, `messages.no_permission`, `messages.world_created`,
   `messages.world_deleted`. Changing any of them never changed anything: the world list's title and
@@ -277,6 +346,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   change them. They are gone from the shipped `config/worlds.yml` too, so a new server's file no
   longer carries them. A leftover key in an existing file is reported at startup and on reload (see
   Added) (part of UltiKits/UltiWorlds#38).
+- Two deprecated `config/worlds.yml` keys that no code read: `unload_empty_worlds` (the key that
+  decides is `auto_unload.enabled`) and `unload_delay` (`auto_unload.unload_after`). They are gone
+  from the shipped file, and a leftover in an existing file is reported like the six above
+  (UltiKits/UltiWorlds#38).
+- 移除 `config/worlds.yml` 中两个从未被任何代码读取的已弃用键：`unload_empty_worlds`（起作用的是 `auto_unload.enabled`）
+  与 `unload_delay`（起作用的是 `auto_unload.unload_after`）。它们已从出厂文件中删除，已有文件中残留的这两个键会像上面六个键一样被提示
+  （UltiKits/UltiWorlds#38）。
 - 38 language-file entries that no code displayed, from `lang/en.yml` and `lang/zh.yml`: the older
   `command.help.*` help lines (other than `unprotect`, `unblock`, `difficulty` and `postcmd`, which
   `/world help` shows), `command.usage`, `command.set_options`, the unused `common` words for on and

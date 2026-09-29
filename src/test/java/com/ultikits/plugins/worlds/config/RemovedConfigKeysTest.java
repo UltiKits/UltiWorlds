@@ -36,7 +36,7 @@ class RemovedConfigKeysTest {
 
     private static final List<String> REMOVED = Arrays.asList("gui_title", "messages.world_teleport",
             "messages.world_not_found", "messages.no_permission", "messages.world_created",
-            "messages.world_deleted");
+            "messages.world_deleted", "unload_empty_worlds", "unload_delay");
 
     @TempDir
     Path tempDir;
@@ -70,7 +70,7 @@ class RemovedConfigKeysTest {
     }
 
     @Test
-    @DisplayName("Positive control: each of the six keys still in the file gets its own warning, in the server's language")
+    @DisplayName("Positive control: each of the eight keys still in the file gets its own warning, in the server's language")
     void warnsOncePerLeftoverKey() throws Exception {
         File file = writeConfig(true);
         for (String code : new String[] {"en", "zh"}) {
@@ -78,6 +78,10 @@ class RemovedConfigKeysTest {
             for (String key : REMOVED) {
                 String reason = "gui_title".equals(key)
                         ? CatalogueText.text(code, "removed_key_reason_gui_title")
+                        : "unload_empty_worlds".equals(key)
+                        ? CatalogueText.text(code, "removed_key_reason_unload_empty_worlds")
+                        : "unload_delay".equals(key)
+                        ? CatalogueText.text(code, "removed_key_reason_unload_delay")
                         : CatalogueText.text(code, "removed_key_reason_message");
                 expected.add(CatalogueText.text(code, "removed_key_warning")
                         .replace("{FILE}", file.getPath()).replace("{KEY}", key).replace("{REASON}", reason));
@@ -130,9 +134,35 @@ class RemovedConfigKeysTest {
         String first = CatalogueText.text("en", "removed_key_warning").replace("{FILE}", file.getPath())
                 .replace("{KEY}", "gui_title").replace("{REASON}", CatalogueText.text("en", "removed_key_reason_gui_title"));
 
+        // The reload also asks the world service to name an unknown default_world again.
+        com.ultikits.ultitools.context.SimpleContainer context = mock(com.ultikits.ultitools.context.SimpleContainer.class);
+        com.ultikits.plugins.worlds.service.WorldService worldService = mock(com.ultikits.plugins.worlds.service.WorldService.class);
+        when(plugin.getContext()).thenReturn(context);
+        when(context.getBean(com.ultikits.plugins.worlds.service.WorldService.class)).thenReturn(worldService);
+
         plugin.registerSelf();
         onReload.invoke(plugin);
 
         verify(logger, org.mockito.Mockito.times(2)).warn(first);
+        // By name: the check is reached reflectively so this compiles against a tree without it.
+        assertThat(org.mockito.Mockito.mockingDetails(worldService).getInvocations())
+                .extracting(invocation -> invocation.getMethod().getName())
+                .containsExactly("warnAboutUnknownDefaultWorld");
+    }
+
+    @Test
+    @DisplayName("A file path containing {KEY} or {REASON} is shown as written (UltiKits/UltiWorlds#43)")
+    void pathIsNotReExpanded() throws Exception {
+        File dir = new File(tempDir.toFile(), "srv{KEY}{REASON}");
+        org.assertj.core.api.Assertions.assertThat(dir.mkdirs()).isTrue();
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("gui_title", "operator text");
+        File file = new File(dir, "worlds.yml");
+        yaml.save(file);
+
+        List<String> warnings = warningsFor(file, pluginIn("en"));
+
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0)).startsWith(file.getPath() + " still contains 'gui_title'");
     }
 }

@@ -3,6 +3,7 @@ package com.ultikits.plugins.worlds.service;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.conversation.WorldCreateConversation;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.util.Placeholders;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.PostConstruct;
@@ -43,8 +44,18 @@ public class WorldService {
     // Teleport cooldowns
     private final Map<UUID, Long> tpCooldowns = new ConcurrentHashMap<>();
 
+    /**
+     * The time source of the teleport cooldown, in milliseconds. A field so a test can hold time
+     * still: a cooldown boundary read off the real clock depends on whether it ticks between two
+     * calls (UltiKits/UltiWorlds#30).
+     */
+    private java.util.function.LongSupplier clock = System::currentTimeMillis;
+
     // Empty world timer (tracks how long a world has been empty)
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
+
+    /** Seconds counted since the last auto-unload check, by {@link #autoUnloadTick()}. Main thread only. */
+    private int secondsSinceAutoUnloadCheck = 0;
 
     // The time limit and the deletion record both /world delete confirmations follow
     // (UltiKits/UltiWorlds#19); every deletion below voids earlier confirmations before it starts.
@@ -60,10 +71,15 @@ public class WorldService {
     public void init() {
         this.dataOperator = plugin.getDataOperator(WorldSettings.class);
 
-        // Load configured worlds on start
+        // Load configured worlds on start; an entry that cannot be loaded is named, not skipped
+        // silently (maintainer decision 2026-09-27: refuse and name).
         for (String worldName : config.getLoadWorldsOnStart()) {
-            loadWorld(worldName);
+            if (!loadWorld(worldName)) {
+                plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.load_on_start_failed"),
+                    "{WORLD}", String.valueOf(worldName)));
+            }
         }
+        warnAboutUnknownDefaultWorld();
 
         // Initialize settings for existing worlds
         for (World world : Bukkit.getWorlds()) {
@@ -72,10 +88,44 @@ public class WorldService {
     }
 
     /**
-     * Auto-unload empty worlds periodically.
-     * Scheduled task runs every 60 seconds (1200 ticks).
+     * Names a {@code default_world} that is no loaded world, with the world players are sent to
+     * instead: the server's first world. It was silent, so a typo quietly redirected every player
+     * moved out of an unloaded or blocked world. Run at start and on every reload of the module.
      */
-    @Scheduled(period = 1200, async = false)
+    public void warnAboutUnknownDefaultWorld() {
+        String configured = config.getDefaultWorld();
+        if (configured == null || Bukkit.getWorld(configured) != null || Bukkit.getWorlds().isEmpty()) {
+            return;
+        }
+        plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.default_world_unknown"),
+            "{VALUE}", configured,
+            "{FALLBACK}", Bukkit.getWorlds().get(0).getName()));
+    }
+
+    /**
+     * Counts seconds toward {@code auto_unload.check_interval} and runs
+     * {@link #checkAutoUnloadEmptyWorlds()} each time that many seconds have passed.
+     * <p>
+     * The interval used to be read by nothing: the check ran on a fixed 1200-tick schedule, every
+     * 60 seconds whatever the file said (UltiKits/UltiWorlds#38). The framework's config-bound
+     * {@code @Scheduled} would read the key directly, but a module using it must declare
+     * {@code api-version: 630}, and this module still declares 621 until the release pins it; the
+     * framework refuses such a module at load. Counting here applies the key, and a value changed by
+     * {@code /ul reload} or the panel, within a second.
+     */
+    @Scheduled(delay = 20, period = 20, async = false)
+    public void autoUnloadTick() {
+        secondsSinceAutoUnloadCheck++;
+        if (secondsSinceAutoUnloadCheck >= config.getEmptyWorldCheckInterval()) {
+            secondsSinceAutoUnloadCheck = 0;
+            checkAutoUnloadEmptyWorlds();
+        }
+    }
+
+    /**
+     * Auto-unload empty worlds. Run by {@link #autoUnloadTick()} every
+     * {@code auto_unload.check_interval} seconds.
+     */
     public void checkAutoUnloadEmptyWorlds() {
         if (!config.isAutoUnloadEmptyWorlds()) {
             return;
@@ -140,9 +190,9 @@ public class WorldService {
                 try {
                     world.setDifficulty(Difficulty.valueOf(settings.getDifficulty()));
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warn(plugin.i18n("log.invalid_difficulty")
-                        .replace("{WORLD}", worldName)
-                        .replace("{VALUE}", String.valueOf(settings.getDifficulty())));
+                    plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.invalid_difficulty"),
+                        "{WORLD}", worldName,
+                        "{VALUE}", String.valueOf(settings.getDifficulty())));
                 }
             }
         }
@@ -277,11 +327,7 @@ public class WorldService {
         if (!config.isShowDescriptionOnTeleport()) {
             return;
         }
-        String description = settings.getDescription();
-        if (description == null || description.isEmpty()) {
-            return;
-        }
-        for (String line : description.split("\\n")) {
+        for (String line : WorldSettings.descriptionLines(settings.getDescription())) {
             String parsed = org.bukkit.ChatColor.translateAlternateColorCodes('&',
                 line.replace("{player}", player.getName())
                     .replace("{world}", displayName));
@@ -486,10 +532,10 @@ public class WorldService {
         }
 
         World.Environment inferred = nether ? World.Environment.NETHER : World.Environment.THE_END;
-        plugin.getLogger().warn(plugin.i18n("log.environment.inferred")
-            .replace("{WORLD}", name)
-            .replace("{ENVIRONMENT}", String.valueOf(inferred))
-            .replace("{ENTRY}", marker));
+        plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.environment.inferred"),
+            "{WORLD}", name,
+            "{ENVIRONMENT}", String.valueOf(inferred),
+            "{ENTRY}", marker));
         return inferred;
     }
 
@@ -529,9 +575,9 @@ public class WorldService {
         // states an outcome that has not happened and may not: `createWorld` can return null, and
         // the operator would then hold one line saying the world was loaded and another saying the
         // command failed. What is true at this moment is what this module supplies.
-        plugin.getLogger().warn(plugin.i18n("log.environment.none")
-            .replace("{WORLD}", name)
-            .replace("{OBSERVATION}", observation));
+        plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.environment.none"),
+            "{WORLD}", name,
+            "{OBSERVATION}", observation));
     }
 
 
@@ -798,29 +844,49 @@ public class WorldService {
      * Check teleport cooldown.
      */
     public boolean canTeleport(UUID playerUuid) {
-        Long lastTp = tpCooldowns.get(playerUuid);
+        Long lastTp = liveCooldownEntry(playerUuid);
         if (lastTp == null) {
             return true;
         }
-        return System.currentTimeMillis() - lastTp > config.getTpCooldown() * 1000L;
+        return clock.getAsLong() - lastTp > config.getTpCooldown() * 1000L;
     }
+
+    /**
+     * A player's last teleport time, or {@code null}. An entry older than the longest cooldown the
+     * setting accepts can no longer block anyone (strictly older: {@link #canTeleport} still blocks at
+     * exactly the cooldown), so it is dropped here and whenever a teleport is
+     * recorded: the table holds only players who teleported within that window. An entry past the
+     * current cooldown but inside it is kept, so raising the cooldown and reloading still counts it.
+     */
+    private Long liveCooldownEntry(UUID playerUuid) {
+        Long lastTp = tpCooldowns.get(playerUuid);
+        if (lastTp != null && clock.getAsLong() - lastTp > KEEP_COOLDOWN_MS) {
+            tpCooldowns.remove(playerUuid, lastTp);
+            return null;
+        }
+        return lastTp;
+    }
+
+    private static final long KEEP_COOLDOWN_MS = WorldConfig.MAX_TP_COOLDOWN_SECONDS * 1000L;
     
     /**
      * Set teleport cooldown.
      */
     public void setTpCooldown(UUID playerUuid) {
-        tpCooldowns.put(playerUuid, System.currentTimeMillis());
+        long now = clock.getAsLong();
+        tpCooldowns.values().removeIf(time -> now - time > KEEP_COOLDOWN_MS);
+        tpCooldowns.put(playerUuid, now);
     }
     
     /**
      * Get remaining cooldown.
      */
     public int getRemainingCooldown(UUID playerUuid) {
-        Long lastTp = tpCooldowns.get(playerUuid);
+        Long lastTp = liveCooldownEntry(playerUuid);
         if (lastTp == null) {
             return 0;
         }
-        long remaining = (config.getTpCooldown() * 1000L) - (System.currentTimeMillis() - lastTp);
+        long remaining = (config.getTpCooldown() * 1000L) - (clock.getAsLong() - lastTp);
         return Math.max(0, (int) (remaining / 1000));
     }
     

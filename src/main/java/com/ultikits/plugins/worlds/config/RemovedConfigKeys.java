@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import com.ultikits.plugins.worlds.util.Placeholders;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -44,6 +45,8 @@ public final class RemovedConfigKeys {
         removed.put("messages.no_permission", "removed_key_reason_message");
         removed.put("messages.world_created", "removed_key_reason_message");
         removed.put("messages.world_deleted", "removed_key_reason_message");
+        removed.put("unload_empty_worlds", "removed_key_reason_unload_empty_worlds");
+        removed.put("unload_delay", "removed_key_reason_unload_delay");
         REMOVED = Collections.unmodifiableMap(removed);
     }
 
@@ -76,6 +79,10 @@ public final class RemovedConfigKeys {
             case "messages.world_created":
             case "messages.world_deleted":
                 return plugin.i18n("removed_key_reason_message");
+            case "unload_empty_worlds":
+                return plugin.i18n("removed_key_reason_unload_empty_worlds");
+            case "unload_delay":
+                return plugin.i18n("removed_key_reason_unload_delay");
             default:
                 throw new IllegalStateException("No guidance for removed key " + removedKey);
         }
@@ -108,10 +115,11 @@ public final class RemovedConfigKeys {
                 // No "[UltiWorlds]" prefix: the module logger adds that itself, and the module is
                 // still named in the sentence for any consumer that does not.
                 String reason = reasonFor(entry.getKey(), plugin);
-                warn.accept(plugin.i18n("removed_key_warning")
-                        .replace("{FILE}", configFile.getPath())
-                        .replace("{KEY}", entry.getKey())
-                        .replace("{REASON}", reason));
+                // One pass: the path is inserted as written, never rescanned for {KEY}/{REASON}.
+                warn.accept(Placeholders.fill(plugin.i18n("removed_key_warning"),
+                        "{FILE}", configFile.getPath(),
+                        "{KEY}", entry.getKey(),
+                        "{REASON}", reason));
             }
         }
     }

@@ -160,8 +160,9 @@ world:
     sender_not_allowed: "§c只有玩家或服务器控制台可以删除世界。"
 
   set:
-    invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、displayname、description、icon、difficulty"
+    invalid_option: "§c无效的选项！可用：pvp、monsters、animals、weather、hidden、locked、blocked、autoUnload、protectBreak、protectPlace、protectInteract、protectExplosion、displayname、description、icon、difficulty"
     success: "§a已将世界 {WORLD} 的 {OPTION} 设置为 {VALUE}"
+    invalid_icon: "§c未知的物品 '{VALUE}'：图标必须是物品名，例如 GRASS_BLOCK。"
 
   protect:
     enabled: "§a已为世界 {WORLD} 启用完整保护"
@@ -182,10 +183,19 @@ world:
     environment: "§7环境: §f{VALUE}"
     seed: "§7种子: §f{VALUE}"
     players: "§7玩家数: §f{VALUE}"
+    difficulty: "§7难度: §f{VALUE}"
     pvp: "§7PVP: §f{VALUE}"
     monsters: "§7怪物: §f{VALUE}"
-    protection: "§7保护: §f{VALUE}"
+    animals: "§7动物: §f{VALUE}"
+    weather: "§7天气: §f{VALUE}"
+    protect_break: "§7禁止破坏方块: §f{VALUE}"
+    protect_place: "§7禁止放置方块: §f{VALUE}"
+    protect_interact: "§7禁止交互: §f{VALUE}"
+    protect_explosion: "§7禁止爆炸破坏: §f{VALUE}"
+    hidden: "§7在列表中隐藏: §f{VALUE}"
+    locked: "§7已锁定: §f{VALUE}"
     blocked: "§7已禁止: §f{VALUE}"
+    auto_unload: "§7无人时自动卸载: §f{VALUE}"
 
 # ==================== 帮助菜单 ====================
 # 由 WorldCommand#help() 通过 "help.*" key 调用；管理员部分还会显示下方四条
@@ -194,7 +204,7 @@ help:
   header: "§6========== UltiWorlds 帮助 =========="
   list: "§e/world list §7- 列出所有已加载的世界"
   tp: "§e/world tp <世界> §7- 传送到指定世界"
-  info: "§e/world info §7- 查看当前世界的信息"
+  info: "§e/world info [世界] §7- 查看世界的设置（省略时为当前世界）"
   wizard: "§e/world wizard §7- 启动世界创建向导"
   admin_header: "§6========== 管理员命令 =========="
   create: "§e/world create <名称> [类型] §7- 创建世界（类型：NORMAL、NETHER、THE_END）"
@@ -227,6 +237,9 @@ log:
   auto_unload: "正在自动卸载无人的世界：{WORLD}"
   invalid_difficulty: "世界 {WORLD} 的难度无效：{VALUE}"
   settings_update_failed: "更新世界设置失败"
+  default_world_unknown: "config/worlds.yml 将 default_world 设为 '{VALUE}'，但这不是已加载的世界。从被卸载或被禁止进入的世界中移出的玩家会改为前往服务器的第一个世界 '{FALLBACK}'。请更正该值并执行 /ul reload。"
+  load_on_start_failed: "config/worlds.yml 的 load_worlds_on_start 中列出了 '{WORLD}'，但无法加载这个名字的世界，因此已跳过。请更正或删除该项。"
+  shared_world_duplicate: "config/worlds.yml 的 world_isolation.shared_worlds 中列出了世界 '{ENTRY}'，但 '{FIRST}' 已在其中列出，而世界名匹配时不区分大小写。'{ENTRY}' 被忽略：该世界仍属于 '{FIRST}' 所在的组。删除其中一项即可不再提示。"
   environment:
     inferred: "世界 '{WORLD}'：本模块以 {ENVIRONMENT} 作为加载时的环境，因为其文件夹包含顶层 '{ENTRY}' 目录，且没有顶层 'region' 目录。这些文件夹形态各自意味着什么、可以怎么处理，见本模块 CHANGELOG.md 中本版本的变更条目，以及 UltiKits/UltiWorlds#22。"
     none: "世界 '{WORLD}'：本模块不提供环境，因为{OBSERVATION}。本模块不会猜测无法从文件夹读出的环境，因此使用服务器自身的默认值——与本版本之前相同。这些文件夹形态各自意味着什么、可以怎么处理，见本模块 CHANGELOG.md 中本版本的变更条目，以及 UltiKits/UltiWorlds#22。"
@@ -249,3 +262,5 @@ log:
 removed_key_warning: "{FILE} 仍包含 '{KEY}'，当前版本的 UltiWorlds 已不再读取该键。{REASON} 从文件中删除该键即可消除此警告。"
 removed_key_reason_gui_title: "从未有代码读取它：世界列表的标题来自本模块的语言文件（lang/en.yml、lang/zh.yml 中的 gui.title），要修改请改那里。"
 removed_key_reason_message: "从未有代码读取它：所有世界相关消息都来自本模块的语言文件（lang/en.yml、lang/zh.yml），要修改请改那里。"
+removed_key_reason_unload_empty_worlds: "它是已弃用的别名，从未有代码读取：是否卸载无人的世界由 auto_unload.enabled 决定，要修改请改那里。"
+removed_key_reason_unload_delay: "它是已弃用的别名，从未有代码读取：无人的世界在多少秒后卸载由 auto_unload.unload_after 决定，要修改请改那里。"

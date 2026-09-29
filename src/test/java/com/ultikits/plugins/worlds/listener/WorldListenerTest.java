@@ -238,7 +238,8 @@ class WorldListenerTest {
             listener.onPlayerDamage(event);
 
             verify(event).setCancelled(true);
-            verify(attacker).sendMessage(anyString());
+            // The attacker is told on the attack attempt, once (UltiKits/UltiWorlds#23)
+            verify(attacker, never()).sendMessage(anyString());
         }
 
         @Test
@@ -1084,6 +1085,191 @@ class WorldListenerTest {
 
             // Should not throw NPE
             verify(toWorld).setPVP(anyBoolean());
+        }
+    }
+
+    // ==================== UltiKits/UltiWorlds#24 ====================
+
+    /**
+     * Rain and thunder are two independent states; the weather switch blocks both from starting
+     * (UltiKits/UltiWorlds#24). The handler is found by its parameter type, so this compiles before
+     * the handler exists.
+     */
+    @Nested
+    @DisplayName("Disabled weather also keeps thunder from starting (UltiKits/UltiWorlds#24)")
+    class ThunderControl {
+
+        private void fire(org.bukkit.event.weather.ThunderChangeEvent event) throws Exception {
+            java.lang.reflect.Method handler = null;
+            for (java.lang.reflect.Method m : WorldListener.class.getMethods()) {
+                if (m.isAnnotationPresent(org.bukkit.event.EventHandler.class)
+                        && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0] == org.bukkit.event.weather.ThunderChangeEvent.class) {
+                    handler = m;
+                }
+            }
+            assertThat(handler).as("an @EventHandler for ThunderChangeEvent").isNotNull();
+            handler.invoke(listener, event);
+        }
+
+        private org.bukkit.event.weather.ThunderChangeEvent thunder(boolean weatherEnabled, boolean toThunder) {
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setWeatherEnabled(weatherEnabled);
+            lenient().when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            org.bukkit.event.weather.ThunderChangeEvent event = mock(org.bukkit.event.weather.ThunderChangeEvent.class);
+            lenient().when(event.getWorld()).thenReturn(world);
+            lenient().when(event.toThunderState()).thenReturn(toThunder);
+            return event;
+        }
+
+        @Test
+        @DisplayName("weather disabled: thunder starting is cancelled")
+        void thunderStartingIsCancelled() throws Exception {
+            org.bukkit.event.weather.ThunderChangeEvent event = thunder(false, true);
+            fire(event);
+            verify(event).setCancelled(true);
+        }
+
+        @Test
+        @DisplayName("weather disabled: thunder stopping is allowed")
+        void thunderStoppingIsAllowed() throws Exception {
+            org.bukkit.event.weather.ThunderChangeEvent event = thunder(false, false);
+            fire(event);
+            verify(event, never()).setCancelled(anyBoolean());
+        }
+
+        @Test
+        @DisplayName("control: weather enabled, thunder starts")
+        void weatherEnabledLetsThunderStart() throws Exception {
+            org.bukkit.event.weather.ThunderChangeEvent event = thunder(true, true);
+            fire(event);
+            verify(event, never()).setCancelled(anyBoolean());
+        }
+    }
+
+    // ==================== UltiKits/UltiWorlds#23 ====================
+
+    /**
+     * With PvP off, the server itself may stop a player's hit before any damage event reaches this
+     * module, so the refusal is said on the attack attempt, which always fires
+     * (UltiKits/UltiWorlds#23). The damage handler still cancels, silently, so the attacker is told
+     * once.
+     */
+    @Nested
+    @DisplayName("The attacker is told PvP is off on the attack attempt (UltiKits/UltiWorlds#23)")
+    class PvpMessageOnAttempt {
+
+        /** The attempt handler, found by name, taking the event under whatever parameter type it declares. */
+        private void fire(io.papermc.paper.event.player.PrePlayerAttackEntityEvent event) throws Exception {
+            java.lang.reflect.Method handler = null;
+            for (java.lang.reflect.Method m : WorldListener.class.getDeclaredMethods()) {
+                if ("onPlayerAttackAttempt".equals(m.getName()) && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0].isInstance(event)) {
+                    handler = m;
+                }
+            }
+            assertThat(handler).as("an attack-attempt handler").isNotNull();
+            handler.setAccessible(true); // NOPMD - the handler is package-private once it takes a plain Event
+            handler.invoke(listener, event);
+        }
+
+        private Player attacker;
+
+        private io.papermc.paper.event.player.PrePlayerAttackEntityEvent attempt(
+                boolean pvpEnabled, org.bukkit.entity.Entity attacked, boolean willAttack) {
+            attacker = UltiWorldsTestHelper.createMockPlayer("Attacker", UUID.randomUUID());
+            World world = mock(World.class);
+            lenient().when(world.getName()).thenReturn("world");
+            lenient().when(attacked.getWorld()).thenReturn(world);
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPvpEnabled(pvpEnabled);
+            lenient().when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+            return new io.papermc.paper.event.player.PrePlayerAttackEntityEvent(attacker, attacked, willAttack);
+        }
+
+        @Test
+        @DisplayName("PvP off: attacking a player tells the attacker")
+        void attackerIsTold() throws Exception {
+            Player victim = UltiWorldsTestHelper.createMockPlayer("Victim", UUID.randomUUID());
+            fire(attempt(false, victim, true));
+            verify(attacker).sendMessage("protection.pvp_disabled");
+        }
+
+        @Test
+        @DisplayName("control: PvP on, nothing is said")
+        void pvpOnSaysNothing() throws Exception {
+            Player victim = UltiWorldsTestHelper.createMockPlayer("Victim", UUID.randomUUID());
+            fire(attempt(true, victim, true));
+            verify(attacker, never()).sendMessage(anyString());
+        }
+
+        @Test
+        @DisplayName("PvP off: hitting a mob, or a swing that will not attack, says nothing")
+        void notAPlayerAttack() throws Exception {
+            fire(attempt(false, mock(org.bukkit.entity.Zombie.class), true));
+            verify(attacker, never()).sendMessage(anyString());
+            Player victim = UltiWorldsTestHelper.createMockPlayer("Victim", UUID.randomUUID());
+            fire(attempt(false, victim, false));
+            verify(attacker, never()).sendMessage(anyString());
+        }
+    }
+
+    // ==================== UltiKits/UltiWorlds#23, third-party review round 1 ====================
+
+    /**
+     * The attack-attempt event exists only on Paper builds from November 2022 on. A method that names
+     * it would make {@code WorldListener} fail to load on an older server (resolving a class's methods
+     * resolves their parameter types), so the handler is registered by the event's name at start and
+     * takes a plain {@code Event}; on a server without the event nothing is registered and the rest of
+     * the listener works.
+     */
+    @Nested
+    @DisplayName("The listener names no Paper-only type, and registers the attempt handler only where it exists")
+    class PaperOnlyEventIsOptional {
+
+        @Test
+        @DisplayName("no method of WorldListener names a class from io.papermc")
+        void noPaperTypeInSignatures() {
+            for (java.lang.reflect.Method m : WorldListener.class.getDeclaredMethods()) {
+                for (Class<?> type : m.getParameterTypes()) {
+                    assertThat(type.getName()).as("%s parameter", m.getName()).doesNotStartWith("io.papermc.");
+                }
+                assertThat(m.getReturnType().getName()).as("%s return", m.getName()).doesNotStartWith("io.papermc.");
+            }
+        }
+
+        @Test
+        @DisplayName("registered at start, a real attack attempt reaches it and the attacker is told")
+        void registeredHandlerReceivesTheEvent() throws Exception {
+            org.mockbukkit.mockbukkit.MockBukkit.createMockPlugin("UltiTools");
+            java.lang.reflect.Method register = WorldListener.class.getMethod("registerAttackAttemptHandler");
+            register.invoke(listener);
+
+            Player attacker = UltiWorldsTestHelper.createMockPlayer("Attacker", UUID.randomUUID());
+            Player victim = UltiWorldsTestHelper.createMockPlayer("Victim", UUID.randomUUID());
+            World world = mock(World.class);
+            when(world.getName()).thenReturn("world");
+            when(victim.getWorld()).thenReturn(world);
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            settings.setPvpEnabled(false);
+            when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
+
+            org.bukkit.Bukkit.getPluginManager().callEvent(
+                    new io.papermc.paper.event.player.PrePlayerAttackEntityEvent(attacker, victim, true));
+
+            verify(attacker).sendMessage("protection.pvp_disabled");
+        }
+
+        @Test
+        @DisplayName("an event class the server does not have is looked up as absent, so nothing is registered")
+        void absentEventTypeIsAbsent() throws Exception {
+            java.lang.reflect.Method lookup = WorldListener.class.getDeclaredMethod("eventType", String.class);
+            lookup.setAccessible(true); // NOPMD - package-private lookup
+            assertThat(lookup.invoke(null, "io.papermc.paper.event.player.NoSuchEvent")).isNull();
+            assertThat(lookup.invoke(null, "io.papermc.paper.event.player.PrePlayerAttackEntityEvent"))
+                    .as("control: a present class is found").isNotNull();
         }
     }
 }

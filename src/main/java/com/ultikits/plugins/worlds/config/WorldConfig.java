@@ -23,6 +23,12 @@ import lombok.Setter;
 @ConfigEntity("config/worlds.yml")
 public class WorldConfig extends AbstractConfigEntity {
 
+    /**
+     * The longest {@code tp_to_world.cooldown} the setting accepts, in seconds. The teleport cooldown
+     * table keeps an entry for this long, so a raised cooldown still counts it.
+     */
+    public static final int MAX_TP_COOLDOWN_SECONDS = 300;
+
     @NotEmpty
     @ConfigEntry(path = "default_world", comment = "Default world name")
     private String defaultWorld = "world";
@@ -46,13 +52,6 @@ public class WorldConfig extends AbstractConfigEntity {
     @ConfigEntry(path = "auto_unload.unload_after", comment = "Unload world after being empty for this many seconds")
     private int emptyWorldUnloadAfter = 300;
     
-    // Legacy compat
-    @ConfigEntry(path = "unload_empty_worlds", comment = "Deprecated: use auto_unload.enabled instead")
-    private boolean unloadEmptyWorlds = false;
-    
-    @ConfigEntry(path = "unload_delay", comment = "Deprecated: use auto_unload.unload_after instead")
-    private int unloadDelay = 300;
-    
     // ==================== Teleport Settings ====================
 
     @ConfigEntry(path = "tp_to_world.enabled", comment = "Allow players to teleport between worlds")
@@ -61,7 +60,7 @@ public class WorldConfig extends AbstractConfigEntity {
     @ConfigEntry(path = "tp_to_world.permission_per_world", comment = "Require permission for each world")
     private boolean permissionPerWorld = false;
 
-    @Range(min = 0, max = 300)
+    @Range(min = 0, max = MAX_TP_COOLDOWN_SECONDS)
     @ConfigEntry(path = "tp_to_world.cooldown", comment = "World teleport cooldown in seconds")
     private int tpCooldown = 10;
     
