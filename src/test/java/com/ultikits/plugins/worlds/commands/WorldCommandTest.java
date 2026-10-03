@@ -143,7 +143,7 @@ class WorldCommandTest {
                 when(world1.getPlayers()).thenReturn(Collections.emptyList());
                 when(world2.getPlayers()).thenReturn(Collections.emptyList());
 
-                when(mockWorldService.getAllWorlds()).thenReturn(Arrays.asList(world1, world2));
+                when(mockWorldService.getVisibleWorlds()).thenReturn(Arrays.asList(world1, world2));
 
                 WorldSettings settings1 = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 WorldSettings settings2 = UltiWorldsTestHelper.createSampleWorldSettings("pvp");
@@ -1784,7 +1784,7 @@ class WorldCommandTest {
                 when(world1.getName()).thenReturn("world");
                 when(world1.getPlayers()).thenReturn(Collections.emptyList());
 
-                when(mockWorldService.getAllWorlds()).thenReturn(Collections.singletonList(world1));
+                when(mockWorldService.getVisibleWorlds()).thenReturn(Collections.singletonList(world1));
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setDisplayName(null);
