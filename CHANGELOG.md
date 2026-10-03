@@ -123,6 +123,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/world delete` typed in another letter case than the world's name now deletes the world's own folder.
+  The world was found ignoring case and unloaded, but the folder was looked up under the typed text; on a
+  case-sensitive filesystem (Linux) that folder does not exist, so nothing was removed and the deletion
+  was reported as done, leaving the world on disk (UltiKits/UltiWorlds#52).
+- 以与世界名不同的大小写输入的 `/world delete` 现在会删除该世界自己的文件夹。此前世界按不区分大小写找到并被卸载，
+  文件夹却按输入的文字去找；在区分大小写的文件系统（Linux）上该文件夹并不存在，所以什么也没删除，却报告已删除，
+  世界仍留在磁盘上（UltiKits/UltiWorlds#52）。
+
 - A world-settings change whose stored row no longer exists is now logged as failed ("Failed to update
   world settings") instead of passing as saved. This can happen when two servers share one database and
   one deletes a world's row while the other still has it in memory, or when someone deletes the row by

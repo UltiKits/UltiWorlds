@@ -712,16 +712,19 @@ public class WorldService {
 
         World world = Bukkit.getWorld(name);
         boolean wasLoaded = world != null;
-        // The settings row is keyed by the server's own spelling of the name, which may differ in
-        // case from the text this was called with (UltiKits/UltiWorlds#46).
-        String settingsName = wasLoaded ? world.getName() : name;
+        // The settings row and the world's folder both carry the server's own spelling of the name,
+        // which may differ in case from the text this was called with: Bukkit#getWorld ignores
+        // case, a settings row is keyed by World#getName(), and on a case-sensitive filesystem the
+        // typed text names no folder at all (UltiKits/UltiWorlds#46, #52). A world that is not
+        // loaded has only the text it was called with.
+        String ownName = wasLoaded ? world.getName() : name;
         if (wasLoaded) {
             if (!unloadWorld(name, false)) {
                 return false;
             }
         }
 
-        File worldFolder = new File(Bukkit.getWorldContainer(), name);
+        File worldFolder = new File(Bukkit.getWorldContainer(), ownName);
         boolean isLink = Files.isSymbolicLink(worldFolder.toPath());
         // Ask what ENTRY is here, not what is at the other end of it. File#exists follows a link,
         // so for a link whose target is missing -- an unmounted volume, a moved directory -- it
@@ -753,9 +756,9 @@ public class WorldService {
 
         // Remove from database
         dataOperator.query()
-            .where("world_name").eq(settingsName)
+            .where("world_name").eq(ownName)
             .delete();
-        settingsCache.remove(settingsName);
+        settingsCache.remove(ownName);
 
         return wasLoaded || folderExisted;
     }
