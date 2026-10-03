@@ -127,6 +127,19 @@ class WorldServiceCaseMismatchedRowsTest {
     }
 
     @Test
+    @DisplayName("the warning does not claim the row is unused on every storage type: MySQL's default collation ignores case")
+    void warningDoesNotPromiseTheRowIsUnusedOnMysql() {
+        for (String language : new String[] {"en", "zh"}) {
+            assertThat(CatalogueText.text(language, "log.settings_row_case_mismatch"))
+                .as("the %s text names MySQL, whose lookup may still reach the row", language)
+                .contains("MySQL");
+        }
+        assertThat(CatalogueText.text("en", "log.settings_row_case_mismatch"))
+            .as("it must not tell the operator to delete a row by name, which on MySQL reaches both rows")
+            .doesNotContain("ignore or remove the old row");
+    }
+
+    @Test
     @DisplayName("a row that is exactly a loaded world's name, and a row of no loaded world, are not listed")
     void staysQuietWhenNothingMismatches() {
         rows.put("myworld", WorldSettings.createDefault("myworld"));
