@@ -117,7 +117,13 @@ public class WorldListPage extends BasePaginationPage {
             // runs inline at dispatch. One that opens another module's window must not do so inside
             // this click event, where Paper refuses it, so the teleport waits one tick
             // (UltiKits/UltiWorlds#50).
-            Runnable teleport = () -> worldService.teleportToWorld(player, world.getName());
+            // A clicker who left within that tick is not teleported: the world's console commands
+            // would otherwise run for a name no longer online.
+            Runnable teleport = () -> {
+                if (player.isOnline()) {
+                    worldService.teleportToWorld(player, world.getName());
+                }
+            };
             Plugin host = Bukkit.getPluginManager().getPlugin("UltiTools");
             if (host == null) {
                 teleport.run();
