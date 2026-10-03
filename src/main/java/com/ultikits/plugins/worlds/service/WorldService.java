@@ -9,6 +9,7 @@ import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.PostConstruct;
 import com.ultikits.ultitools.annotations.Scheduled;
 import com.ultikits.ultitools.annotations.Service;
+import com.ultikits.ultitools.exceptions.DataAccessException;
 import com.ultikits.ultitools.interfaces.DataOperator;
 
 import org.bukkit.*;
@@ -236,9 +237,20 @@ public class WorldService {
      */
     public void updateSettings(WorldSettings settings) {
         try {
-            dataOperator.update(settings);
-        } catch (IllegalAccessException e) {
-            plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e);
+            // The counted update says whether a stored row was written. A row that vanished since the
+            // settings were cached (deleted by another server on a shared database, or by an
+            // administrator) matches nothing, and that is the same failure a failed write is
+            // (UltiKits/UltiWorlds#51, UltiTools-Reborn#558).
+            if (dataOperator.updateCounted(settings) == 0) {
+                plugin.getLogger().error(plugin.i18n("log.settings_update_failed"));
+            }
+        } catch (DataAccessException e) {
+            // updateCounted wraps the entity-field reflection failure that update() declares as a
+            // checked IllegalAccessException; any other data failure was never caught here and is not.
+            if (!(e.getCause() instanceof IllegalAccessException)) {
+                throw e;
+            }
+            plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e.getCause());
         }
         settingsCache.put(settings.getWorldName(), settings);
     }

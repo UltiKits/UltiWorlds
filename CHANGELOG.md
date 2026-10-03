@@ -123,6 +123,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A world-settings change whose stored row no longer exists is now logged as failed ("Failed to update
+  world settings") instead of passing as saved. This can happen when two servers share one database and
+  one deletes a world's row while the other still has it in memory, or when someone deletes the row by
+  hand: the command answered success and the setting was gone after the next restart. Needs UltiTools-API
+  6.3.0 (UltiKits/UltiWorlds#51, UltiKits/UltiTools-Reborn#558).
+- 世界设置的改动若发现其对应的已存记录已不存在，现在会记录为失败（“更新世界设置失败”），而不是当作已保存。两台服务器共用一个
+  数据库、其中一台删除了某世界的记录而另一台内存里仍有它时，或有人手动删除该记录时都会这样：命令回复成功，下次重启后设置却没了。
+  需要 UltiTools-API 6.3.0（UltiKits/UltiWorlds#51，UltiKits/UltiTools-Reborn#558）。
+
 - Clicking a world in the world list now teleports you one tick after the click, not inside it. The
   teleport runs the world's post-teleport commands, and since UltiTools 6.3.0 a command of an
   UltiTools module runs the moment it is dispatched; one that opens another module's window (a menu,
