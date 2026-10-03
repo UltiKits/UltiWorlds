@@ -239,6 +239,7 @@ log:
   settings_update_failed: "Failed to update world settings"
   default_world_unknown: "config/worlds.yml sets default_world to '{VALUE}', which is not a loaded world. Players moved out of a world that is unloaded or blocked go to '{FALLBACK}', the server's first world, instead. Correct the value and run /ul reload."
   load_on_start_failed: "config/worlds.yml lists '{WORLD}' in load_worlds_on_start, but no world by that name could be loaded, so it was skipped. Correct or remove the entry."
+  settings_row_case_mismatch: "world_settings holds a row named '{ROW}' that matches the loaded world '{WORLD}' only when letter case is ignored. Settings are read and written under the world's own name '{WORLD}', so this row is not used, and it is not merged into the '{WORLD}' row. Re-apply any setting you still want with /world set {WORLD} ... and ignore or remove the old row."
   shared_world_duplicate: "config/worlds.yml lists world '{ENTRY}' in world_isolation.shared_worlds, but '{FIRST}' is already listed there, and world names are matched ignoring case. '{ENTRY}' is ignored: the world stays in the group of '{FIRST}'. Remove one of the two entries to silence this warning."
   environment:
     inferred: "World '{WORLD}': this module supplies {ENVIRONMENT} as the environment to load with, because its folder contains a top-level '{ENTRY}' directory and no top-level 'region' directory. What each of these folder shapes means, and what can be done about it, is in this module's CHANGELOG.md changelog entry for this version, and in UltiKits/UltiWorlds#22."

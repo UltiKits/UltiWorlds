@@ -312,7 +312,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
 
         Boolean boolValue = null;
         if (BOOLEAN_OPTIONS.contains(option.toLowerCase())) {
@@ -423,7 +423,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
         settings.enableFullProtection();
         worldService.updateSettings(settings);
         
@@ -444,7 +444,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
         settings.disableAllProtection();
         worldService.updateSettings(settings);
         
@@ -467,7 +467,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
         settings.setBlocked(true);
         worldService.updateSettings(settings);
         
@@ -499,7 +499,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
         settings.setBlocked(false);
         worldService.updateSettings(settings);
         
@@ -546,7 +546,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
         settings.setDifficulty(difficulty.name());
         worldService.updateSettings(settings);
         world.setDifficulty(difficulty);
@@ -581,7 +581,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(serverNameOf(worldName));
         String existing = settings.getPostTeleportCommands();
         if (existing == null || existing.isEmpty()) {
             settings.setPostTeleportCommands(joinedCommand);
@@ -606,7 +606,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(serverNameOf(worldName));
         String commands = settings.getPostTeleportCommands();
 
         player.sendMessage(i18n("success.post_cmd_list_header").replace("%world%", worldName));
@@ -632,7 +632,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(worldName);
+        WorldSettings settings = worldService.getOrCreateSettings(serverNameOf(worldName));
         settings.setPostTeleportCommands(null);
         worldService.updateSettings(settings);
 
@@ -799,6 +799,18 @@ public class WorldCommand extends BaseCommandExecutor {
             .collect(Collectors.toList());
     }
     
+    /**
+     * The server's own spelling of a world name the operator typed. {@code Bukkit#getWorld} resolves
+     * a name ignoring case, but a world's settings are stored, cached and read by
+     * {@code World#getName()}, so every command that touches settings must key them by this
+     * spelling, never by the text as typed (UltiKits/UltiWorlds#46). The typed text is returned
+     * unchanged when it names no loaded world.
+     */
+    private static String serverNameOf(String typedName) {
+        World world = Bukkit.getWorld(typedName);
+        return world != null ? world.getName() : typedName;
+    }
+
     /**
      * Refuse a name that is not filesystem-safe, or that does not name a loaded world. Sends the
      * same refusal message the other validating handlers already send.
