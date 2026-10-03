@@ -75,9 +75,17 @@ import java.util.stream.Stream;
  */
 final class I18nSourceScanner {
 
-    /** The Unicode block both guards detect: CJK Unified Ideographs, U+4E00 through U+9FFF. */
-    static final char CJK_FIRST = (char) 0x4E00;
-    static final char CJK_LAST = (char) 0x9FFF;
+    /**
+     * The contract both guards detect, character for character the framework's
+     * {@code check-cjk-scope.sh}: the Han script ({@link Character.UnicodeScript#HAN}, which covers
+     * the Unified Ideographs, Extension A, the supplementary ideograph planes, the compatibility
+     * ideographs and the radicals), CJK Symbols and Punctuation (U+3000 through U+303F) and
+     * Halfwidth and Fullwidth Forms (U+FF00 through U+FFEF). Kana is outside it.
+     */
+    static final int SYMBOLS_FIRST = 0x3000;
+    static final int SYMBOLS_LAST = 0x303F;
+    static final int FORMS_FIRST = 0xFF00;
+    static final int FORMS_LAST = 0xFFEF;
 
     /** Method names whose argument is a catalogue key. */
     static final Set<String> KEY_METHODS = new HashSet<>(Arrays.asList("i18n", "getLocalizedText"));
@@ -86,11 +94,14 @@ final class I18nSourceScanner {
     }
 
     static boolean containsCjk(String s) {
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c >= CJK_FIRST && c <= CJK_LAST) {
+        for (int i = 0; i < s.length(); ) {
+            int cp = s.codePointAt(i);
+            if (Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN
+                    || (cp >= SYMBOLS_FIRST && cp <= SYMBOLS_LAST)
+                    || (cp >= FORMS_FIRST && cp <= FORMS_LAST)) {
                 return true;
             }
+            i += Character.charCount(cp);
         }
         return false;
     }
