@@ -175,13 +175,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   list) and `delete` all use the world's own name now; `/world tp` also no longer opens a blocked or
   locked world typed in another case. Rows already stored under another spelling are not merged:
   at start-up each one that matches a loaded world only when case is ignored is listed in one warning,
-  naming the row and the world, and is otherwise left alone (UltiKits/UltiWorlds#46).
+  naming the row and the world, and is otherwise left alone; the warning says that on MySQL, whose default
+  collation ignores case, a lookup may still reach such a row (UltiKits/UltiWorlds#46).
 - 现在每条 `/world` 命令都按世界自己的名字读写该世界的设置，不论你怎么输入。此前 `/world set MYWORLD pvp false`
   能找到 `myworld`（服务器不区分大小写），却把改动存进一行名为 `MYWORLD`、无人读取的新设置里，于是改动只生效一次，
   下次有玩家进入该世界时就被撤销，而命令却报告成功。`set`、`protect`、`unprotect`、`block`、`unblock`、`difficulty`、
   `postcmd`、`tp`（以及世界列表中的点击）和 `delete` 现在都使用世界自己的名字；`/world tp` 也不再让以其他大小写输入的
   被封锁或被锁定的世界放行。已按其他写法保存的旧行不会被合并：启动时，只有忽略大小写才与某个已加载世界同名的每一行，
-  会各用一条警告列出，点明该行与该世界，其余保持原样（UltiKits/UltiWorlds#46）。
+  会各用一条警告列出，点明该行与该世界，其余保持原样；警告中说明，在默认排序规则忽略大小写的 MySQL 上，查找仍可能读到这样的行
+  （UltiKits/UltiWorlds#46）。
 
 - A value UltiWorlds cannot use is now named instead of being passed over silently: a
   `default_world` that is no loaded world is reported at start and on `/ul reload`, with the world
