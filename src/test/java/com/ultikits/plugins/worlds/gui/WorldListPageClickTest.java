@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,6 +49,7 @@ class WorldListPageClickTest {
         MockBukkit.createMockPlugin("UltiTools");
         worldService = mock(WorldService.class);
         player = UltiWorldsTestHelper.createMockPlayer("Clicker", UUID.randomUUID());
+        when(player.isOnline()).thenReturn(true);
 
         world = mock(World.class);
         when(world.getName()).thenReturn("world1");
@@ -86,5 +86,17 @@ class WorldListPageClickTest {
         MockBukkit.getMock().getScheduler().performOneTick();
 
         verify(worldService).teleportToWorld(player, "world1");
+    }
+
+    @Test
+    @DisplayName("a clicker who left before the next tick is not teleported, and no console command runs for the name")
+    void leftBeforeTheNextTick() throws Exception {
+        Icon icon = theWorldIcon();
+
+        icon.getClickAction().accept(mock(InventoryClickEvent.class));
+        when(player.isOnline()).thenReturn(false);
+        MockBukkit.getMock().getScheduler().performOneTick();
+
+        verify(worldService, never()).teleportToWorld(player, "world1");
     }
 }
