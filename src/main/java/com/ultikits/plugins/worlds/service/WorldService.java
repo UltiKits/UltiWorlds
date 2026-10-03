@@ -9,6 +9,7 @@ import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.PostConstruct;
 import com.ultikits.ultitools.annotations.Scheduled;
 import com.ultikits.ultitools.annotations.Service;
+import com.ultikits.ultitools.exceptions.DataAccessException;
 import com.ultikits.ultitools.interfaces.DataOperator;
 
 import org.bukkit.*;
@@ -84,6 +85,37 @@ public class WorldService {
         // Initialize settings for existing worlds
         for (World world : Bukkit.getWorlds()) {
             getOrCreateSettings(world.getName());
+        }
+        warnAboutRowsUnderAnotherSpelling();
+    }
+
+    /**
+     * Lists each stored settings row whose name is no loaded world's name but equals one ignoring
+     * letter case, with one warning per row naming the row and the world. Before
+     * UltiKits/UltiWorlds#46 a command typed in another case than the world's name stored its
+     * result under the typed text. Settings are now always read and written under the server's own
+     * spelling, so such a row is no longer used; it is listed, never merged or deleted (maintainer
+     * decision of 2026-09-29).
+     */
+    private void warnAboutRowsUnderAnotherSpelling() {
+        List<World> loaded = Bukkit.getWorlds();
+        Set<String> exact = new HashSet<>();
+        for (World world : loaded) {
+            exact.add(world.getName());
+        }
+        for (WorldSettings row : dataOperator.getAll()) {
+            String rowName = row.getWorldName();
+            if (rowName == null || exact.contains(rowName)) {
+                continue;
+            }
+            for (World world : loaded) {
+                if (rowName.equalsIgnoreCase(world.getName())) {
+                    plugin.getLogger().warn(Placeholders.fill(plugin.i18n("log.settings_row_case_mismatch"),
+                        "{ROW}", rowName,
+                        "{WORLD}", world.getName()));
+                    break;
+                }
+            }
         }
     }
 
@@ -205,9 +237,20 @@ public class WorldService {
      */
     public void updateSettings(WorldSettings settings) {
         try {
-            dataOperator.update(settings);
-        } catch (IllegalAccessException e) {
-            plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e);
+            // The counted update says whether a stored row was written. A row that vanished since the
+            // settings were cached (deleted by another server on a shared database, or by an
+            // administrator) matches nothing, and that is the same failure a failed write is
+            // (UltiKits/UltiWorlds#51, UltiTools-Reborn#558).
+            if (dataOperator.updateCounted(settings) == 0) {
+                plugin.getLogger().error(plugin.i18n("log.settings_update_failed"));
+            }
+        } catch (DataAccessException e) {
+            // updateCounted wraps the entity-field reflection failure that update() declares as a
+            // checked IllegalAccessException; any other data failure was never caught here and is not.
+            if (!(e.getCause() instanceof IllegalAccessException)) {
+                throw e;
+            }
+            plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e.getCause());
         }
         settingsCache.put(settings.getWorldName(), settings);
     }
@@ -262,14 +305,18 @@ public class WorldService {
     /**
      * Teleport player to world.
      */
-    public boolean teleportToWorld(Player player, String worldName) {
-        World world = Bukkit.getWorld(worldName);
+    public boolean teleportToWorld(Player player, String typedName) {
+        World world = Bukkit.getWorld(typedName);
         if (world == null) {
             player.sendMessage(plugin.i18n("error.world_not_found")
-                .replace("%world%", worldName));
+                .replace("%world%", typedName));
             return false;
         }
 
+        // The server's own spelling: Bukkit#getWorld ignores case, but settings are keyed by
+        // World#getName(), so a name typed in another case must not look up (or create) a row
+        // under the typed text, where a blocked or locked world would read as open.
+        String worldName = world.getName();
         WorldSettings settings = getOrCreateSettings(worldName);
 
         if (!checkTeleportPermissions(player, worldName, settings)) {
@@ -665,13 +712,19 @@ public class WorldService {
 
         World world = Bukkit.getWorld(name);
         boolean wasLoaded = world != null;
+        // The settings row and the world's folder both carry the server's own spelling of the name,
+        // which may differ in case from the text this was called with: Bukkit#getWorld ignores
+        // case, a settings row is keyed by World#getName(), and on a case-sensitive filesystem the
+        // typed text names no folder at all (UltiKits/UltiWorlds#46, #52). A world that is not
+        // loaded has only the text it was called with.
+        String ownName = wasLoaded ? world.getName() : name;
         if (wasLoaded) {
             if (!unloadWorld(name, false)) {
                 return false;
             }
         }
 
-        File worldFolder = new File(Bukkit.getWorldContainer(), name);
+        File worldFolder = new File(Bukkit.getWorldContainer(), ownName);
         boolean isLink = Files.isSymbolicLink(worldFolder.toPath());
         // Ask what ENTRY is here, not what is at the other end of it. File#exists follows a link,
         // so for a link whose target is missing -- an unmounted volume, a moved directory -- it
@@ -703,9 +756,9 @@ public class WorldService {
 
         // Remove from database
         dataOperator.query()
-            .where("world_name").eq(name)
+            .where("world_name").eq(ownName)
             .delete();
-        settingsCache.remove(name);
+        settingsCache.remove(ownName);
 
         return wasLoaded || folderExisted;
     }

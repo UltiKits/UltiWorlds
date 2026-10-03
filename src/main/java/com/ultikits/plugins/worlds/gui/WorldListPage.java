@@ -6,11 +6,13 @@ import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.abstracts.gui.BasePaginationPage;
 
 import mc.obliviate.inventory.Icon;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,7 +113,23 @@ public class WorldListPage extends BasePaginationPage {
         Icon worldIcon = new Icon(item);
         worldIcon.onClick(e -> {
             player.closeInventory();
-            worldService.teleportToWorld(player, world.getName());
+            // The teleport runs the world's post-teleport commands, and a module command body now
+            // runs inline at dispatch. One that opens another module's window must not do so inside
+            // this click event, where Paper refuses it, so the teleport waits one tick
+            // (UltiKits/UltiWorlds#50).
+            // A clicker who left within that tick is not teleported: the world's console commands
+            // would otherwise run for a name no longer online.
+            Runnable teleport = () -> {
+                if (player.isOnline()) {
+                    worldService.teleportToWorld(player, world.getName());
+                }
+            };
+            Plugin host = Bukkit.getPluginManager().getPlugin("UltiTools");
+            if (host == null) {
+                teleport.run();
+            } else {
+                Bukkit.getScheduler().runTask(host, teleport);
+            }
         });
         
         return worldIcon;
