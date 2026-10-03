@@ -123,6 +123,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A world-inventory save whose stored row no longer exists is now reported as failed on every storage
+  type, in the same console line a failed write always produced ("Failed to save inventory for
+  <player>"). Before, only the JSON storage reported it; on SQLite and MySQL the save wrote nothing
+  and passed as saved. Needs UltiTools-API 6.3.0 (UltiKits/UltiWorlds#49, UltiKits/UltiTools-Reborn#558).
+- 世界背包的保存若发现其对应的已存记录已不存在，现在在所有存储类型上都会报告失败，沿用保存失败时一贯的那一行控制台输出
+  （“保存 <玩家> 的背包失败”）。此前只有 JSON 存储会报告；SQLite 和 MySQL 上这次保存什么也没写，却被当作已保存。
+  需要 UltiTools-API 6.3.0（UltiKits/UltiWorlds#49，UltiKits/UltiTools-Reborn#558）。
+
 - `/world list` no longer lists a world you marked hidden (`/world set <world> hidden true`). The world
   list window already left it out; the text list showed it anyway, and counted it in the total
   (UltiKits/UltiWorlds#48).
