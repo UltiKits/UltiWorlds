@@ -76,11 +76,17 @@ import java.util.stream.Stream;
 final class I18nSourceScanner {
 
     /**
-     * The contract both guards detect, character for character the framework's
-     * {@code check-cjk-scope.sh}: the Han script ({@link Character.UnicodeScript#HAN}, which covers
-     * the Unified Ideographs, Extension A, the supplementary ideograph planes, the compatibility
-     * ideographs and the radicals), CJK Symbols and Punctuation (U+3000 through U+303F) and
-     * Halfwidth and Fullwidth Forms (U+FF00 through U+FFEF). Kana is outside it.
+     * The contract both guards detect, the framework's {@code check-cjk-scope.sh} contract: the Han
+     * script ({@link Character.UnicodeScript#HAN}, which covers the Unified Ideographs, Extension A,
+     * the supplementary ideograph planes, the compatibility ideographs and the radicals), CJK
+     * Symbols and Punctuation (U+3000 through U+303F) and Halfwidth and Fullwidth Forms (U+FF00
+     * through U+FFEF). Kana is outside it.
+     * <p>
+     * Two differences from the script remain, both measured (Phase 17 plan 17-50): the script's
+     * {@code grep -P '\p{Han}'} matches by Script_Extensions where {@code UnicodeScript.of} reads the
+     * Script property, so a few hundred symbols whose extensions include Han (for example U+30FB and
+     * the circled and parenthesised ideographs of U+3220-U+32CB) match the script and not this
+     * scanner; and the Han ideographs Unicode 15 added match here only because the JDK knows them.
      */
     static final int SYMBOLS_FIRST = 0x3000;
     static final int SYMBOLS_LAST = 0x303F;

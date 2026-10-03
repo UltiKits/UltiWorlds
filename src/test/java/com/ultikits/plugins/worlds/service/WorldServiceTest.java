@@ -949,6 +949,25 @@ class WorldServiceTest {
         }
 
         @Test
+        @DisplayName("updateSettings lets a data failure that is not the entity-field reflection failure propagate")
+        void updateSettingsRethrowsOtherDataFailures() throws Exception {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            // A storage failure (here a wrapped SQLException) propagated out of update() before,
+            // and still does: only the reflection failure update() declared was ever caught.
+            when(mockDataOperator.updateCounted(settings)).thenThrow(new com.ultikits.ultitools.exceptions.DataAccessException(
+                com.ultikits.ultitools.exceptions.ErrorCode.DATA_OPERATION_FAILED, "database is locked",
+                new java.sql.SQLException("locked")));
+
+            assertThatThrownBy(() -> worldService.updateSettings(settings))
+                .isInstanceOf(com.ultikits.ultitools.exceptions.DataAccessException.class)
+                .hasMessageContaining("database is locked");
+
+            // The cache was not touched: the next read of the row goes to the store.
+            mockQueryReturning(null);
+            assertThat(worldService.getOrCreateSettings("world")).isNotSameAs(settings);
+        }
+
+        @Test
         @DisplayName("updateSettings that wrote its row logs no failure")
         void updateSettingsThatWroteItsRowLogsNothing() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");

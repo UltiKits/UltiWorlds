@@ -514,6 +514,9 @@ class UltiWorldsCjkLiteralScopeTest {
         @DisplayName("kana (U+3042) is outside the contract, and plain ASCII is not detected")
         void kanaAndAsciiAreNotDetected() {
             assertThat(I18nSourceScanner.containsCjk(ofCodePoint(0x3042))).isFalse();
+            // The katakana middle dot sits in the kana block: outside the contract, as the framework
+            // script's own comment says (U+3000-U+303F ends before it).
+            assertThat(I18nSourceScanner.containsCjk(ofCodePoint(0x30FB))).isFalse();
             assertThat(I18nSourceScanner.containsCjk("plain: text, 1.5")).isFalse();
         }
     }

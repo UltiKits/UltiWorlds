@@ -48,6 +48,7 @@ class WorldServiceCaseMismatchedRowsTest {
     private UltiToolsPlugin mockPlugin;
     private WorldConfig mockConfig;
     private DataOperator<WorldSettings> mockDataOperator;
+    private Query<WorldSettings> mockQuery;
     private final Map<String, WorldSettings> rows = new LinkedHashMap<>();
     private final AtomicReference<Object> lastKey = new AtomicReference<>();
 
@@ -62,6 +63,7 @@ class WorldServiceCaseMismatchedRowsTest {
         mockDataOperator = mock(DataOperator.class);
 
         Query<WorldSettings> query = mock(Query.class);
+        mockQuery = query;
         when(mockDataOperator.query()).thenReturn(query);
         when(query.where(anyString())).thenReturn(query);
         when(query.eq(any())).thenAnswer(inv -> {
@@ -119,6 +121,9 @@ class WorldServiceCaseMismatchedRowsTest {
         assertThat(rows).containsKeys("MyWorld", "MYWORLD", "elsewhere");
         verify(mockDataOperator, never()).del(any());
         verify(mockDataOperator, never()).delById(any());
+        verify(mockDataOperator, never()).updateCounted(any(WorldSettings.class));
+        verify(mockDataOperator, never()).insertAll(any());
+        verify(mockQuery, never()).delete();
     }
 
     @Test

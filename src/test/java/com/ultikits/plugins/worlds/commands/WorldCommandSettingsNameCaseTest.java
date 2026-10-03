@@ -85,11 +85,6 @@ class WorldCommandSettingsNameCaseTest {
             rows.put(s.getWorldName(), s);
             return null;
         }).when(mockDataOperator).insert(any(WorldSettings.class));
-        doAnswer(inv -> {
-            WorldSettings s = inv.getArgument(0);
-            rows.put(s.getWorldName(), s);
-            return null;
-        }).when(mockDataOperator).update(any(WorldSettings.class));
         when(mockDataOperator.updateCounted(any(WorldSettings.class))).thenAnswer(inv -> {
             WorldSettings s = inv.getArgument(0);
             rows.put(s.getWorldName(), s);
