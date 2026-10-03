@@ -195,6 +195,7 @@ class WorldCommandValidationTest {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             World world = mock(World.class);
             bukkit.when(() -> Bukkit.getWorld("live_world")).thenReturn(world);
+            when(world.getName()).thenReturn("live_world");
             when(mockConfig.getDefaultWorld()).thenReturn("other_world");
             when(mockWorldService.deleteWorld("live_world")).thenReturn(true);
 
@@ -226,6 +227,7 @@ class WorldCommandValidationTest {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             World world = mock(World.class);
             bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+            when(world.getName()).thenReturn("world");
 
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
             settings.setPvpEnabled(false);
@@ -246,6 +248,7 @@ class WorldCommandValidationTest {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             World world = mock(World.class);
             bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+            when(world.getName()).thenReturn("world");
 
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
             settings.setPvpEnabled(true);
@@ -266,6 +269,7 @@ class WorldCommandValidationTest {
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             World world = mock(World.class);
             bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+            when(world.getName()).thenReturn("world");
 
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
             settings.setPvpEnabled(true);

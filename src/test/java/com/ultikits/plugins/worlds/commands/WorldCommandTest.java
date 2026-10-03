@@ -201,6 +201,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -222,6 +223,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -241,6 +243,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -280,6 +283,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -300,6 +304,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.enableFullProtection();
@@ -333,6 +338,7 @@ class WorldCommandTest {
 
                 bukkit.when(() -> Bukkit.getWorld("blocked_world")).thenReturn(world);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(defaultWorld);
+                when(defaultWorld.getName()).thenReturn("world");
 
                 when(mockConfig.getDefaultWorld()).thenReturn("world");
 
@@ -356,6 +362,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setBlocked(true);
@@ -411,6 +418,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World existing = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("existing")).thenReturn(existing);
+                when(existing.getName()).thenReturn("existing");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
                 when(player.hasPermission("ultiworlds.admin.create")).thenReturn(true);
@@ -651,6 +659,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("old_world")).thenReturn(world);
+                when(world.getName()).thenReturn("old_world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
                 when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
@@ -695,6 +704,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+                when(world.getName()).thenReturn("legacy.world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
                 when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
@@ -726,6 +736,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
                 when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
@@ -744,6 +755,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("old_world")).thenReturn(world);
+                when(world.getName()).thenReturn("old_world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
                 when(player.hasPermission("ultiworlds.admin.delete")).thenReturn(true);
@@ -783,6 +795,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -802,6 +815,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -821,6 +835,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -840,6 +855,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -859,6 +875,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -878,6 +895,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -897,6 +915,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -916,6 +935,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -935,6 +955,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -954,6 +975,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -1301,6 +1323,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -1349,6 +1372,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
@@ -1365,6 +1389,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -1390,6 +1415,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands(null);
@@ -1411,6 +1437,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands(null);
@@ -1431,6 +1458,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
 
@@ -1448,6 +1476,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands("say hello");
@@ -1468,6 +1497,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands("");
@@ -1503,6 +1533,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
                 when(player.hasPermission("ultiworlds.admin.settings")).thenReturn(false);
@@ -1520,6 +1551,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands("say hello\ngamemode survival");
@@ -1540,6 +1572,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands(null);
@@ -1560,6 +1593,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands("");
@@ -1579,6 +1613,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("legacy.world")).thenReturn(world);
+                when(world.getName()).thenReturn("legacy.world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("legacy.world");
                 settings.setPostTeleportCommands("say hello");
@@ -1598,6 +1633,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 settings.setPostTeleportCommands("say hello\ngamemode survival");
@@ -1668,6 +1704,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
@@ -1688,6 +1725,7 @@ class WorldCommandTest {
             try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
 
                 WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
                 when(mockWorldService.getOrCreateSettings("world")).thenReturn(settings);
