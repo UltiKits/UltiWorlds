@@ -123,6 +123,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/world list` no longer lists a world you marked hidden (`/world set <world> hidden true`). The world
+  list window already left it out; the text list showed it anyway, and counted it in the total
+  (UltiKits/UltiWorlds#48).
+- `/world list` 不再列出被你标记为隐藏的世界（`/world set <世界> hidden true`）。世界列表界面本来就不显示它，
+  文字列表却照样列出并计入总数（UltiKits/UltiWorlds#48）。
+
 - Every `/world` command now reads and writes a world's settings under the world's own name, however
   you type it. `/world set MYWORLD pvp false` found `myworld` (the server ignores case) but stored the
   change in a new settings row named `MYWORLD` that nothing reads, so the change applied once and was

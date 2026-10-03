@@ -76,7 +76,9 @@ public class WorldCommand extends BaseCommandExecutor {
     @CmdTarget(CmdTarget.CmdTargetType.PLAYER)
     @CmdMapping(format = "list")
     public void listWorlds(@CmdSender Player player) {
-        List<World> worlds = worldService.getAllWorlds();
+        // The same filter the world list window applies: a world marked hidden is not listed
+        // (UltiKits/UltiWorlds#48).
+        List<World> worlds = worldService.getVisibleWorlds();
         
         player.sendMessage(i18n("world.list.header").replace("{COUNT}", String.valueOf(worlds.size())));
         for (World world : worlds) {
