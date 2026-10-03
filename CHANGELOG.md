@@ -123,6 +123,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Clicking a world in the world list now teleports you one tick after the click, not inside it. The
+  teleport runs the world's post-teleport commands, and since UltiTools 6.3.0 a command of an
+  UltiTools module runs the moment it is dispatched; one that opens another module's window (a menu,
+  say) would otherwise try to open it inside the click event, which Paper refuses. `/world tp`
+  typed as a command is unchanged (UltiKits/UltiWorlds#50).
+- 在世界列表中点击一个世界后，现在会在点击的下一个 tick 传送，而不是在点击事件之内。传送会运行该世界的传送后命令，
+  而自 UltiTools 6.3.0 起，UltiTools 模块的命令在被分派的那一刻就运行；若某条命令会打开另一个模块的界面（例如菜单），
+  就会在点击事件之内尝试打开，而 Paper 不允许这样做。作为命令输入的 `/world tp` 不变（UltiKits/UltiWorlds#50）。
+
 - A world-inventory save whose stored row no longer exists is now reported as failed on every storage
   type, in the same console line a failed write always produced ("Failed to save inventory for
   <player>"). Before, only the JSON storage reported it; on SQLite and MySQL the save wrote nothing
