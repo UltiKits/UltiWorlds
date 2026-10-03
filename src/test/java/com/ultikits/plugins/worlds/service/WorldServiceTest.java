@@ -51,6 +51,9 @@ class WorldServiceTest {
         UltiWorldsTestHelper.setField(worldService, "plugin", mockPlugin);
 
         when(mockPlugin.getDataOperator(WorldSettings.class)).thenReturn(mockDataOperator);
+        // A write that matched its stored row: the counted update reports one row written. An
+        // unstubbed int on a Mockito mock is 0, which is the "no such row" answer.
+        when(mockDataOperator.updateCounted(any())).thenReturn(1);
     }
 
     @AfterEach
@@ -108,7 +111,7 @@ class WorldServiceTest {
 
             worldService.updateSettings(settings);
 
-            verify(mockDataOperator).update(settings);
+            verify(mockDataOperator).updateCounted(settings);
         }
     }
 
@@ -906,23 +909,54 @@ class WorldServiceTest {
 
             worldService.updateSettings(settings);
 
-            verify(mockDataOperator).update(settings);
+            verify(mockDataOperator).updateCounted(settings);
         }
 
         @Test
         @DisplayName("updateSettings should handle IllegalAccessException gracefully")
         void updateSettingsError() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            doThrow(new IllegalAccessException("test error")).when(mockDataOperator).update(settings);
+            // updateCounted wraps the entity-field reflection failure update() declares as a checked
+            // IllegalAccessException into a DataAccessException that carries it as the cause.
+            when(mockDataOperator.updateCounted(settings)).thenThrow(new com.ultikits.ultitools.exceptions.DataAccessException(
+                com.ultikits.ultitools.exceptions.ErrorCode.DATA_ENTITY_INVALID, "Failed to access entity fields",
+                new IllegalAccessException("test error")));
 
             // Should not throw - catches the exception internally; the console line follows the
             // server's language.
             when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
             worldService.updateSettings(settings);
 
-            verify(mockDataOperator).update(settings);
+            verify(mockDataOperator).updateCounted(settings);
             String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.settings_update_failed");
             verify(UltiWorldsTestHelper.getMockLogger()).error(eq(expected), any(IllegalAccessException.class));
+        }
+
+        @Test
+        @DisplayName("updateSettings logs a write that matched no stored row as failed (UltiWorlds#51)")
+        void updateSettingsWithNoStoredRowIsLoggedAsFailed() throws Exception {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            // The row was deleted after the settings were cached (another server on a shared
+            // database, or an administrator): the counted update writes nothing and says so.
+            when(mockDataOperator.updateCounted(settings)).thenReturn(0);
+            when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString()))
+                    .thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
+
+            worldService.updateSettings(settings);
+
+            String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("en", "log.settings_update_failed");
+            verify(UltiWorldsTestHelper.getMockLogger()).error(expected);
+        }
+
+        @Test
+        @DisplayName("updateSettings that wrote its row logs no failure")
+        void updateSettingsThatWroteItsRowLogsNothing() throws Exception {
+            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+
+            worldService.updateSettings(settings);
+
+            verify(UltiWorldsTestHelper.getMockLogger(), never()).error(anyString());
+            verify(UltiWorldsTestHelper.getMockLogger(), never()).error(anyString(), any(Object[].class));
         }
     }
 
@@ -951,7 +985,7 @@ class WorldServiceTest {
                 assertThat(settings.getSpawnYaw()).isEqualTo(90f);
                 assertThat(settings.getSpawnPitch()).isEqualTo(45f);
 
-                verify(mockDataOperator).update(settings);
+                verify(mockDataOperator).updateCounted(settings);
                 verify(world).setSpawnLocation(location);
             }
         }
