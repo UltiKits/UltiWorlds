@@ -261,7 +261,7 @@ log:
 
 # ==================== Removed Configuration Keys ====================
 removed_key_warning: "{FILE} still contains '{KEY}', which this version of UltiWorlds no longer reads. {REASON} Delete the key from the file to silence this warning."
-removed_key_reason_gui_title: "Nothing ever read it: the world list's title comes from this module's language file (gui.title in lang/en.yml, lang/zh.yml), which is where to change it."
-removed_key_reason_message: "Nothing ever read it: every world message comes from this module's language file (lang/en.yml, lang/zh.yml), which is where to change it."
+removed_key_reason_gui_title: "Nothing ever read it: the world list's title comes from this module's language file (gui.title in lang/en.yml, lang/zh.yml); to customise it, copy that file to one whose name starts with its language code and a hyphen (for example lang/en-myserver.yml), edit the entry there and set language: en-myserver in plugins/UltiTools/config.yml; an edit made in the official file itself is restored at the next start."
+removed_key_reason_message: "Nothing ever read it: every world message comes from this module's language file (lang/en.yml, lang/zh.yml); to customise it, copy that file to one whose name starts with its language code and a hyphen (for example lang/en-myserver.yml), edit the entry there and set language: en-myserver in plugins/UltiTools/config.yml; an edit made in the official file itself is restored at the next start."
 removed_key_reason_unload_empty_worlds: "It was a deprecated alias that nothing read: auto_unload.enabled decides whether empty worlds are unloaded, which is where to change it."
 removed_key_reason_unload_delay: "It was a deprecated alias that nothing read: auto_unload.unload_after decides after how many seconds an empty world is unloaded, which is where to change it."

@@ -404,8 +404,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Six `config/worlds.yml` keys that no code ever read: `gui_title` and `messages.world_teleport`,
   `messages.world_not_found`, `messages.no_permission`, `messages.world_created`,
   `messages.world_deleted`. Changing any of them never changed anything: the world list's title and
-  every world message come from the language files (`lang/en.yml`, `lang/zh.yml`), which is where to
-  change them. They are gone from the shipped `config/worlds.yml` too, so a new server's file no
+  every world message come from the language files (`lang/en.yml`, `lang/zh.yml`); to customise them, copy
+  the official language file to one whose name starts with its language code and a hyphen (for example
+  `lang/en-myserver.yml`), edit the entries there and set `language: en-myserver` in
+  `plugins/UltiTools/config.yml` (an edit made in the official file itself is restored at the next start,
+  UltiKits/UltiTools-Reborn#616). They are gone from the shipped `config/worlds.yml` too, so a new server's file no
   longer carries them. A leftover key in an existing file is reported at startup and on reload (see
   Added) (part of UltiKits/UltiWorlds#38).
 - Two deprecated `config/worlds.yml` keys that no code read: `unload_empty_worlds` (the key that
@@ -424,7 +427,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 移除 `config/worlds.yml` 中从未被任何代码读取的六个键：`gui_title` 以及 `messages.world_teleport`、
   `messages.world_not_found`、`messages.no_permission`、`messages.world_created`、`messages.world_deleted`。
   修改其中任何一个都从未改变任何东西：世界列表的标题和所有世界相关消息都来自语言文件（`lang/en.yml`、`lang/zh.yml`），
-  要修改请改那里。随插件分发的 `config/worlds.yml` 中也已删除它们，新服务器的文件不再包含这些键。已有文件中残留的键会在启动和
+  要自定义，请把官方语言文件复制为以其语言代码加连字符开头的文件（例如 `lang/zh-myserver.yml`），在副本中修改，并在
+  `plugins/UltiTools/config.yml` 中设置 `language: zh-myserver`（直接修改官方文件的改动会在下次启动时被恢复，
+  UltiKits/UltiTools-Reborn#616）。随插件分发的 `config/worlds.yml` 中也已删除它们，新服务器的文件不再包含这些键。已有文件中残留的键会在启动和
   重载时报告（见 Added）（UltiKits/UltiWorlds#38 的一部分）。
 - 从 `lang/en.yml` 与 `lang/zh.yml` 中移除 38 条从未被任何代码显示的条目：旧的 `command.help.*` 帮助行（`unprotect`、
   `unblock`、`difficulty`、`postcmd` 除外，`/world help` 会显示它们）、`command.usage`、`command.set_options`、

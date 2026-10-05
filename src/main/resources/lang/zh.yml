@@ -261,7 +261,7 @@ log:
 
 # ==================== 已移除的配置键 ====================
 removed_key_warning: "{FILE} 仍包含 '{KEY}'，当前版本的 UltiWorlds 已不再读取该键。{REASON} 从文件中删除该键即可消除此警告。"
-removed_key_reason_gui_title: "从未有代码读取它：世界列表的标题来自本模块的语言文件（lang/en.yml、lang/zh.yml 中的 gui.title），要修改请改那里。"
-removed_key_reason_message: "从未有代码读取它：所有世界相关消息都来自本模块的语言文件（lang/en.yml、lang/zh.yml），要修改请改那里。"
+removed_key_reason_gui_title: "从未有代码读取它：世界列表的标题来自本模块的语言文件（lang/en.yml、lang/zh.yml 中的 gui.title）；要自定义，请把该文件复制为以其语言代码加连字符开头的文件（例如 lang/zh-myserver.yml），在副本中修改该条目，并在 plugins/UltiTools/config.yml 中设置 language: zh-myserver；直接修改官方文件的改动会在下次启动时被恢复。"
+removed_key_reason_message: "从未有代码读取它：所有世界相关消息都来自本模块的语言文件（lang/en.yml、lang/zh.yml）；要自定义，请把该文件复制为以其语言代码加连字符开头的文件（例如 lang/zh-myserver.yml），在副本中修改该条目，并在 plugins/UltiTools/config.yml 中设置 language: zh-myserver；直接修改官方文件的改动会在下次启动时被恢复。"
 removed_key_reason_unload_empty_worlds: "它是已弃用的别名，从未有代码读取：是否卸载无人的世界由 auto_unload.enabled 决定，要修改请改那里。"
 removed_key_reason_unload_delay: "它是已弃用的别名，从未有代码读取：无人的世界在多少秒后卸载由 auto_unload.unload_after 决定，要修改请改那里。"
