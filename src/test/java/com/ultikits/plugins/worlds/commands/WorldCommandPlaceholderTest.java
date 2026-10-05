@@ -67,7 +67,7 @@ class WorldCommandPlaceholderTest {
     @DisplayName("/world list shows a display name containing {PLAYERS} as written")
     void listDisplayName() {
         settings.setDisplayName("Hub {PLAYERS}");
-        when(worldService.getAllWorlds()).thenReturn(Collections.singletonList(world));
+        when(worldService.getVisibleWorlds()).thenReturn(Collections.singletonList(world));
         command.listWorlds(player);
         verify(player).sendMessage("§7- §fHub {PLAYERS} §7(0 players)");
     }

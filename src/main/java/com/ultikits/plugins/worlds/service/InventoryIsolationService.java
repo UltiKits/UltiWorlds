@@ -143,7 +143,13 @@ public class InventoryIsolationService {
                 inv.setEffectsData(serializeEffects(player.getActivePotionEffects()));
             }
             
-            dataOperator.update(inv);
+            // The counted update says whether a stored row was written. A row that vanished since it
+            // was read (deleted by another writer, or another server on a shared database) matches
+            // nothing, and on every storage type that is the same failure a thrown write is
+            // (UltiKits/UltiWorlds#49, UltiTools-Reborn#558).
+            if (dataOperator.updateCounted(inv) == 0) {
+                plugin.getLogger().error(plugin.i18n("log.inventory.save_failed").replace("{PLAYER}", player.getName()));
+            }
         } catch (Exception e) {
             plugin.getLogger().error(plugin.i18n("log.inventory.save_failed").replace("{PLAYER}", player.getName()), e);
         }

@@ -37,9 +37,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent to a
   player; the window sends "World <name> has been deleted" or "Failed to delete world <name>"
   (`command.delete.success`, `command.delete.failed`), and "Delete operation cancelled"
-  (`command.delete.cancelled`) for `Cancel`. If you customised those three old lines in the language
-  files for players, carry your text over to the new keys; the old lines are now the console's (next
-  entry) (UltiKits/UltiWorlds#19).
+  (`command.delete.cancelled`) for `Cancel`. If you customised those three old lines for players, carry
+  your text over to the new keys in a custom language file, not in the official `lang/*.yml`: copy the
+  official file in the same `lang/` folder to a name that starts with its language code and a hyphen
+  (for example `lang/en-myserver.yml`) and set `language: en-myserver` in `plugins/UltiTools/config.yml`.
+  An earlier edit made in an official file is not kept: the first start after the upgrade restores the
+  file and keeps your previous file as `.bak`, where your old text is (UltiKits/UltiTools-Reborn#616). The
+  old lines are now the console's (next entry) (UltiKits/UltiWorlds#19).
 - **The server console can now delete a world, behind a typed confirmation.** Until now the whole
   `/world` command was player-only, so the console could not run `/world delete` at all. It now
   can, and it never deletes on the first request: `/world delete <name>` from the console makes the
@@ -90,8 +94,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
   "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送给玩家；
   改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
-  `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你在
-  语言文件中为玩家自定义过旧的三行文本，请把文本迁移到新的键上；旧的三行现在由控制台使用（见下一条）
+  `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你为玩家
+  自定义过旧的三行文本，请把文本迁移到自定义语言文件的新键上，而不是官方的 `lang/*.yml`：在同一 `lang/` 目录中把
+  官方文件复制为以其语言代码加连字符开头的文件（例如 `lang/zh-myserver.yml`），并在 `plugins/UltiTools/config.yml`
+  中设置 `language: zh-myserver`。在官方文件中做过的修改不会保留：升级后的首次启动会恢复该文件，并把原文件保留为
+  `.bak`，你原来的文本就在其中（UltiKits/UltiTools-Reborn#616）。旧的三行现在由控制台使用（见下一条）
   （UltiKits/UltiWorlds#19）。
 - **服务器控制台现在可以删除世界，但需要打字确认。** 此前整个 `/world` 命令仅限玩家使用，控制台完全无法
   执行 `/world delete`。现在可以执行，但第一次请求绝不会删除：控制台执行 `/world delete <名称>` 时会做与
@@ -122,6 +129,68 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   新创建的世界（UltiKits/UltiWorlds#19）。
 
 ### Fixed
+
+- `/world delete` typed in another letter case than the world's name now deletes the world's own folder.
+  The world was found ignoring case and unloaded, but the folder was looked up under the typed text; on a
+  case-sensitive filesystem (Linux) that folder does not exist, so nothing was removed and the deletion
+  was reported as done, leaving the world on disk (UltiKits/UltiWorlds#52).
+- 以与世界名不同的大小写输入的 `/world delete` 现在会删除该世界自己的文件夹。此前世界按不区分大小写找到并被卸载，
+  文件夹却按输入的文字去找；在区分大小写的文件系统（Linux）上该文件夹并不存在，所以什么也没删除，却报告已删除，
+  世界仍留在磁盘上（UltiKits/UltiWorlds#52）。
+
+- A world-settings change whose stored row no longer exists is now logged on the console as failed
+  ("Failed to update world settings"); before, it passed as saved without a trace. This can happen when
+  two servers share one database and one deletes a world's row while the other still has it in memory,
+  or when someone deletes the row by hand: the command answered success and the setting was gone after
+  the next restart. The command's own reply is unchanged; only the console line is new. Needs
+  UltiTools-API 6.3.0 (UltiKits/UltiWorlds#51, UltiKits/UltiTools-Reborn#558).
+- 世界设置的改动若发现其对应的已存记录已不存在，现在会在控制台记录为失败（“更新世界设置失败”）；此前它会不留痕迹地被当作已保存。
+  两台服务器共用一个数据库、其中一台删除了某世界的记录而另一台内存里仍有它时，或有人手动删除该记录时都会这样：命令回复成功，
+  下次重启后设置却没了。命令本身的回复不变，只多了这条控制台输出。需要 UltiTools-API 6.3.0
+  （UltiKits/UltiWorlds#51，UltiKits/UltiTools-Reborn#558）。
+
+- Clicking a world in the world list now teleports you one tick after the click, not inside it. The
+  teleport runs the world's post-teleport commands, and since UltiTools 6.3.0 a command of an
+  UltiTools module runs the moment it is dispatched; one that opens another module's window (a menu,
+  say) would otherwise try to open it inside the click event, which Paper refuses. A player who
+  leaves in that tick is not teleported. `/world tp` typed as a command is unchanged
+  (UltiKits/UltiWorlds#50).
+- 在世界列表中点击一个世界后，现在会在点击的下一个 tick 传送，而不是在点击事件之内。传送会运行该世界的传送后命令，
+  而自 UltiTools 6.3.0 起，UltiTools 模块的命令在被分派的那一刻就运行；若某条命令会打开另一个模块的界面（例如菜单），
+  就会在点击事件之内尝试打开，而 Paper 不允许这样做。在那一个 tick 内离线的玩家不会被传送。作为命令输入的 `/world tp` 不变
+  （UltiKits/UltiWorlds#50）。
+
+- A world-inventory save whose stored row no longer exists is now reported as failed on every storage
+  type, in the same console line a failed write always produced ("Failed to save inventory for
+  <player>"). Before, only the JSON storage reported it; on SQLite and MySQL the save wrote nothing
+  and passed as saved. Needs UltiTools-API 6.3.0 (UltiKits/UltiWorlds#49, UltiKits/UltiTools-Reborn#558).
+- 世界背包的保存若发现其对应的已存记录已不存在，现在在所有存储类型上都会报告失败，沿用保存失败时一贯的那一行控制台输出
+  （“保存 <玩家> 的背包失败”）。此前只有 JSON 存储会报告；SQLite 和 MySQL 上这次保存什么也没写，却被当作已保存。
+  需要 UltiTools-API 6.3.0（UltiKits/UltiWorlds#49，UltiKits/UltiTools-Reborn#558）。
+
+- `/world list` no longer lists a world you marked hidden (`/world set <world> hidden true`). The world
+  list window already left it out; the text list showed it anyway, and counted it in the total
+  (UltiKits/UltiWorlds#48).
+- `/world list` 不再列出被你标记为隐藏的世界（`/world set <世界> hidden true`）。世界列表界面本来就不显示它，
+  文字列表却照样列出并计入总数（UltiKits/UltiWorlds#48）。
+
+- Every `/world` command now reads and writes a world's settings under the world's own name, however
+  you type it. `/world set MYWORLD pvp false` found `myworld` (the server ignores case) but stored the
+  change in a new settings row named `MYWORLD` that nothing reads, so the change applied once and was
+  undone the next time a player entered the world, while the command reported success. `set`,
+  `protect`, `unprotect`, `block`, `unblock`, `difficulty`, `postcmd`, `tp` (and a click in the world
+  list) and `delete` all use the world's own name now; `/world tp` also no longer opens a blocked or
+  locked world typed in another case. Rows already stored under another spelling are not merged:
+  at start-up each one that matches a loaded world only when case is ignored is listed in one warning,
+  naming the row and the world, and is otherwise left alone; the warning says that on MySQL, whose default
+  collation ignores case, a lookup may still reach such a row (UltiKits/UltiWorlds#46).
+- 现在每条 `/world` 命令都按世界自己的名字读写该世界的设置，不论你怎么输入。此前 `/world set MYWORLD pvp false`
+  能找到 `myworld`（服务器不区分大小写），却把改动存进一行名为 `MYWORLD`、无人读取的新设置里，于是改动只生效一次，
+  下次有玩家进入该世界时就被撤销，而命令却报告成功。`set`、`protect`、`unprotect`、`block`、`unblock`、`difficulty`、
+  `postcmd`、`tp`（以及世界列表中的点击）和 `delete` 现在都使用世界自己的名字；`/world tp` 也不再让以其他大小写输入的
+  被封锁或被锁定的世界放行。已按其他写法保存的旧行不会被合并：启动时，只有忽略大小写才与某个已加载世界同名的每一行，
+  会各用一条警告列出，点明该行与该世界，其余保持原样；警告中说明，在默认排序规则忽略大小写的 MySQL 上，查找仍可能读到这样的行
+  （UltiKits/UltiWorlds#46）。
 
 - A value UltiWorlds cannot use is now named instead of being passed over silently: a
   `default_world` that is no loaded world is reported at start and on `/ul reload`, with the world
@@ -342,8 +411,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Six `config/worlds.yml` keys that no code ever read: `gui_title` and `messages.world_teleport`,
   `messages.world_not_found`, `messages.no_permission`, `messages.world_created`,
   `messages.world_deleted`. Changing any of them never changed anything: the world list's title and
-  every world message come from the language files (`lang/en.yml`, `lang/zh.yml`), which is where to
-  change them. They are gone from the shipped `config/worlds.yml` too, so a new server's file no
+  every world message come from the language files (`lang/en.yml`, `lang/zh.yml`); to customise them, copy
+  the official language file to one whose name starts with its language code and a hyphen (for example
+  `lang/en-myserver.yml`), edit the entries there and set `language: en-myserver` in
+  `plugins/UltiTools/config.yml` (an edit made in the official file itself is restored at the next start or module reload,
+  UltiKits/UltiTools-Reborn#616). They are gone from the shipped `config/worlds.yml` too, so a new server's file no
   longer carries them. A leftover key in an existing file is reported at startup and on reload (see
   Added) (part of UltiKits/UltiWorlds#38).
 - Two deprecated `config/worlds.yml` keys that no code read: `unload_empty_worlds` (the key that
@@ -362,7 +434,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 移除 `config/worlds.yml` 中从未被任何代码读取的六个键：`gui_title` 以及 `messages.world_teleport`、
   `messages.world_not_found`、`messages.no_permission`、`messages.world_created`、`messages.world_deleted`。
   修改其中任何一个都从未改变任何东西：世界列表的标题和所有世界相关消息都来自语言文件（`lang/en.yml`、`lang/zh.yml`），
-  要修改请改那里。随插件分发的 `config/worlds.yml` 中也已删除它们，新服务器的文件不再包含这些键。已有文件中残留的键会在启动和
+  要自定义，请把官方语言文件复制为以其语言代码加连字符开头的文件（例如 `lang/zh-myserver.yml`），在副本中修改，并在
+  `plugins/UltiTools/config.yml` 中设置 `language: zh-myserver`（直接修改官方文件的改动会在下次启动或模块重载时被恢复，
+  UltiKits/UltiTools-Reborn#616）。随插件分发的 `config/worlds.yml` 中也已删除它们，新服务器的文件不再包含这些键。已有文件中残留的键会在启动和
   重载时报告（见 Added）（UltiKits/UltiWorlds#38 的一部分）。
 - 从 `lang/en.yml` 与 `lang/zh.yml` 中移除 38 条从未被任何代码显示的条目：旧的 `command.help.*` 帮助行（`unprotect`、
   `unblock`、`difficulty`、`postcmd` 除外，`/world help` 会显示它们）、`command.usage`、`command.set_options`、

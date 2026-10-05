@@ -50,6 +50,9 @@ class InventoryIsolationServiceTest {
         UltiWorldsTestHelper.setField(service, "plugin", mockPlugin);
 
         when(mockPlugin.getDataOperator(WorldInventory.class)).thenReturn(mockDataOperator);
+        // A write that matched its stored row: the counted update reports one row written. An
+        // unstubbed int on a Mockito mock is 0, which is the "no such row" answer.
+        when(mockDataOperator.updateCounted(any())).thenReturn(1);
     }
 
     @AfterEach
@@ -144,7 +147,7 @@ class InventoryIsolationServiceTest {
 
             service.saveInventory(player, "world");
 
-            verify(mockDataOperator).update(any(WorldInventory.class));
+            verify(mockDataOperator).updateCounted(any(WorldInventory.class));
         }
 
         @Test
@@ -169,7 +172,47 @@ class InventoryIsolationServiceTest {
 
             service.saveInventory(player, "world");
 
-            verify(mockDataOperator).update(any(WorldInventory.class));
+            verify(mockDataOperator).updateCounted(any(WorldInventory.class));
+        }
+
+        @Test
+        @DisplayName("a save that matched no stored row is logged as failed, naming the player (UltiWorlds#49)")
+        void saveInventoryWithNoStoredRowIsLoggedAsFailed() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            mockQueryReturning(UltiWorldsTestHelper.createSampleWorldInventory(player.getUniqueId(), "world"));
+            // Another writer deleted the row after it was read: the counted update writes nothing
+            // and says so, on every storage type.
+            when(mockDataOperator.updateCounted(any(WorldInventory.class))).thenReturn(0);
+            when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString()))
+                    .thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
+
+            service.saveInventory(player, "world");
+
+            String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("en", "log.inventory.save_failed")
+                    .replace("{PLAYER}", "TestPlayer");
+            verify(UltiWorldsTestHelper.getMockLogger()).error(expected);
+        }
+
+        @Test
+        @DisplayName("a save that wrote its row logs no failure")
+        void saveInventoryThatWroteItsRowLogsNothing() throws Exception {
+            when(mockConfig.isSeparateInventory()).thenReturn(true);
+            when(mockConfig.getSharedWorldGroups()).thenReturn(Arrays.asList("world"));
+            service.init();
+
+            Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+            mockQueryReturning(UltiWorldsTestHelper.createSampleWorldInventory(player.getUniqueId(), "world"));
+            when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString()))
+                    .thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
+
+            service.saveInventory(player, "world");
+
+            verify(UltiWorldsTestHelper.getMockLogger(), never()).error(anyString());
+            verify(UltiWorldsTestHelper.getMockLogger(), never()).error(anyString(), any(Object[].class));
         }
     }
 
@@ -321,7 +364,7 @@ class InventoryIsolationServiceTest {
             service.onWorldChange(player, fromWorld, toWorld);
 
             // Should save from world and load to world
-            verify(mockDataOperator, atLeast(1)).update(any(WorldInventory.class));
+            verify(mockDataOperator, atLeast(1)).updateCounted(any(WorldInventory.class));
         }
     }
 
@@ -385,7 +428,7 @@ class InventoryIsolationServiceTest {
 
             service.saveInventory(player, "world");
 
-            verify(mockDataOperator).update(any(WorldInventory.class));
+            verify(mockDataOperator).updateCounted(any(WorldInventory.class));
             assertThat(inventory.getExperienceLevel()).isEqualTo(42);
             assertThat(inventory.getExperiencePoints()).isEqualTo(0.85f);
         }
@@ -413,7 +456,7 @@ class InventoryIsolationServiceTest {
 
             service.saveInventory(player, "world");
 
-            verify(mockDataOperator).update(any(WorldInventory.class));
+            verify(mockDataOperator).updateCounted(any(WorldInventory.class));
             assertThat(inventory.getHealth()).isEqualTo(15.0);
             assertThat(inventory.getMaxHealth()).isEqualTo(20.0);
         }
@@ -441,7 +484,7 @@ class InventoryIsolationServiceTest {
 
             service.saveInventory(player, "world");
 
-            verify(mockDataOperator).update(any(WorldInventory.class));
+            verify(mockDataOperator).updateCounted(any(WorldInventory.class));
             assertThat(inventory.getFoodLevel()).isEqualTo(15);
             assertThat(inventory.getSaturation()).isEqualTo(3.5f);
         }
@@ -477,7 +520,7 @@ class InventoryIsolationServiceTest {
 
             service.saveInventory(player, "world");
 
-            verify(mockDataOperator).update(any(WorldInventory.class));
+            verify(mockDataOperator).updateCounted(any(WorldInventory.class));
             assertThat(inventory.getEffectsData()).contains("SPEED");
         }
 
@@ -495,8 +538,8 @@ class InventoryIsolationServiceTest {
                     player.getUniqueId(), "world");
             mockQueryReturning(inventory);
 
-            // Make update throw
-            doThrow(new RuntimeException("DB error")).when(mockDataOperator).update(any());
+            // Make the counted update throw
+            when(mockDataOperator.updateCounted(any())).thenThrow(new RuntimeException("DB error"));
 
             // Should not throw; the console line follows the server's language.
             when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
