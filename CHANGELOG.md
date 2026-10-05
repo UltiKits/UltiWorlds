@@ -37,9 +37,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`world.delete.deleting`, `world.delete.success`, `world.delete.failed`) are no longer sent to a
   player; the window sends "World <name> has been deleted" or "Failed to delete world <name>"
   (`command.delete.success`, `command.delete.failed`), and "Delete operation cancelled"
-  (`command.delete.cancelled`) for `Cancel`. If you customised those three old lines in the language
-  files for players, carry your text over to the new keys; the old lines are now the console's (next
-  entry) (UltiKits/UltiWorlds#19).
+  (`command.delete.cancelled`) for `Cancel`. If you customised those three old lines for players, carry
+  your text over to the new keys in a custom language file, not in the official `lang/*.yml`: copy the
+  official file in the same `lang/` folder to a name that starts with its language code and a hyphen
+  (for example `lang/en-myserver.yml`) and set `language: en-myserver` in `plugins/UltiTools/config.yml`.
+  An earlier edit made in an official file is not kept: the first start after the upgrade restores the
+  file and keeps your previous file as `.bak`, where your old text is (UltiKits/UltiTools-Reborn#616). The
+  old lines are now the console's (next entry) (UltiKits/UltiWorlds#19).
 - **The server console can now delete a world, behind a typed confirmation.** Until now the whole
   `/world` command was player-only, so the console could not run `/world delete` at all. It now
   can, and it never deletes on the first request: `/world delete <name>` from the console makes the
@@ -90,8 +94,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   聊天提示也随之改变：原来的"正在删除世界……"、"世界已删除"、
   "删除世界失败"三行（`world.delete.deleting`、`world.delete.success`、`world.delete.failed`）不再发送给玩家；
   改由窗口发送"世界 <名称> 已删除"或"删除世界 <名称> 失败"（`command.delete.success`、
-  `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你在
-  语言文件中为玩家自定义过旧的三行文本，请把文本迁移到新的键上；旧的三行现在由控制台使用（见下一条）
+  `command.delete.failed`），点击 `Cancel` 时发送"已取消删除操作"（`command.delete.cancelled`）。如果你为玩家
+  自定义过旧的三行文本，请把文本迁移到自定义语言文件的新键上，而不是官方的 `lang/*.yml`：在同一 `lang/` 目录中把
+  官方文件复制为以其语言代码加连字符开头的文件（例如 `lang/zh-myserver.yml`），并在 `plugins/UltiTools/config.yml`
+  中设置 `language: zh-myserver`。在官方文件中做过的修改不会保留：升级后的首次启动会恢复该文件，并把原文件保留为
+  `.bak`，你原来的文本就在其中（UltiKits/UltiTools-Reborn#616）。旧的三行现在由控制台使用（见下一条）
   （UltiKits/UltiWorlds#19）。
 - **服务器控制台现在可以删除世界，但需要打字确认。** 此前整个 `/world` 命令仅限玩家使用，控制台完全无法
   执行 `/world delete`。现在可以执行，但第一次请求绝不会删除：控制台执行 `/world delete <名称>` 时会做与
@@ -407,7 +414,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every world message come from the language files (`lang/en.yml`, `lang/zh.yml`); to customise them, copy
   the official language file to one whose name starts with its language code and a hyphen (for example
   `lang/en-myserver.yml`), edit the entries there and set `language: en-myserver` in
-  `plugins/UltiTools/config.yml` (an edit made in the official file itself is restored at the next start,
+  `plugins/UltiTools/config.yml` (an edit made in the official file itself is restored at the next start or module reload,
   UltiKits/UltiTools-Reborn#616). They are gone from the shipped `config/worlds.yml` too, so a new server's file no
   longer carries them. A leftover key in an existing file is reported at startup and on reload (see
   Added) (part of UltiKits/UltiWorlds#38).
@@ -428,7 +435,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `messages.world_not_found`、`messages.no_permission`、`messages.world_created`、`messages.world_deleted`。
   修改其中任何一个都从未改变任何东西：世界列表的标题和所有世界相关消息都来自语言文件（`lang/en.yml`、`lang/zh.yml`），
   要自定义，请把官方语言文件复制为以其语言代码加连字符开头的文件（例如 `lang/zh-myserver.yml`），在副本中修改，并在
-  `plugins/UltiTools/config.yml` 中设置 `language: zh-myserver`（直接修改官方文件的改动会在下次启动时被恢复，
+  `plugins/UltiTools/config.yml` 中设置 `language: zh-myserver`（直接修改官方文件的改动会在下次启动或模块重载时被恢复，
   UltiKits/UltiTools-Reborn#616）。随插件分发的 `config/worlds.yml` 中也已删除它们，新服务器的文件不再包含这些键。已有文件中残留的键会在启动和
   重载时报告（见 Added）（UltiKits/UltiWorlds#38 的一部分）。
 - 从 `lang/en.yml` 与 `lang/zh.yml` 中移除 38 条从未被任何代码显示的条目：旧的 `command.help.*` 帮助行（`unprotect`、
