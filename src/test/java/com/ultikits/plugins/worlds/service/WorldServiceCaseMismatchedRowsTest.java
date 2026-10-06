@@ -6,6 +6,7 @@ import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.plugins.worlds.i18n.CatalogueText;
 import com.ultikits.plugins.worlds.util.Placeholders;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
+import com.ultikits.ultitools.entities.WhereCondition;
 import com.ultikits.ultitools.interfaces.DataOperator;
 import com.ultikits.ultitools.interfaces.Query;
 
@@ -122,6 +123,7 @@ class WorldServiceCaseMismatchedRowsTest {
         verify(mockDataOperator, never()).del(any());
         verify(mockDataOperator, never()).delById(any());
         verify(mockDataOperator, never()).updateCounted(any(WorldSettings.class));
+        verify(mockDataOperator, never()).updateIf(any(WorldSettings.class), any(WhereCondition[].class));
         verify(mockDataOperator, never()).insertAll(any());
         verify(mockQuery, never()).delete();
     }

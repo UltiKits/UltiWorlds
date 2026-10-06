@@ -3,6 +3,7 @@ package com.ultikits.plugins.worlds;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldInventory;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
+import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
 import com.ultikits.ultitools.interfaces.DataOperator;
 import com.ultikits.ultitools.interfaces.impl.logger.PluginLogger;
@@ -18,6 +19,7 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import java.lang.reflect.Field;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -105,6 +107,22 @@ public final class UltiWorldsTestHelper {
         lenient().when(config.isSeparateHunger()).thenReturn(false);
         lenient().when(config.isSeparateEffects()).thenReturn(false);
         return config;
+    }
+
+    /**
+     * Stubs {@code WorldService#changeSettings} on a mocked service so that a command's change is applied
+     * to whatever the mock's {@code getOrCreateSettings} returns for that world, which is then returned.
+     * A command used to mutate that object and pass it to {@code updateSettings}; since
+     * UltiKits/UltiWorlds#55 it hands the service the change instead (maintainer decision 2026-10-06
+     * 00:04), so tests that assert on the held object need the change applied to it.
+     */
+    @SuppressWarnings("unchecked")
+    public static void applyChangesToHeldSettings(WorldService worldService) {
+        lenient().when(worldService.changeSettings(anyString(), any())).thenAnswer(inv -> {
+            WorldSettings held = worldService.getOrCreateSettings(inv.getArgument(0));
+            ((Consumer<WorldSettings>) inv.getArgument(1)).accept(held);
+            return held;
+        });
     }
 
     /**

@@ -5,6 +5,7 @@ import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
 import com.ultikits.plugins.worlds.service.WorldService;
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
+import com.ultikits.ultitools.entities.WhereCondition;
 import com.ultikits.ultitools.interfaces.DataOperator;
 import com.ultikits.ultitools.interfaces.Query;
 
@@ -89,6 +90,13 @@ class WorldCommandSettingsNameCaseTest {
             WorldSettings s = inv.getArgument(0);
             rows.put(s.getWorldName(), s);
             return 1;
+        });
+        // A settings change is a conditional write since UltiKits/UltiWorlds#55 (maintainer decision
+        // 2026-10-06 00:04); this store has no other writer, so every condition holds.
+        when(mockDataOperator.updateIf(any(WorldSettings.class), any(WhereCondition[].class))).thenAnswer(inv -> {
+            WorldSettings s = inv.getArgument(0);
+            rows.put(s.getWorldName(), s);
+            return true;
         });
 
         worldService = new WorldService();

@@ -141,6 +141,7 @@ class UnusableConfigValuesTest {
         WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
         settings.setIcon("GRASS_BLOCK");
         when(worldService.getOrCreateSettings("world")).thenReturn(settings);
+        UltiWorldsTestHelper.applyChangesToHeldSettings(worldService);
         Player player = UltiWorldsTestHelper.createMockPlayer("Admin", UUID.randomUUID());
         World world = world("world");
         // Real methods except the one stubbed: whether a name is an item is answered by the test
@@ -150,7 +151,7 @@ class UnusableConfigValuesTest {
 
             command.setWorldOption(player, "world", "icon", "grass_blok");
             assertThat(settings.getIcon()).isEqualTo("GRASS_BLOCK");
-            verify(worldService, never()).updateSettings(settings);
+            verify(worldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(CatalogueText.text("en", "world.set.invalid_icon").replace("{VALUE}", "grass_blok"));
 
             command.setWorldOption(player, "world", "icon", "diamond_block");

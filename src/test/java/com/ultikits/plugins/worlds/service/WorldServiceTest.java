@@ -54,6 +54,11 @@ class WorldServiceTest {
         // A write that matched its stored row: the counted update reports one row written. An
         // unstubbed int on a Mockito mock is 0, which is the "no such row" answer.
         when(mockDataOperator.updateCounted(any())).thenReturn(1);
+        // A settings change is a conditional write since UltiKits/UltiWorlds#55 (maintainer decision
+        // 2026-10-06 00:04); an unstubbed boolean is false, which is the "another writer changed the
+        // row" answer, so a write with no other writer is stubbed to apply.
+        lenient().when(mockDataOperator.updateIf(any(), any(com.ultikits.ultitools.entities.WhereCondition[].class)))
+            .thenReturn(true);
     }
 
     @AfterEach
@@ -105,13 +110,17 @@ class WorldServiceTest {
         }
 
         @Test
-        @DisplayName("updateSettings should update database and cache")
-        void updateSettings() throws Exception {
+        @DisplayName("changeSettings writes the changed row conditionally and caches it (UltiWorlds#55)")
+        void changeSettings() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            mockQueryReturning(settings);
 
-            worldService.updateSettings(settings);
+            WorldSettings held = worldService.changeSettings("world", s -> s.setPvpEnabled(false));
 
-            verify(mockDataOperator).updateCounted(settings);
+            assertThat(held.isPvpEnabled()).isFalse();
+            verify(mockDataOperator).updateIf(same(settings), any(com.ultikits.ultitools.entities.WhereCondition[].class));
+            verify(mockDataOperator, never()).updateCounted(any());
+            assertThat(worldService.getOrCreateSettings("world")).isSameAs(held);
         }
     }
 
@@ -898,81 +907,104 @@ class WorldServiceTest {
         }
     }
 
+    /**
+     * A settings change since UltiKits/UltiWorlds#55 (maintainer decision 2026-10-06 00:04): re-read,
+     * apply, {@code updateIf} on the values read. These were the {@code updateSettings} tests; the
+     * failure behaviours they pinned (UltiWorlds#51) are kept and pinned here on the new path.
+     */
     @Nested
-    @DisplayName("Update Settings")
+    @DisplayName("Change Settings")
     class UpdateSettingsTests {
 
         @Test
-        @DisplayName("updateSettings should update database and cache")
-        void updateSettings() throws Exception {
+        @DisplayName("changeSettings writes the row with updateIf, never a whole unconditional update")
+        void changeSettingsWritesConditionally() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            mockQueryReturning(settings);
 
-            worldService.updateSettings(settings);
+            worldService.changeSettings("world", s -> s.setLocked(true));
 
-            verify(mockDataOperator).updateCounted(settings);
+            verify(mockDataOperator).updateIf(same(settings), any(com.ultikits.ultitools.entities.WhereCondition[].class));
+            verify(mockDataOperator, never()).updateCounted(any());
+            assertThat(settings.isLocked()).isTrue();
         }
 
         @Test
-        @DisplayName("updateSettings should handle IllegalAccessException gracefully")
-        void updateSettingsError() throws Exception {
+        @DisplayName("changeSettings handles the entity-field reflection failure: logged, change kept in memory")
+        void changeSettingsError() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            // updateCounted wraps the entity-field reflection failure update() declares as a checked
-            // IllegalAccessException into a DataAccessException that carries it as the cause.
-            when(mockDataOperator.updateCounted(settings)).thenThrow(new com.ultikits.ultitools.exceptions.DataAccessException(
-                com.ultikits.ultitools.exceptions.ErrorCode.DATA_ENTITY_INVALID, "Failed to access entity fields",
-                new IllegalAccessException("test error")));
+            mockQueryReturning(settings);
+            // updateIf wraps the entity-field reflection failure into a DataAccessException that carries
+            // it as the cause.
+            when(mockDataOperator.updateIf(same(settings), any(com.ultikits.ultitools.entities.WhereCondition[].class)))
+                .thenThrow(new com.ultikits.ultitools.exceptions.DataAccessException(
+                    com.ultikits.ultitools.exceptions.ErrorCode.DATA_ENTITY_INVALID, "Failed to access entity fields",
+                    new IllegalAccessException("test error")));
 
             // Should not throw - catches the exception internally; the console line follows the
             // server's language.
             when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString())).thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("zh"));
-            worldService.updateSettings(settings);
+            WorldSettings held = worldService.changeSettings("world", s -> s.setHidden(true));
 
-            verify(mockDataOperator).updateCounted(settings);
             String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("zh", "log.settings_update_failed");
             verify(UltiWorldsTestHelper.getMockLogger()).error(eq(expected), any(IllegalAccessException.class));
+            assertThat(held.isHidden()).isTrue();
+            assertThat(worldService.getOrCreateSettings("world")).isSameAs(held);
         }
 
         @Test
-        @DisplayName("updateSettings logs a write that matched no stored row as failed (UltiWorlds#51)")
-        void updateSettingsWithNoStoredRowIsLoggedAsFailed() throws Exception {
+        @DisplayName("changeSettings logs a change whose stored row is gone as failed and keeps it in memory (UltiWorlds#51)")
+        void changeSettingsWithNoStoredRowIsLoggedAsFailed() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            mockQueryReturning(settings);
+            worldService.getOrCreateSettings("world");
             // The row was deleted after the settings were cached (another server on a shared
-            // database, or an administrator): the counted update writes nothing and says so.
-            when(mockDataOperator.updateCounted(settings)).thenReturn(0);
+            // database, or an administrator): the re-read finds none, and nothing is written.
+            mockQueryReturning(null);
             when(UltiWorldsTestHelper.getMockPlugin().i18n(anyString()))
                     .thenAnswer(com.ultikits.plugins.worlds.i18n.CatalogueText.answer("en"));
 
-            worldService.updateSettings(settings);
+            WorldSettings held = worldService.changeSettings("world", s -> s.setBlocked(true));
 
             String expected = com.ultikits.plugins.worlds.i18n.CatalogueText.text("en", "log.settings_update_failed");
             verify(UltiWorldsTestHelper.getMockLogger()).error(expected);
+            verify(mockDataOperator, never()).updateIf(any(), any(com.ultikits.ultitools.entities.WhereCondition[].class));
+            verify(mockDataOperator, never()).insert(any());
+            assertThat(held).isSameAs(settings);
+            assertThat(held.isBlocked()).isTrue();
         }
 
         @Test
-        @DisplayName("updateSettings lets a data failure that is not the entity-field reflection failure propagate")
-        void updateSettingsRethrowsOtherDataFailures() throws Exception {
-            WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
-            // A storage failure (here a wrapped SQLException) propagated out of update() before,
-            // and still does: only the reflection failure update() declared was ever caught.
-            when(mockDataOperator.updateCounted(settings)).thenThrow(new com.ultikits.ultitools.exceptions.DataAccessException(
-                com.ultikits.ultitools.exceptions.ErrorCode.DATA_OPERATION_FAILED, "database is locked",
-                new java.sql.SQLException("locked")));
+        @DisplayName("changeSettings lets a data failure that is not the entity-field reflection failure propagate")
+        void changeSettingsRethrowsOtherDataFailures() throws Exception {
+            WorldSettings cached = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            mockQueryReturning(cached);
+            worldService.getOrCreateSettings("world");
+            WorldSettings reread = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            mockQueryReturning(reread);
+            // A storage failure (here a wrapped SQLException) propagated out of the write before,
+            // and still does: only the reflection failure was ever caught.
+            when(mockDataOperator.updateIf(same(reread), any(com.ultikits.ultitools.entities.WhereCondition[].class)))
+                .thenThrow(new com.ultikits.ultitools.exceptions.DataAccessException(
+                    com.ultikits.ultitools.exceptions.ErrorCode.DATA_OPERATION_FAILED, "database is locked",
+                    new java.sql.SQLException("locked")));
 
-            assertThatThrownBy(() -> worldService.updateSettings(settings))
+            assertThatThrownBy(() -> worldService.changeSettings("world", s -> s.setLocked(true)))
                 .isInstanceOf(com.ultikits.ultitools.exceptions.DataAccessException.class)
                 .hasMessageContaining("database is locked");
 
-            // The cache was not touched: the next read of the row goes to the store.
-            mockQueryReturning(null);
-            assertThat(worldService.getOrCreateSettings("world")).isNotSameAs(settings);
+            // The cache still holds what was read before: the unwritten row did not replace it.
+            assertThat(worldService.getOrCreateSettings("world")).isSameAs(cached);
+            assertThat(cached.isLocked()).isFalse();
         }
 
         @Test
-        @DisplayName("updateSettings that wrote its row logs no failure")
-        void updateSettingsThatWroteItsRowLogsNothing() throws Exception {
+        @DisplayName("changeSettings that wrote its row logs no failure")
+        void changeSettingsThatWroteItsRowLogsNothing() throws Exception {
             WorldSettings settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
+            mockQueryReturning(settings);
 
-            worldService.updateSettings(settings);
+            worldService.changeSettings("world", s -> s.setWeatherEnabled(false));
 
             verify(UltiWorldsTestHelper.getMockLogger(), never()).error(anyString());
             verify(UltiWorldsTestHelper.getMockLogger(), never()).error(anyString(), any(Object[].class));
@@ -1004,7 +1036,7 @@ class WorldServiceTest {
                 assertThat(settings.getSpawnYaw()).isEqualTo(90f);
                 assertThat(settings.getSpawnPitch()).isEqualTo(45f);
 
-                verify(mockDataOperator).updateCounted(settings);
+                verify(mockDataOperator).updateIf(same(settings), any(com.ultikits.ultitools.entities.WhereCondition[].class));
                 verify(world).setSpawnLocation(location);
             }
         }
