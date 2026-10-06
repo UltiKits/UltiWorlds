@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -314,8 +315,6 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-
         Boolean boolValue = null;
         if (BOOLEAN_OPTIONS.contains(option.toLowerCase())) {
             if (value.equalsIgnoreCase("true") || value.equalsIgnoreCase("on") || value.equals("1")) {
@@ -328,51 +327,56 @@ public class WorldCommand extends BaseCommandExecutor {
             }
         }
 
+        // Only the field this option names is changed, on the row as stored now, and written
+        // conditionally: another server's change to any other setting of this world is kept
+        // (UltiKits/UltiWorlds#55).
+        final boolean flag = Boolean.TRUE.equals(boolValue);
+        Consumer<WorldSettings> change;
         switch (option.toLowerCase()) {
             case "pvp":
-                settings.setPvpEnabled(boolValue);
-                world.setPVP(boolValue);
+                change = settings -> settings.setPvpEnabled(flag);
+                world.setPVP(flag);
                 break;
             case "monsters":
-                settings.setMonstersEnabled(boolValue);
+                change = settings -> settings.setMonstersEnabled(flag);
                 break;
             case "animals":
-                settings.setAnimalsEnabled(boolValue);
+                change = settings -> settings.setAnimalsEnabled(flag);
                 break;
             case "weather":
-                settings.setWeatherEnabled(boolValue);
+                change = settings -> settings.setWeatherEnabled(flag);
                 break;
             case "hidden":
-                settings.setHidden(boolValue);
+                change = settings -> settings.setHidden(flag);
                 break;
             case "locked":
-                settings.setLocked(boolValue);
+                change = settings -> settings.setLocked(flag);
                 break;
             case "blocked":
-                settings.setBlocked(boolValue);
+                change = settings -> settings.setBlocked(flag);
                 break;
             case "autounload":
-                settings.setAutoUnload(boolValue);
+                change = settings -> settings.setAutoUnload(flag);
                 break;
             case "protectbreak":
-                settings.setProtectBreak(boolValue);
+                change = settings -> settings.setProtectBreak(flag);
                 break;
             case "protectplace":
-                settings.setProtectPlace(boolValue);
+                change = settings -> settings.setProtectPlace(flag);
                 break;
             case "protectinteract":
-                settings.setProtectInteract(boolValue);
+                change = settings -> settings.setProtectInteract(flag);
                 break;
             case "protectexplosion":
-                settings.setProtectExplosion(boolValue);
+                change = settings -> settings.setProtectExplosion(flag);
                 break;
             case "displayname":
             case "name":
-                settings.setDisplayName(value);
+                change = settings -> settings.setDisplayName(value);
                 break;
             case "description":
             case "desc":
-                settings.setDescription(value);
+                change = settings -> settings.setDescription(value);
                 break;
             case "icon":
                 // A name that is no item was stored and silently shown as the default icon.
@@ -381,12 +385,12 @@ public class WorldCommand extends BaseCommandExecutor {
                     player.sendMessage(Placeholders.fill(i18n("world.set.invalid_icon"), "{VALUE}", value));
                     return;
                 }
-                settings.setIcon(icon.name());
+                change = settings -> settings.setIcon(icon.name());
                 break;
             case "difficulty":
                 try {
                     Difficulty diff = Difficulty.valueOf(value.toUpperCase());
-                    settings.setDifficulty(diff.name());
+                    change = settings -> settings.setDifficulty(diff.name());
                     World w = Bukkit.getWorld(worldName);
                     if (w != null) {
                         w.setDifficulty(diff);
@@ -401,7 +405,7 @@ public class WorldCommand extends BaseCommandExecutor {
                 return;
         }
         
-        worldService.updateSettings(settings);
+        worldService.changeSettings(world.getName(), change);
         // One pass: a value (a description, say) is shown as written, never rescanned for {WORLD}.
         player.sendMessage(Placeholders.fill(i18n("world.set.success"),
             "{OPTION}", option,
@@ -425,9 +429,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-        settings.enableFullProtection();
-        worldService.updateSettings(settings);
+        worldService.changeSettings(world.getName(), WorldSettings::enableFullProtection);
         
         player.sendMessage(i18n("world.protect.enabled").replace("{WORLD}", worldName));
     }
@@ -446,9 +448,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-        settings.disableAllProtection();
-        worldService.updateSettings(settings);
+        worldService.changeSettings(world.getName(), WorldSettings::disableAllProtection);
         
         player.sendMessage(i18n("world.protect.disabled").replace("{WORLD}", worldName));
     }
@@ -469,9 +469,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-        settings.setBlocked(true);
-        worldService.updateSettings(settings);
+        worldService.changeSettings(world.getName(), settings -> settings.setBlocked(true));
         
         // Kick all players from the world
         World defaultWorld = Bukkit.getWorld(worldService.getConfig().getDefaultWorld());
@@ -501,9 +499,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
         
-        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-        settings.setBlocked(false);
-        worldService.updateSettings(settings);
+        worldService.changeSettings(world.getName(), settings -> settings.setBlocked(false));
         
         player.sendMessage(i18n("world.block.disabled").replace("{WORLD}", worldName));
     }
@@ -548,9 +544,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(world.getName());
-        settings.setDifficulty(difficulty.name());
-        worldService.updateSettings(settings);
+        worldService.changeSettings(world.getName(), settings -> settings.setDifficulty(difficulty.name()));
         world.setDifficulty(difficulty);
 
         player.sendMessage(i18n("success.difficulty_set")
@@ -583,14 +577,15 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(serverNameOf(worldName));
-        String existing = settings.getPostTeleportCommands();
-        if (existing == null || existing.isEmpty()) {
-            settings.setPostTeleportCommands(joinedCommand);
-        } else {
-            settings.setPostTeleportCommands(existing + "\n" + joinedCommand);
-        }
-        worldService.updateSettings(settings);
+        // Appended to the list as stored now, so a command another server added is kept.
+        worldService.changeSettings(serverNameOf(worldName), settings -> {
+            String existing = settings.getPostTeleportCommands();
+            if (existing == null || existing.isEmpty()) {
+                settings.setPostTeleportCommands(joinedCommand);
+            } else {
+                settings.setPostTeleportCommands(existing + "\n" + joinedCommand);
+            }
+        });
 
         player.sendMessage(i18n("success.post_cmd_added").replace("%world%", worldName));
     }
@@ -634,9 +629,7 @@ public class WorldCommand extends BaseCommandExecutor {
             return;
         }
 
-        WorldSettings settings = worldService.getOrCreateSettings(serverNameOf(worldName));
-        settings.setPostTeleportCommands(null);
-        worldService.updateSettings(settings);
+        worldService.changeSettings(serverNameOf(worldName), settings -> settings.setPostTeleportCommands(null));
 
         player.sendMessage(i18n("success.post_cmd_cleared").replace("%world%", worldName));
     }

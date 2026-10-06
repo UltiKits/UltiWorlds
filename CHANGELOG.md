@@ -130,6 +130,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **World settings on servers that share one database.** A world setting changed on one server is no longer
+  undone by the next settings command on another server that shares the database. Each server kept every
+  world's settings row in memory from its first read and wrote that whole copy back on every change, so a
+  change made elsewhere in the meantime -- `/world set`, `protect`, `unprotect`, `block`, `unblock`,
+  `difficulty`, `postcmd add`/`clear` or `setspawn`, on any setting of that world -- was reverted. Every change
+  now reads the world's row from the database, changes only what the command sets, and writes it only if the
+  row still holds what was read; if another server wrote the row in between, the change is read again and
+  re-applied, up to three times, after which the console logs "Failed to update world settings" and the change
+  is kept in this server's memory only, as after any failed write. A change made on another server reaches
+  this server's running checks (PvP, protection, access, the world list) when this server next changes any
+  setting of that world, or after a restart. Two narrow limits are documented in `FEATURES.md`
+  (`ultiworlds.settings.shared-db-external-change-kept`) (UltiKits/UltiWorlds#55).
+- **共享同一数据库的多台服务器上的世界设置。** 在一台服务器上修改的世界设置，不会再被共享该数据库的另一台服务器的下一条设置命令撤销。
+  此前每台服务器从首次读取起就把每个世界的设置记录保存在内存里，每次修改都把整份副本写回，因此期间在别处做的修改——
+  `/world set`、`protect`、`unprotect`、`block`、`unblock`、`difficulty`、`postcmd add`/`clear` 或 `setspawn`，
+  涉及该世界的任一设置——都会被还原。现在每次修改都会从数据库重新读取该世界的记录，只改动命令所设置的内容，并且仅当记录仍是读取时的
+  内容时才写入；若另一台服务器在此期间写过该记录，则重新读取并重新应用这次修改，最多三次，之后控制台记录“更新世界设置失败”，
+  这次修改只保留在本服务器内存中，与任何写入失败时相同。另一台服务器做的修改，会在本服务器下次修改该世界的任一设置时、或重启后，
+  进入本服务器的运行时检查（PvP、保护、进入权限、世界列表）。两项范围很窄的限制记录在 `FEATURES.md`
+  （`ultiworlds.settings.shared-db-external-change-kept`）（UltiKits/UltiWorlds#55）。
 - `/world delete` typed in another letter case than the world's name now deletes the world's own folder.
   The world was found ignoring case and unloaded, but the folder was looked up under the typed text; on a
   case-sensitive filesystem (Linux) that folder does not exist, so nothing was removed and the deletion
