@@ -332,6 +332,9 @@ public class WorldCommand extends BaseCommandExecutor {
         // (UltiKits/UltiWorlds#55).
         final boolean flag = Boolean.TRUE.equals(boolValue);
         Consumer<WorldSettings> change;
+        // Applied to the world only after the change: the change's first read of a world's settings
+        // applies the stored difficulty to the world, and would put the old value back.
+        Difficulty newDifficulty = null;
         switch (option.toLowerCase()) {
             case "pvp":
                 change = settings -> settings.setPvpEnabled(flag);
@@ -391,10 +394,7 @@ public class WorldCommand extends BaseCommandExecutor {
                 try {
                     Difficulty diff = Difficulty.valueOf(value.toUpperCase());
                     change = settings -> settings.setDifficulty(diff.name());
-                    World w = Bukkit.getWorld(worldName);
-                    if (w != null) {
-                        w.setDifficulty(diff);
-                    }
+                    newDifficulty = diff;
                 } catch (IllegalArgumentException e) {
                     player.sendMessage(i18n("error.invalid_difficulty"));
                     return;
@@ -406,6 +406,12 @@ public class WorldCommand extends BaseCommandExecutor {
         }
         
         worldService.changeSettings(world.getName(), change);
+        if (newDifficulty != null) {
+            World w = Bukkit.getWorld(worldName);
+            if (w != null) {
+                w.setDifficulty(newDifficulty);
+            }
+        }
         // One pass: a value (a description, say) is shown as written, never rescanned for {WORLD}.
         player.sendMessage(Placeholders.fill(i18n("world.set.success"),
             "{OPTION}", option,
