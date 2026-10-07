@@ -21,7 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Guard for the compare-and-set of a world-settings change (UltiKits/UltiWorlds#55): {@code updateIf}
  * writes every column, so the condition must cover every column except the documented exceptions, or a
  * change would silently write back another server's change to an uncovered column. A column added to
- * {@link WorldSettings} later without a condition fails here.
+ * {@link WorldSettings} later without a condition fails here. A column read as {@code NULL} is compared
+ * too, with a {@code null} value, which the framework's {@code updateIf} reads as {@code IS NULL}
+ * (maintainer decision of 2026-10-06).
  */
 @DisplayName("A world-settings change is conditioned on every stored column but the documented ones (UltiWorlds#55 guard)")
 class WorldSettingsConditionColumnsTest {
@@ -45,8 +47,10 @@ class WorldSettingsConditionColumnsTest {
     private static Map<String, Object> conditions(WorldSettings row) {
         Map<String, Object> byColumn = new LinkedHashMap<>();
         for (WhereCondition condition : WorldService.valuesAsRead(row)) {
-            assertThat(byColumn.put(condition.getColumn(), condition.getValue()))
-                    .as("one condition per column: %s", condition.getColumn()).isNull();
+            // containsKey, not put(...) == null: a condition's value can now be null itself.
+            assertThat(byColumn).as("one condition per column: %s", condition.getColumn())
+                    .doesNotContainKey(condition.getColumn());
+            byColumn.put(condition.getColumn(), condition.getValue());
         }
         return byColumn;
     }
@@ -71,14 +75,21 @@ class WorldSettingsConditionColumnsTest {
     }
 
     @Test
-    @DisplayName("A column read as NULL is left out, since updateIf cannot compare with null")
-    void nullColumnsAreLeftOut() {
+    @DisplayName("A column read as NULL is compared with null (IS NULL); only id, spawn_yaw and spawn_pitch are left out")
+    void nullColumnsAreComparedWithNull() {
         WorldSettings row = UltiWorldsTestHelper.createSampleWorldSettings("guard_world");
+        row.setDescription(null);
 
         Map<String, Object> byColumn = conditions(row);
 
         assertThat(row.getDifficulty()).as("precondition").isNull();
-        assertThat(byColumn).doesNotContainKeys("difficulty", "post_teleport_commands");
-        assertThat(byColumn.values()).doesNotContainNull();
+        assertThat(row.getPostTeleportCommands()).as("precondition").isNull();
+        Set<String> expected = storedColumns();
+        expected.removeAll(NOT_COMPARED);
+        assertThat(byColumn.keySet()).as("every column but the three documented ones, null or not")
+                .containsExactlyInAnyOrderElementsOf(expected);
+        assertThat(byColumn).containsEntry("difficulty", null)
+                .containsEntry("post_teleport_commands", null)
+                .containsEntry("description", null);
     }
 }
