@@ -321,14 +321,15 @@ public class WorldService {
      * exactly as the framework binds them when it writes the row, so a column compares equal to the
      * value it was read as.
      * <p>
-     * Three kinds of column are left out, each documented:
+     * A column read as {@code null} ({@code difficulty} and {@code post_teleport_commands} of a world
+     * that never had them set) is compared too, with a {@code null} value: {@code updateIf} reads a
+     * {@code null} expected value as {@code IS NULL} on SQLite and MySQL, and as an absent or
+     * {@code null} field on JSON. A value another server writes into such a column between this
+     * change's read and its write therefore makes the write miss, and the change is read again and
+     * re-applied on top of it, as for any other column (maintainer decision of 2026-10-06).
+     * <p>
+     * Two kinds of column are left out, each documented:
      * <ul>
-     *   <li>a column read as {@code null} ({@code difficulty} and {@code post_teleport_commands} of a
-     *       world that never had them set): {@code updateIf} refuses a {@code null} value, because no
-     *       backend can compare with it, and no comparison expresses {@code IS NULL}. A value another
-     *       server writes into such a column in the moment between this change's read and its write is
-     *       therefore not detected and is written back as {@code null}; a value written before this
-     *       change's read is read by it and kept.</li>
      *   <li>{@code spawn_yaw} and {@code spawn_pitch}: declared {@code FLOAT}, which MySQL stores in
      *       single precision and compares with a bound value in double precision, so most values read
      *       back would never compare equal and every change would give up as contended. They are only
@@ -365,9 +366,7 @@ public class WorldService {
     }
 
     private static void addCondition(List<WhereCondition> conditions, String column, Object value) {
-        if (value != null) {
-            conditions.add(WhereCondition.builder().column(column).value(value).build());
-        }
+        conditions.add(WhereCondition.builder().column(column).value(value).build());
     }
     
     /**
