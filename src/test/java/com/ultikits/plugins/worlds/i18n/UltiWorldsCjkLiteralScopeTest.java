@@ -25,8 +25,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Language guard 2: no Chinese text in a {@code src/main/java} literal unless it is a catalogue key
  * or listed, with a written reason, in {@code src/test/resources/i18n/cjk-literal-exemptions.tsv}.
  * <p>
- * Detection contract, the same as the framework's {@code .github/scripts/check-cjk-scope.sh}: the
- * CJK Unified Ideographs block, U+4E00 through U+9FFF, and nothing wider. Unlike that script, this
+ * Detection contract: this guard and the framework's {@code .github/scripts/check-cjk-scope.sh} detect
+ * the same character properties, stated in {@link I18nSourceScanner}. Unlike that script, this
  * guard is about literals, not comments: comments never count, and every string, character and
  * text-block literal counts after its Unicode and escape sequences are decoded. The literals come
  * from {@code javac}'s own syntax tree ({@link I18nSourceScanner}), not from a pattern match.
