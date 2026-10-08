@@ -44,8 +44,25 @@ public class WorldConfig extends AbstractConfigEntity {
     @ConfigEntry(path = "auto_unload.enabled", comment = "Enable auto-unloading of empty worlds")
     private boolean autoUnloadEmptyWorlds = false;
 
-    @Range(min = 10, max = 3600)
-    @ConfigEntry(path = "auto_unload.check_interval", comment = "Check interval in seconds")
+    /**
+     * Seconds between two auto-unload checks, and before the first one after load. Bound to
+     * {@code WorldService#checkAutoUnloadEmptyWorlds} through the framework's config-bound
+     * {@code @Scheduled}: 1 to 107374182, enforced by the framework's binding, not by {@code @Range}.
+     * A module {@code @Range} on a bound field would make an out-of-range {@code /ul reload} throw
+     * from the config reload and abort the rest of this module's reload, instead of keeping the
+     * running interval. An invalid value refuses the module at load and is ignored, with a WARNING,
+     * at {@code /ul reload}. At least 10 seconds is recommended; the old minimum of 10 is no longer
+     * enforced.
+     * <p>
+     * No code in this module writes {@code worlds.yml}. The comment is a literal, which the framework
+     * writes only when it inserts a missing key, so an existing file keeps the comment it has, byte
+     * for byte. The old text is registered in {@code previousComments} so that, should this entry's
+     * comment ever become a catalogue token, the old line is recognised as the framework's and the
+     * operator's own comments stay untouched; for a literal comment the framework ignores the list.
+     */
+    @ConfigEntry(path = "auto_unload.check_interval",
+            comment = "Check interval in seconds (1 to 107374182; at least 10 recommended)",
+            previousComments = {"Check interval in seconds"})
     private int emptyWorldCheckInterval = 60;
 
     @Range(min = 60, max = 86400)

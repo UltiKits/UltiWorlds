@@ -61,9 +61,6 @@ public class WorldService {
     // Empty world timer (tracks how long a world has been empty)
     private final Map<String, Long> emptyWorldTimers = new ConcurrentHashMap<>();
 
-    /** Seconds counted since the last auto-unload check, by {@link #autoUnloadTick()}. Main thread only. */
-    private int secondsSinceAutoUnloadCheck = 0;
-
     // The time limit and the deletion record both /world delete confirmations follow
     // (UltiKits/UltiWorlds#19); every deletion below voids earlier confirmations before it starts.
     private DeleteConfirmationWindow deleteConfirmationWindow = new DeleteConfirmationWindow();
@@ -141,29 +138,26 @@ public class WorldService {
     }
 
     /**
-     * Counts seconds toward {@code auto_unload.check_interval} and runs
-     * {@link #checkAutoUnloadEmptyWorlds()} each time that many seconds have passed.
+     * Auto-unload empty worlds: when {@code auto_unload.enabled} is true right now, unloads every
+     * non-protected, {@code autoUnload}-eligible world that has been empty for
+     * {@code auto_unload.unload_after} seconds; otherwise does nothing.
      * <p>
-     * The interval used to be read by nothing: the check ran on a fixed 1200-tick schedule, every
-     * 60 seconds whatever the file said (UltiKits/UltiWorlds#38). The framework's config-bound
-     * {@code @Scheduled} would read the key directly, but a module using it must declare
-     * {@code api-version: 630}, and this module still declares 621 until the release pins it; the
-     * framework refuses such a module at load. Counting here applies the key, and a value changed by
-     * {@code /ul reload} or the panel, within a second.
+     * Timing is bound to {@code auto_unload.check_interval} (seconds) through the framework's
+     * config-bound {@code @Scheduled}; the default lives only in {@link WorldConfig}. The same key is
+     * the first delay, so the first check comes one full interval after the module loads. The value
+     * must be 1 to 107374182 ({@code Integer.MAX_VALUE / 20}); at least 10 is recommended. An invalid
+     * value refuses the module at load, and at {@code /ul reload} is not applied: the running interval
+     * is kept, a WARNING names the key, and the reload is reported as partial. A changed valid value
+     * applies at {@code /ul reload}, keeping the task's place in its cycle (the next check is the last
+     * check plus the new interval, or the next tick if that moment has passed); a panel edit applies
+     * at the next {@code /ul reload}. The binding is sync only, so the check runs on the main thread,
+     * and requires {@code api-version: 630} in {@code plugin.yml}.
+     * <p>
+     * Before UltiKits/UltiWorlds#38 the key was read by nothing and the check ran every 60 seconds;
+     * until this module declared {@code api-version: 630} a one-second counting tick applied the key
+     * instead of the framework's binding.
      */
-    @Scheduled(delay = 20, period = 20, async = false)
-    public void autoUnloadTick() {
-        secondsSinceAutoUnloadCheck++;
-        if (secondsSinceAutoUnloadCheck >= config.getEmptyWorldCheckInterval()) {
-            secondsSinceAutoUnloadCheck = 0;
-            checkAutoUnloadEmptyWorlds();
-        }
-    }
-
-    /**
-     * Auto-unload empty worlds. Run by {@link #autoUnloadTick()} every
-     * {@code auto_unload.check_interval} seconds.
-     */
+    @Scheduled(config = WorldConfig.class, periodKey = "auto_unload.check_interval", delayKey = "auto_unload.check_interval")
     public void checkAutoUnloadEmptyWorlds() {
         if (!config.isAutoUnloadEmptyWorlds()) {
             return;
