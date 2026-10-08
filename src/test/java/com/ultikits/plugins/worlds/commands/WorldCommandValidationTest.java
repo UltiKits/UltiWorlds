@@ -58,6 +58,7 @@ class WorldCommandValidationTest {
         UltiWorldsTestHelper.setField(command, "plugin", mockPlugin);
 
         when(mockWorldService.getConfig()).thenReturn(mockConfig);
+        UltiWorldsTestHelper.applyChangesToHeldSettings(mockWorldService);
     }
 
     @AfterEach
@@ -153,9 +154,9 @@ class WorldCommandValidationTest {
             command.addPostCmd(player, "ghost_world", new String[]{"say", "hello"});
 
             // The persistence-catching assertion: a check placed one line too late (after the
-            // settings lookup) would still have called getOrCreateSettings/updateSettings here.
+            // settings lookup) would still have called getOrCreateSettings/changeSettings here.
             verify(mockWorldService, never()).getOrCreateSettings(anyString());
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
         }
     }
 
@@ -238,7 +239,7 @@ class WorldCommandValidationTest {
             command.setWorldOption(player, "world", "pvp", "on");
 
             assertThat(settings.isPvpEnabled()).isTrue();
-            verify(mockWorldService).updateSettings(settings);
+            verify(mockWorldService).changeSettings(eq("world"), any());
         }
     }
 
@@ -259,7 +260,7 @@ class WorldCommandValidationTest {
             command.setWorldOption(player, "world", "pvp", "off");
 
             assertThat(settings.isPvpEnabled()).isFalse();
-            verify(mockWorldService).updateSettings(settings);
+            verify(mockWorldService).changeSettings(eq("world"), any());
         }
     }
 
@@ -281,7 +282,7 @@ class WorldCommandValidationTest {
 
             // Neither direction: the stored option is untouched and no success is reported.
             assertThat(settings.isPvpEnabled()).isTrue();
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
     }

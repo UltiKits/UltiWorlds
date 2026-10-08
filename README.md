@@ -162,6 +162,15 @@ world_isolation:
 | `ultiworlds.world.*` | 访问所有世界 |
 | `ultiworlds.world.<世界名>` | 访问指定世界 |
 
+### ⚠️ 已知限制
+
+- **手工编辑共享 SQLite 数据库中的布尔设置时，只能写 `0` 或 `1`。** 修改世界设置时，模块会把该世界存储的每个值与读取时的值比较，
+  只在记录未被改动时才写入（见 `FEATURES.md` 的 `ultiworlds.settings.shared-db-external-change-kept`）。SQLite 把布尔设置存为文本，
+  如果手工写入其他拼写，例如 `UPDATE world_settings SET pvp_enabled = 'false' …`，之后对该世界设置的每一次修改都会被当作冲突拒绝，
+  控制台记录“更新世界设置失败”，直到该值被改回 `0` 或 `1`。MySQL 按数值比较，不受其他拼写影响。无论 SQLite 还是 MySQL，
+  都不要手工把开关类或数值类设置写成 `NULL`：模块会把它读成 `false` 或 `0`，与存储的 `NULL` 永远不相等，于是之后对该世界设置的每一次修改
+  都会同样被拒绝，直到重新写入一个值——开关类设置写 `0` 或 `1`，数值类设置写一个数字。
+
 ---
 
 ## English
@@ -231,6 +240,18 @@ world_isolation:
 3. Place in `plugins/UltiTools/plugins/` directory
 4. Restart server
 5. Configure `config/worlds.yml` as needed
+
+### ⚠️ Known limitations
+
+- **When editing a boolean setting by hand in a shared SQLite database, write only `0` or `1`.** A world-settings
+  change compares every stored value of that world with what it read and writes only if the row is unchanged (see
+  `ultiworlds.settings.shared-db-external-change-kept` in `FEATURES.md`). SQLite stores boolean settings as text, so a
+  hand edit that writes another spelling, such as `UPDATE world_settings SET pvp_enabled = 'false' ...`, makes every
+  later change of that world's settings be refused as contended, and the console logs "Failed to update world
+  settings", until the value is set back to `0` or `1`. MySQL compares numerically and is not affected by other
+  spellings. On SQLite and MySQL alike, never write `NULL` by hand into a true/false or number setting: it is read back
+  as `false` or `0`, which never compares equal to the stored `NULL`, so every later change of that world's settings is
+  refused the same way until a value is written back -- `0` or `1` for a true/false setting, a number for a number setting.
 
 ### 🔄 Migration from UltiTools 5.x
 

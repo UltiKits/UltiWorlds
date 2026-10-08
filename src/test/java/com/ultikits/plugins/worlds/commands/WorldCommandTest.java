@@ -48,6 +48,7 @@ class WorldCommandTest {
         UltiWorldsTestHelper.setField(command, "plugin", mockPlugin);
 
         when(mockWorldService.getConfig()).thenReturn(mockConfig);
+        UltiWorldsTestHelper.applyChangesToHeldSettings(mockWorldService);
         lenient().when(mockWorldService.getDeleteConfirmationWindow())
                 .thenReturn(new com.ultikits.plugins.worlds.service.DeleteConfirmationWindow());
     }
@@ -211,7 +212,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "pvp", "false");
 
                 assertThat(settings.isPvpEnabled()).isFalse();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
                 verify(world).setPVP(false);
                 verify(player).sendMessage(anyString());
             }
@@ -233,7 +234,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "displayname", "Custom World");
 
                 assertThat(settings.getDisplayName()).isEqualTo("Custom World");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -252,7 +253,7 @@ class WorldCommandTest {
 
                 command.setWorldOption(player, "world", "invalid_option", "value");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -267,7 +268,7 @@ class WorldCommandTest {
 
                 command.setWorldOption(player, "unknown", "pvp", "true");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -293,7 +294,7 @@ class WorldCommandTest {
                 command.protectWorld(player, "world");
 
                 assertThat(settings.hasProtection()).isTrue();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -315,7 +316,7 @@ class WorldCommandTest {
                 command.unprotectWorld(player, "world");
 
                 assertThat(settings.hasProtection()).isFalse();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
     }
@@ -350,7 +351,7 @@ class WorldCommandTest {
                 command.blockWorld(admin, "blocked_world");
 
                 assertThat(settings.isBlocked()).isTrue();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("blocked_world"), any());
                 verify(playerInWorld).teleport(any(org.bukkit.Location.class));
                 verify(playerInWorld).sendMessage(anyString());
             }
@@ -373,7 +374,7 @@ class WorldCommandTest {
                 command.unblockWorld(player, "world");
 
                 assertThat(settings.isBlocked()).isFalse();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
     }
@@ -785,7 +786,7 @@ class WorldCommandTest {
 
             command.setWorldOption(player, "world", "pvp", "true");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -805,7 +806,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "monsters", "false");
 
                 assertThat(settings.isMonstersEnabled()).isFalse();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -825,7 +826,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "animals", "false");
 
                 assertThat(settings.isAnimalsEnabled()).isFalse();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -845,7 +846,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "weather", "false");
 
                 assertThat(settings.isWeatherEnabled()).isFalse();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -865,7 +866,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "hidden", "true");
 
                 assertThat(settings.isHidden()).isTrue();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -885,7 +886,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "locked", "on");
 
                 assertThat(settings.isLocked()).isTrue();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -905,7 +906,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "blocked", "1");
 
                 assertThat(settings.isBlocked()).isTrue();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -925,7 +926,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "desc", "My description");
 
                 assertThat(settings.getDescription()).isEqualTo("My description");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -945,7 +946,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "description", "Test desc");
 
                 assertThat(settings.getDescription()).isEqualTo("Test desc");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -965,7 +966,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "name", "My World");
 
                 assertThat(settings.getDisplayName()).isEqualTo("My World");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -985,7 +986,7 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "icon", "diamond_block");
 
                 assertThat(settings.getIcon()).isEqualTo("DIAMOND_BLOCK");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
     }
@@ -1002,7 +1003,7 @@ class WorldCommandTest {
 
             command.protectWorld(player, "world");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -1016,7 +1017,7 @@ class WorldCommandTest {
 
                 command.protectWorld(player, "unknown");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1029,7 +1030,7 @@ class WorldCommandTest {
 
             command.unprotectWorld(player, "world");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -1043,7 +1044,7 @@ class WorldCommandTest {
 
                 command.unprotectWorld(player, "unknown");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1061,7 +1062,7 @@ class WorldCommandTest {
 
             command.blockWorld(player, "world");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -1075,7 +1076,7 @@ class WorldCommandTest {
 
                 command.blockWorld(player, "unknown");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1106,7 +1107,7 @@ class WorldCommandTest {
                 command.blockWorld(admin, "blocked_world");
 
                 assertThat(settings.isBlocked()).isTrue();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("blocked_world"), any());
             }
         }
 
@@ -1118,7 +1119,7 @@ class WorldCommandTest {
 
             command.unblockWorld(player, "world");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -1132,7 +1133,7 @@ class WorldCommandTest {
 
                 command.unblockWorld(player, "unknown");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1334,7 +1335,7 @@ class WorldCommandTest {
 
                 assertThat(settings.getDifficulty()).isEqualTo("HARD");
                 verify(world).setDifficulty(org.bukkit.Difficulty.HARD);
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1347,7 +1348,7 @@ class WorldCommandTest {
 
             command.setDifficulty(player, "world", "EASY");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -1361,7 +1362,7 @@ class WorldCommandTest {
 
                 command.setDifficulty(player, "unknown", "EASY");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1378,7 +1379,7 @@ class WorldCommandTest {
 
                 command.setDifficulty(player, "world", "IMPOSSIBLE");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1400,7 +1401,7 @@ class WorldCommandTest {
 
                 assertThat(settings.getDifficulty()).isEqualTo("PEACEFUL");
                 verify(world).setDifficulty(org.bukkit.Difficulty.PEACEFUL);
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
     }
@@ -1426,7 +1427,7 @@ class WorldCommandTest {
                 command.addPostCmd(player, "world", new String[]{"say", "hello"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1448,7 +1449,7 @@ class WorldCommandTest {
                 command.addPostCmd(player, "world", new String[]{"say", "hi", "there"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say hi there");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -1465,7 +1466,7 @@ class WorldCommandTest {
                 command.addPostCmd(player, "world", new String[0]);
 
                 verify(mockWorldService, never()).getOrCreateSettings(anyString());
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage("error.invalid_value");
             }
         }
@@ -1487,7 +1488,7 @@ class WorldCommandTest {
                 command.addPostCmd(player, "world", new String[]{"gamemode", "survival"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say hello\ngamemode survival");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -1508,7 +1509,7 @@ class WorldCommandTest {
                 command.addPostCmd(player, "world", new String[]{"say", "welcome"});
 
                 assertThat(settings.getPostTeleportCommands()).isEqualTo("say welcome");
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -1520,7 +1521,7 @@ class WorldCommandTest {
 
             command.addPostCmd(player, "world", new String[]{"say", "hello"});
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
 
@@ -1644,7 +1645,7 @@ class WorldCommandTest {
                 command.clearPostCmd(player, "world");
 
                 assertThat(settings.getPostTeleportCommands()).isNull();
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
                 verify(player).sendMessage(anyString());
             }
         }
@@ -1657,7 +1658,7 @@ class WorldCommandTest {
 
             command.clearPostCmd(player, "world");
 
-            verify(mockWorldService, never()).updateSettings(any());
+            verify(mockWorldService, never()).changeSettings(anyString(), any());
             verify(player).sendMessage(anyString());
         }
     }
@@ -1715,7 +1716,7 @@ class WorldCommandTest {
 
                 assertThat(settings.getDifficulty()).isEqualTo("HARD");
                 verify(world).setDifficulty(org.bukkit.Difficulty.HARD);
-                verify(mockWorldService).updateSettings(settings);
+                verify(mockWorldService).changeSettings(eq("world"), any());
             }
         }
 
@@ -1734,7 +1735,7 @@ class WorldCommandTest {
 
                 command.setWorldOption(player, "world", "difficulty", "INSANE");
 
-                verify(mockWorldService, never()).updateSettings(any());
+                verify(mockWorldService, never()).changeSettings(anyString(), any());
                 verify(player).sendMessage(anyString());
             }
         }

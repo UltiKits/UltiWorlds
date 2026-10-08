@@ -69,6 +69,7 @@ class WorldInfoAllFlagsTest {
         when(world.getPlayers()).thenReturn(Collections.emptyList());
         settings = UltiWorldsTestHelper.createSampleWorldSettings("world");
         when(worldService.getOrCreateSettings("world")).thenReturn(settings);
+        UltiWorldsTestHelper.applyChangesToHeldSettings(worldService);
     }
 
     @AfterEach

@@ -9,6 +9,7 @@ import com.ultikits.ultitools.annotations.Autowired;
 import com.ultikits.ultitools.annotations.PostConstruct;
 import com.ultikits.ultitools.annotations.Scheduled;
 import com.ultikits.ultitools.annotations.Service;
+import com.ultikits.ultitools.entities.WhereCondition;
 import com.ultikits.ultitools.exceptions.DataAccessException;
 import com.ultikits.ultitools.interfaces.DataOperator;
 
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Service for world management operations.
@@ -39,7 +41,11 @@ public class WorldService {
 
     private DataOperator<WorldSettings> dataOperator;
     
-    // Cache for world settings
+    /**
+     * Read cache of each world's settings row, keyed by the world's own name. Only ever read from, and
+     * replaced by the row a change wrote ({@link #changeSettings}); nothing is ever written back from it
+     * (UltiKits/UltiWorlds#55).
+     */
     private final Map<String, WorldSettings> settingsCache = new ConcurrentHashMap<>();
     
     // Teleport cooldowns
@@ -233,26 +239,134 @@ public class WorldService {
     }
     
     /**
-     * Update world settings.
+     * At most this many read-and-write attempts for one settings change before it gives up as contended
+     * (UltiKits/UltiWorlds#55).
      */
-    public void updateSettings(WorldSettings settings) {
-        try {
-            // The counted update says whether a stored row was written. A row that vanished since the
-            // settings were cached (deleted by another server on a shared database, or by an
-            // administrator) matches nothing, and that is the same failure a failed write is
-            // (UltiKits/UltiWorlds#51, UltiTools-Reborn#558).
-            if (dataOperator.updateCounted(settings) == 0) {
+    static final int MAX_WRITE_ATTEMPTS = 3;
+
+    /**
+     * Change one world's stored settings so that the change can never revert a change another server
+     * sharing the database made to the same row (UltiKits/UltiWorlds#55; maintainer decision of
+     * 2026-10-06 00:04 -- the pattern UltiEconomy's balances and UltiTrade#54 follow).
+     * <p>
+     * The row is read from the database -- never from the read cache -- {@code change} is applied to it,
+     * and it is written with {@code DataOperator#updateIf} conditioned on the values it was read with
+     * ({@link #valuesAsRead}). {@code updateIf} writes every column, so the condition is what makes the
+     * write change only what {@code change} changed: if another writer changed the row after the read,
+     * nothing is written, the row is read again and {@code change} applied to the new values, at most
+     * {@link #MAX_WRITE_ATTEMPTS} times. {@code change} therefore runs once per attempt, on a freshly
+     * read row, and must set values from its own inputs or from the row it is given -- never from
+     * another copy.
+     * <p>
+     * After a write the read cache holds the row as written, so this server's running checks also see
+     * the other servers' changes that write was built on. The read cache is not otherwise refreshed from
+     * the database: a change made on another server reaches this server's checks when this server next
+     * changes any setting of that world, or after a restart.
+     * <p>
+     * Failures keep the behaviour of UltiKits/UltiWorlds#51: when no stored row exists any more (deleted
+     * by another server or by hand), when every attempt lost to another writer, or when the entity's
+     * fields cannot be read, {@code log.settings_update_failed} is logged, nothing is written, and the
+     * change is kept in this server's memory only. Any other storage failure propagates, as before.
+     *
+     * @param worldName the world's own name ({@code World#getName()}), the key its settings are stored under
+     * @param change    sets the fields this change is about on the row it is given
+     * @return the settings this server now holds for the world
+     */
+    public WorldSettings changeSettings(String worldName, Consumer<WorldSettings> change) {
+        // As every command did before it changed a setting: a world this server never read settings for
+        // gets its row now.
+        WorldSettings held = getOrCreateSettings(worldName);
+        WorldSettings attempted = null;
+        for (int attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt++) {
+            WorldSettings row = readStoredRow(worldName);
+            if (row == null) {
+                change.accept(held);
                 plugin.getLogger().error(plugin.i18n("log.settings_update_failed"));
+                return held;
             }
-        } catch (DataAccessException e) {
-            // updateCounted wraps the entity-field reflection failure that update() declares as a
-            // checked IllegalAccessException; any other data failure was never caught here and is not.
-            if (!(e.getCause() instanceof IllegalAccessException)) {
-                throw e;
+            WhereCondition[] asRead = valuesAsRead(row);
+            change.accept(row);
+            try {
+                if (dataOperator.updateIf(row, asRead)) {
+                    settingsCache.put(worldName, row);
+                    return row;
+                }
+            } catch (DataAccessException e) {
+                // updateIf wraps the entity-field reflection failure as its cause; any other data
+                // failure was never caught here and is not.
+                if (!(e.getCause() instanceof IllegalAccessException)) {
+                    throw e;
+                }
+                plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e.getCause());
+                settingsCache.put(worldName, row);
+                return row;
             }
-            plugin.getLogger().error(plugin.i18n("log.settings_update_failed"), e.getCause());
+            attempted = row;
         }
-        settingsCache.put(settings.getWorldName(), settings);
+        plugin.getLogger().error(plugin.i18n("log.settings_update_failed"));
+        settingsCache.put(worldName, attempted);
+        return attempted;
+    }
+
+    /** The world's settings row as it is now in the database, or {@code null}. */
+    private WorldSettings readStoredRow(String worldName) {
+        return dataOperator.query()
+            .where("world_name").eq(worldName)
+            .first();
+    }
+
+    /**
+     * One condition per stored column, holding the value {@code row} was read with -- the
+     * compare-and-set of {@link #changeSettings}. The values are the field values themselves, bound
+     * exactly as the framework binds them when it writes the row, so a column compares equal to the
+     * value it was read as.
+     * <p>
+     * A column read as {@code null} ({@code difficulty} and {@code post_teleport_commands} of a world
+     * that never had them set) is compared too, with a {@code null} value: {@code updateIf} reads a
+     * {@code null} expected value as {@code IS NULL} on SQLite and MySQL, and as an absent or
+     * {@code null} field on JSON. A value another server writes into such a column between this
+     * change's read and its write therefore makes the write miss, and the change is read again and
+     * re-applied on top of it, as for any other column (maintainer decision of 2026-10-06).
+     * <p>
+     * Two kinds of column are left out, each documented:
+     * <ul>
+     *   <li>{@code spawn_yaw} and {@code spawn_pitch}: declared {@code FLOAT}, which MySQL stores in
+     *       single precision and compares with a bound value in double precision, so most values read
+     *       back would never compare equal and every change would give up as contended. They are only
+     *       ever written together with {@code spawn_x}, {@code spawn_y} and {@code spawn_z}, which are
+     *       compared.</li>
+     *   <li>{@code id}, which {@code updateIf} matches itself.</li>
+     * </ul>
+     */
+    static WhereCondition[] valuesAsRead(WorldSettings row) {
+        List<WhereCondition> conditions = new ArrayList<>();
+        addCondition(conditions, "world_name", row.getWorldName());
+        addCondition(conditions, "display_name", row.getDisplayName());
+        addCondition(conditions, "description", row.getDescription());
+        addCondition(conditions, "icon", row.getIcon());
+        addCondition(conditions, "pvp_enabled", row.isPvpEnabled());
+        addCondition(conditions, "monsters_enabled", row.isMonstersEnabled());
+        addCondition(conditions, "animals_enabled", row.isAnimalsEnabled());
+        addCondition(conditions, "weather_enabled", row.isWeatherEnabled());
+        addCondition(conditions, "difficulty", row.getDifficulty());
+        addCondition(conditions, "post_teleport_commands", row.getPostTeleportCommands());
+        addCondition(conditions, "hidden", row.isHidden());
+        addCondition(conditions, "locked", row.isLocked());
+        addCondition(conditions, "blocked", row.isBlocked());
+        addCondition(conditions, "auto_unload", row.isAutoUnload());
+        addCondition(conditions, "protect_break", row.isProtectBreak());
+        addCondition(conditions, "protect_place", row.isProtectPlace());
+        addCondition(conditions, "protect_interact", row.isProtectInteract());
+        addCondition(conditions, "protect_explosion", row.isProtectExplosion());
+        addCondition(conditions, "spawn_x", row.getSpawnX());
+        addCondition(conditions, "spawn_y", row.getSpawnY());
+        addCondition(conditions, "spawn_z", row.getSpawnZ());
+        addCondition(conditions, "created_at", row.getCreatedAt());
+        return conditions.toArray(new WhereCondition[0]);
+    }
+
+    private static void addCondition(List<WhereCondition> conditions, String column, Object value) {
+        conditions.add(WhereCondition.builder().column(column).value(value).build());
     }
     
     /**
@@ -876,16 +990,17 @@ public class WorldService {
     }
     
     /**
-     * Set world spawn.
+     * Set world spawn. The five spawn columns are written as one change through {@link #changeSettings},
+     * so they are never mixed with another server's spawn and no other setting is written back.
      */
     public void setWorldSpawn(String worldName, Location location) {
-        WorldSettings settings = getOrCreateSettings(worldName);
-        settings.setSpawnX(location.getX());
-        settings.setSpawnY(location.getY());
-        settings.setSpawnZ(location.getZ());
-        settings.setSpawnYaw(location.getYaw());
-        settings.setSpawnPitch(location.getPitch());
-        updateSettings(settings);
+        changeSettings(worldName, settings -> {
+            settings.setSpawnX(location.getX());
+            settings.setSpawnY(location.getY());
+            settings.setSpawnZ(location.getZ());
+            settings.setSpawnYaw(location.getYaw());
+            settings.setSpawnPitch(location.getPitch());
+        });
         
         World world = Bukkit.getWorld(worldName);
         if (world != null) {
