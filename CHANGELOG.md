@@ -32,12 +32,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   value keeping the check's place in its cycle; a value outside 1 to 107374182 seconds refuses the module at
   start, and at `/ul reload` is not applied: the running interval is kept, a warning names the key, and the
   reload is reported as partial. **The minimum drops from 10 seconds to 1 second**; at least 10 seconds is
-  recommended. Your `config/worlds.yml` is not rewritten; only a newly written file carries the new comment.
+  recommended. Your `config/worlds.yml` is not rewritten; only a newly written file, or a key the framework newly inserts,
+  carries the new comment.
 - 空世界检查现在由框架自身的配置绑定调度执行，绑定到 `auto_unload.check_interval`（UltiTools 6.3.0，
   UltiKits/UltiTools-Reborn#531），不再使用模块内部的每秒计数。首次检查在模块加载一个间隔之后进行。`/ul reload`
   会应用修改后的值，并保持检查在其周期中的位置；超出 1 到 107374182 秒的值会在启动时令模块被拒绝加载，在 `/ul reload`
   时不会生效：保留正在运行的间隔，一条警告点明该键，且重载被报告为部分完成。**最小值从 10 秒降为 1 秒**；建议至少 10 秒。
-  不会改写你的 `config/worlds.yml`；只有新生成的文件才带有新的注释。
+  不会改写你的 `config/worlds.yml`；只有新生成的文件、或由框架新插入的键，才带有新的注释。
 
 - `plugin.yml` now declares `identify-string: ultiworlds`, the identifier the UltiKits catalogue lists this
   module under. With it the framework's update check at start and `/upm update` include this module; without
