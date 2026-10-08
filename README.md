@@ -3,6 +3,7 @@
 <div align="center">
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/UltiKits/UltiTools-Reborn)
+[![UltiTools-API](https://img.shields.io/badge/UltiTools--API-6.3.0%2B-blue)](https://github.com/UltiKits/UltiTools-Reborn)
 [![Paper](https://img.shields.io/badge/Paper-1.19%2B-green.svg)](https://papermc.io)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
@@ -10,6 +11,9 @@
 
 Runs on Paper, like the UltiTools-API framework it is a module of (Spigot is not supported). On a Paper build older than 1.19.3 everything works except the line that tells an attacker PvP is off in a world. /
 与所依附的 UltiTools-API 框架一样只支持 Paper（不支持 Spigot）。在早于 1.19.3 的 Paper 上，除「此世界已禁用 PVP」提示外其余功能均可用。
+
+Requires UltiTools-API 6.3.0 or later; an older framework refuses to load this module. /
+需要 UltiTools-API 6.3.0 或更高版本；更早的框架会拒绝加载本模块。
 
 [English](#english) | [简体中文](#简体中文)
 
@@ -27,7 +31,7 @@ Runs on Paper, like the UltiTools-API framework it is a module of (Spigot is not
 - **创建向导** - 交互式对话引导，60秒超时保护
 - **世界加载/卸载** - 动态加载和卸载世界，节省服务器资源
 - **世界删除** - 安全删除世界（包含确认机制）
-- **自动卸载** - 空世界自动卸载，可配置等待时间
+- **自动卸载** - 空世界自动卸载，可配置等待时间；检查间隔 `auto_unload.check_interval`（秒）可取 1 到 107374182，建议至少 10 秒，`/ul reload` 即可生效
 
 #### 🚀 传送系统
 
@@ -120,7 +124,7 @@ load_worlds_on_start: []
 # 自动卸载配置
 auto_unload:
   enabled: false
-  check_interval: 60       # 检查间隔（秒）
+  check_interval: 60       # 检查间隔（秒，1 到 107374182；建议至少 10）
   unload_after: 300        # 空世界等待时间（秒）
 
 # 传送配置
@@ -183,7 +187,7 @@ world_isolation:
 - **Creation Wizard** - Interactive dialog with 60-second timeout protection
 - **Load/Unload** - Dynamic world loading/unloading to save server resources
 - **World Deletion** - Safe world deletion with confirmation
-- **Auto-Unload** - Automatic unloading of empty worlds with configurable delay
+- **Auto-Unload** - Automatic unloading of empty worlds with configurable delay; the check interval `auto_unload.check_interval` (seconds) accepts 1 to 107374182, at least 10 seconds is recommended, and `/ul reload` applies a change
 
 #### 🚀 Teleportation System
 
@@ -235,7 +239,7 @@ world_isolation:
 
 ### 📦 Installation
 
-1. Install [UltiTools-API](https://github.com/UltiKits/UltiTools-Reborn) (required)
+1. Install [UltiTools-API](https://github.com/UltiKits/UltiTools-Reborn) 6.3.0 or later (required)
 2. Download UltiWorlds module
 3. Place in `plugins/UltiTools/plugins/` directory
 4. Restart server
