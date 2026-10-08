@@ -4,13 +4,14 @@
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/UltiKits/UltiTools-Reborn)
 [![UltiTools-API](https://img.shields.io/badge/UltiTools--API-6.3.0%2B-blue)](https://github.com/UltiKits/UltiTools-Reborn)
-[![Paper](https://img.shields.io/badge/Paper-1.19%2B-green.svg)](https://papermc.io)
+[![Paper](https://img.shields.io/badge/Paper-1.21%2B-green)](https://papermc.io/)
+[![Java](https://img.shields.io/badge/Java-21%2B-orange)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 **UltiWorlds** 是 UltiTools-API 框架下的多世界管理模块，提供完整的世界创建、传送、保护和背包隔离功能。
 
-Runs on Paper, like the UltiTools-API framework it is a module of (Spigot is not supported). On a Paper build older than 1.19.3 everything works except the line that tells an attacker PvP is off in a world. /
-与所依附的 UltiTools-API 框架一样只支持 Paper（不支持 Spigot）。在早于 1.19.3 的 Paper 上，除「此世界已禁用 PVP」提示外其余功能均可用。
+Runs on Paper 1.21 or later and Java 21 or later, like the UltiTools-API framework it is a module of (Spigot is not supported). /
+与所依附的 UltiTools-API 框架一样，需要 Paper 1.21 或更高版本以及 Java 21 或更高版本（不支持 Spigot）。
 
 Requires UltiTools-API 6.3.0 or later; an older framework refuses to load this module. /
 需要 UltiTools-API 6.3.0 或更高版本；更早的框架会拒绝加载本模块。
