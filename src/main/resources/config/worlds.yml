@@ -19,7 +19,7 @@ load_worlds_on_start: []
 auto_unload:
   # Enable auto-unloading of empty worlds
   enabled: false
-  # Check interval in seconds
+  # Check interval in seconds (1 to 107374182; at least 10 recommended)
   check_interval: 60
   # Unload world after being empty for this many seconds
   unload_after: 300
