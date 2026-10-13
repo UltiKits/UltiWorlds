@@ -71,6 +71,12 @@ for real-machine verification, not user-facing documentation.
   `auto_unload.enabled: false`, `world_isolation.enabled: false`, `default_world: "world"`,
   `protected_worlds: [world, world_nether, world_the_end]` as its defaults; every row below
   assumes these unless its own Preconditions say otherwise.
+- **Console lines carry the module-logger prefix.** Every line this module logs reaches the console as
+  `[UltiTools] [UltiWorlds] <text>`: Paper adds `[UltiTools] `, and the framework's module logger (`PluginLogger`)
+  adds `[UltiWorlds] ` (this module's `plugin.yml` `name`). A console line quoted below is the `<text>` after both
+  prefixes, character for character, unless the row quotes a prefix itself; a row that counts or excludes this
+  module's console lines means lines carrying `[UltiWorlds]`. A line the framework logs is quoted after Paper's
+  prefix, with its own `[UltiTools-API] ` where the row shows it.
 
 ## World
 
