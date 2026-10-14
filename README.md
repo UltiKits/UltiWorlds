@@ -175,6 +175,10 @@ world_isolation:
   控制台记录“更新世界设置失败”，直到该值被改回 `0` 或 `1`。MySQL 按数值比较，不受其他拼写影响。无论 SQLite 还是 MySQL，
   都不要手工把开关类或数值类设置写成 `NULL`：模块会把它读成 `false` 或 `0`，与存储的 `NULL` 永远不相等，于是之后对该世界设置的每一次修改
   都会同样被拒绝，直到重新写入一个值——开关类设置写 `0` 或 `1`，数值类设置写一个数字。
+- **多台服务器共用同一个 SQLite 文件时，并发写入可能让一次设置修改失败。** 如果另一台服务器正在写同一个 SQLite 文件，
+  而这时 `/world set` 正在修改设置，SQLite 会直接拒绝本服务器的写入，而不是等待对方完成，于是这次修改失败：玩家看到框架的通用红字
+  “Command execution failed: Failed to conditionally update entity”，设置没有改变。另一台服务器写入的值会被保留，数据不会损坏。
+  重新执行一次命令即可。SQLite 并不适合多台服务器同时写同一个文件；多台服务器共享数据请使用 MySQL。
 
 ---
 
@@ -257,6 +261,12 @@ world_isolation:
   spellings. On SQLite and MySQL alike, never write `NULL` by hand into a true/false or number setting: it is read back
   as `false` or `0`, which never compares equal to the stored `NULL`, so every later change of that world's settings is
   refused the same way until a value is written back -- `0` or `1` for a true/false setting, a number for a number setting.
+- **Several servers sharing one SQLite file: a concurrent write can make one settings change fail.** If another server
+  is writing to the same SQLite file while `/world set` changes a setting, SQLite refuses this server's write instead of
+  waiting for the other writer, so that change fails: the player sees the framework's generic red "Command execution
+  failed: Failed to conditionally update entity" and the setting is not changed. The other server's value is kept and
+  nothing is corrupted. Run the command again. SQLite is not built for several servers writing one file; to share world
+  settings between servers, use MySQL.
 
 ### 🔄 Migration from UltiTools 5.x
 
