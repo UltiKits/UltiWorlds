@@ -5,7 +5,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 本文件记录本项目的所有重要更改，格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)。
 
-## [Unreleased]
+## [2.0.0] - 2026-10-21
 
 ### Added
 
@@ -22,9 +22,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Requires UltiTools 6.3.0.** `plugin.yml` now declares `api-version: 630`. UltiTools 6.2.x refuses to
-  load this module because of that `api-version`.
-- **需要 UltiTools 6.3.0。** `plugin.yml` 现声明 `api-version: 630`。UltiTools 6.2.x 会因该 `api-version` 拒绝加载本模块。
+- **Requires UltiTools 6.3.0.** `plugin.yml` raises `api-version` from `620` in released 1.0.0 to `630`.
+  UltiTools 6.2.x refuses to load this module because of that `api-version`.
+- **需要 UltiTools 6.3.0。** `plugin.yml` 的 `api-version` 从已发布的 1.0.0 中的 `620` 提升到 `630`。
+  UltiTools 6.2.x 会因该 `api-version` 拒绝加载本模块。
 
 - The empty-world check now runs on the framework's own config-bound scheduling, bound to
   `auto_unload.check_interval` (UltiTools 6.3.0, UltiKits/UltiTools-Reborn#531), instead of a one-second tick
@@ -93,10 +94,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   console commands run by other modules or plugins (for example scheduled commands, menu actions,
   kit commands and mail commands).
   - **UltiPanel.** A panel user can delete a world by sending `world delete <name>` twice within 30
-    seconds, but the panel never shows the prompt, the outcome or a refusal: the command body runs
-    one tick after the panel has already read its output, so the panel's command result always
-    reads "Command executed successfully". The prompt, the outcome and any refusal appear only as
-    lines in the server log (and in the panel's log view, if log streaming is on).
+    seconds. When the server accepts the command dispatch, `command_result`'s `data.output` reads
+    "Command dispatched to the server console. Its output appears in the server log stream."
+    This acknowledges dispatch, not deletion: the command runs as the server console, and its prompt,
+    outcome and any refusal go to the server log, not to `data.output`. Read those lines in the
+    server log (or in the panel's log view, if log streaming is on).
   - **Post-teleport commands.** A `world delete <name>` stored as a post-teleport command runs every
     time any player teleports into that world with `/world tp` or the world list. Any two such
     teleports within 30 seconds, by the same player or by different players, delete the named world;
@@ -139,10 +141,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   世界名称，它们合起来只有一个待确认请求，其中任何一个都能确认由另一个发起的请求。这包括 UltiPanel 远程命令、
   用 `/world postcmd add` 添加的传送后命令，以及其他模块或插件以控制台身份执行的命令（例如定时命令、菜单
   动作、礼包命令、邮件命令）。
-  - **UltiPanel。** 面板用户在 30 秒内发送两次 `world delete <名称>` 即可删除世界，但面板从不显示确认提示、
-    结果或拒绝原因：命令主体在面板读取输出之后的下一刻（一个 tick）才执行，所以面板的命令结果永远是
-    "Command executed successfully"。提示、结果与拒绝只会以服务器日志行的形式出现（若开启了日志流，也会出现
-    在面板的日志视图中）。
+  - **UltiPanel。** 面板用户在 30 秒内发送两次 `world delete <名称>` 即可删除世界。服务器接受命令分派时，
+    `command_result` 的 `data.output` 为
+    "Command dispatched to the server console. Its output appears in the server log stream."
+    这只确认命令已分派，不代表删除成功：命令以服务器控制台身份执行，确认提示、执行结果与拒绝原因写入服务器日志，
+    不会写入 `data.output`。请查看服务器日志中的这些行（若开启了日志流，也可在面板的日志视图中查看）。
   - **传送后命令。** 作为传送后命令保存的 `world delete <名称>`，会在任何玩家通过 `/world tp` 或世界列表传送
     进该世界时执行。30 秒内任意两次这样的传送（同一玩家或不同玩家）都会删除该世界；30 秒内一次这样的传送加上
     来自控制台、面板或任何其他控制台命令的同一条命令，同样会删除。若保存为 `world delete {world}`，它会作用于
@@ -491,15 +494,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `common` 中未使用的「开」「关」、其消息改由其他条目提供的 `error.*` 与 `success.*` 行、`gui.delete.confirm`、
   `gui.delete.cancel`、`gui.delete.warning`（确认窗口的按钮由 UltiTools 自身提供），以及四条 `inventory.*`。
 
-- The unused `WorldListGUI` class. It was the predecessor of the world list that bare `/world`
-  opens (`WorldListPage`), and nothing in the module ever constructed it, so removing it changes
-  nothing a player or operator can see. The `gui_title` setting it read still has no effect, as
-  before; that key and eight others in `config/worlds.yml` that no code reads are tracked in
-  UltiKits/UltiWorlds#38 (UltiKits/UltiWorlds#18).
-- 移除未使用的 `WorldListGUI` 类。它是裸命令 `/world` 所打开的世界列表（`WorldListPage`）的前身，
-  模块中从未有任何代码构造它，因此移除它不会改变玩家或运维可见的任何行为。它所读取的 `gui_title`
-  设置项与以前一样仍不起作用；该键以及 `config/worlds.yml` 中另外八个没有任何代码读取的键记录在
-  UltiKits/UltiWorlds#38（UltiKits/UltiWorlds#18）。
 - The module's own console lines "UltiWorlds has been disabled!" on unload (and its
   `worlds_disabled` language key in `lang/en.yml` and `lang/zh.yml`) and
   "UltiWorlds configuration reloaded!" on `/ul reload UltiWorlds` (printed in English under either
