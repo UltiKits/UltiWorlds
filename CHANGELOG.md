@@ -24,8 +24,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Requires UltiTools 6.3.0.** `plugin.yml` raises `api-version` from `620` in released 1.0.0 to `630`.
   UltiTools 6.2.x refuses to load this module because of that `api-version`.
+  Upgrade UltiTools to 6.3.0 or later before replacing this module's JAR.
 - **需要 UltiTools 6.3.0。** `plugin.yml` 的 `api-version` 从已发布的 1.0.0 中的 `620` 提升到 `630`。
   UltiTools 6.2.x 会因该 `api-version` 拒绝加载本模块。
+  请先将 UltiTools 升级至 6.3.0 或更高版本，再替换本模块的 JAR。
 
 - The empty-world check now runs on the framework's own config-bound scheduling, bound to
   `auto_unload.check_interval` (UltiTools 6.3.0, UltiKits/UltiTools-Reborn#531), instead of a one-second tick
