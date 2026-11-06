@@ -59,6 +59,10 @@ public class WorldConfig extends AbstractConfigEntity {
      * for byte. The old text is registered in {@code previousComments} so that, should this entry's
      * comment ever become a catalogue token, the old line is recognised as the framework's and the
      * operator's own comments stay untouched; for a literal comment the framework ignores the list.
+     * When converting this entry to a catalogue token, add every shipped literal to
+     * {@code previousComments} in that same change, including
+     * {@code Check interval in seconds (1 to 107374182; at least 10 recommended)}. Otherwise that
+     * literal stays untouched as an operator comment and never follows the catalogue (issue #60).
      */
     @ConfigEntry(path = "auto_unload.check_interval",
             comment = "Check interval in seconds (1 to 107374182; at least 10 recommended)",
