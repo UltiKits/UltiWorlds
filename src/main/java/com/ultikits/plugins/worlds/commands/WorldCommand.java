@@ -338,7 +338,6 @@ public class WorldCommand extends BaseCommandExecutor {
         switch (option.toLowerCase()) {
             case "pvp":
                 change = settings -> settings.setPvpEnabled(flag);
-                world.setPVP(flag);
                 break;
             case "monsters":
                 change = settings -> settings.setMonstersEnabled(flag);
@@ -406,6 +405,11 @@ public class WorldCommand extends BaseCommandExecutor {
         }
         
         worldService.changeSettings(world.getName(), change);
+        // A thrown storage failure must not leave the live flag ahead of the held settings (#58).
+        // A returned memory-only change still applies, preserving changeSettings' fallback contract.
+        if (option.equalsIgnoreCase("pvp")) {
+            world.setPVP(flag);
+        }
         if (newDifficulty != null) {
             World w = Bukkit.getWorld(worldName);
             if (w != null) {

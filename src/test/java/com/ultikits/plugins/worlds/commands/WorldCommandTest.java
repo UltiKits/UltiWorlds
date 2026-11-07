@@ -1,6 +1,7 @@
 package com.ultikits.plugins.worlds.commands;
 
 import com.ultikits.ultitools.abstracts.UltiToolsPlugin;
+import com.ultikits.ultitools.exceptions.DataAccessException;
 import com.ultikits.plugins.worlds.UltiWorldsTestHelper;
 import com.ultikits.plugins.worlds.config.WorldConfig;
 import com.ultikits.plugins.worlds.entity.WorldSettings;
@@ -12,6 +13,9 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InOrder;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
@@ -212,9 +216,31 @@ class WorldCommandTest {
                 command.setWorldOption(player, "world", "pvp", "false");
 
                 assertThat(settings.isPvpEnabled()).isFalse();
-                verify(mockWorldService).changeSettings(eq("world"), any());
-                verify(world).setPVP(false);
+                InOrder order = inOrder(mockWorldService, world);
+                order.verify(mockWorldService).changeSettings(eq("world"), any());
+                order.verify(world).setPVP(false);
                 verify(player).sendMessage(anyString());
+            }
+        }
+
+        @ParameterizedTest
+        @ValueSource(booleans = {true, false})
+        @DisplayName("setWorldOption must leave live PVP unchanged when settings storage throws")
+        void setWorldOptionPvpStorageFailure(boolean requestedPvp) {
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+                World world = mock(World.class);
+                bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
+                when(world.getName()).thenReturn("world");
+                DataAccessException failure = new DataAccessException("settings storage unavailable");
+                doThrow(failure).when(mockWorldService).changeSettings(eq("world"), any());
+                Player player = UltiWorldsTestHelper.createMockPlayer("TestPlayer", UUID.randomUUID());
+
+                assertThatThrownBy(() -> command.setWorldOption(player, "world", "pvp",
+                        Boolean.toString(requestedPvp))).isSameAs(failure);
+
+                verify(mockWorldService).changeSettings(eq("world"), any());
+                verify(world, never()).setPVP(anyBoolean());
+                verify(player, never()).sendMessage(anyString());
             }
         }
 
