@@ -20,6 +20,7 @@ import org.bukkit.Difficulty;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -209,8 +210,7 @@ public class WorldService {
             .first();
 
         if (settings == null) {
-            settings = WorldSettings.createDefault(worldName);
-            dataOperator.insert(settings);
+            settings = createSettings(worldName);
         }
 
         settingsCache.put(worldName, settings);
@@ -232,6 +232,40 @@ public class WorldService {
         return settings;
     }
     
+    /**
+     * Create only a missing world's row (#57). Existing rows keep their IDs because the name lookup
+     * happens first. A portable, name-derived UUID lets the storage primary key arbitrate two first
+     * inserts without a migration or a JVM-local lock. The exact name is retained, as in the lookup.
+     * <p>
+     * Relational stores throw on a duplicate ID; recover only if that ID now holds this world's row.
+     * JSON silently ignores an existing ID, so read back after a successful insert too: the stored
+     * winner may have settings different from the defaults we attempted to insert. A successful
+     * insert with no row left to read retains the previous return-of-created-settings behavior.
+     * Existing duplicates are never merged or removed, and older random-ID writers are not fenced.
+     */
+    private WorldSettings createSettings(String worldName) {
+        WorldSettings created = WorldSettings.createDefault(worldName);
+        created.setId(UUID.nameUUIDFromBytes(("UltiWorlds:world_settings:" + worldName)
+            .getBytes(StandardCharsets.UTF_8)).toString());
+        try {
+            dataOperator.insert(created);
+        } catch (DataAccessException failure) {
+            WorldSettings winner;
+            try {
+                winner = dataOperator.getById(created.getId());
+            } catch (DataAccessException readFailure) {
+                // A failed read cannot establish that the insert lost a creation race.
+                throw failure;
+            }
+            if (winner != null && worldName.equals(winner.getWorldName())) {
+                return winner;
+            }
+            throw failure;
+        }
+        WorldSettings stored = dataOperator.getById(created.getId());
+        return stored != null && worldName.equals(stored.getWorldName()) ? stored : created;
+    }
+
     /**
      * At most this many read-and-write attempts for one settings change before it gives up as contended
      * (UltiKits/UltiWorlds#55).

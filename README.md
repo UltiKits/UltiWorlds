@@ -163,6 +163,11 @@ world_isolation:
 
 ### ⚠️ 已知限制
 
+- **首次创建世界设置时，新版本用稳定 ID 防止同名重复记录；已有记录不迁移。** 已有记录的 ID 和设置会被保留。
+  升级前已经存在的同名重复行不会自动合并或删除，模块仍读取存储返回的第一行；备份数据库并人工核对这些记录，不要假定升级会修复它们。
+  共享数据库的服务器应全部升级后再并发初始化此前没有设置行的世界；旧版本仍可能用随机 ID 插入重复行。
+  该保证针对完全相同的世界名，不合并仅大小写不同的名称，也不提供多进程共享 JSON 目录的协调（#57）。
+
 - **手工编辑共享 SQLite 数据库中的布尔设置时，只能写 `0` 或 `1`。** 修改世界设置时，模块会把该世界存储的每个值与读取时的值比较，
   只在记录未被改动时才写入（见 `FEATURES.md` 的 `ultiworlds.settings.shared-db-external-change-kept`）。SQLite 把布尔设置存为文本，
   如果手工写入其他拼写，例如 `UPDATE world_settings SET pvp_enabled = 'false' …`，之后对该世界设置的每一次修改都会被当作冲突拒绝，
@@ -245,6 +250,13 @@ world_isolation:
 5. Configure `config/worlds.yml` as needed
 
 ### ⚠️ Known limitations
+
+- **First creation of world settings uses a stable ID to prevent same-name duplicate rows; existing rows are not migrated.**
+  Existing row IDs and settings are retained. Same-name duplicates created before upgrading are not merged or deleted;
+  the module still reads the first row the store returns. Back up the database and inspect those rows manually rather
+  than assuming an upgrade repairs them. Upgrade every server sharing the database before concurrently initializing
+  a world that has no settings row: an older version can still insert a random-ID duplicate. The new-row guarantee is
+  for the exact same world name; it does not merge case variants or coordinate processes sharing a JSON directory (#57).
 
 - **When editing a boolean setting by hand in a shared SQLite database, write only `0` or `1`.** A world-settings
   change compares every stored value of that world with what it read and writes only if the row is unchanged (see
