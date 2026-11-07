@@ -192,7 +192,9 @@ the removed-key check of `ultiworlds.lifecycle.removed-key-warning`. Before `Ult
 `unregisterSelf()` and `reloadSelf()` with log-only bodies (its reload override did call the
 framework's reload first); both overrides were deleted, and as of UltiTools 6.3.0 both methods are
 `final` on the framework's `UltiToolsPlugin`, so `/ul reload UltiWorlds` runs only the framework's
-own reload: `config/worlds.yml` is re-read into `WorldConfig`, the language files are refreshed,
+own reload: `config/worlds.yml` is re-read into `WorldConfig`, only the language catalogue in use
+is rebuilt and checked (not every shipped language), and a changed framework `language` setting
+is reported as pending rather than applied — a full `/ul reload` applies that change.
 `@ConditionalOnConfig` drift is reported for this module's one gated class
 (`InventoryIsolationService`, `## Configuration Gate` below), and the framework logs its own
 per-module line `Module 'UltiWorlds' reloaded.`. The module prints no reload line of its own. The
