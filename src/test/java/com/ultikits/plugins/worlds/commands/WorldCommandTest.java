@@ -999,7 +999,10 @@ class WorldCommandTest {
         @Test
         @DisplayName("setWorldOption should update icon in uppercase")
         void setWorldOptionIcon() {
-            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            // Material.isItem() initializes registry-backed tags on first use. Keep Bukkit's
+            // tag/registry calls real: a default static mock returns null and permanently
+            // poisons Tag constants when this test runs before the GUI/registry tests.
+            try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class, CALLS_REAL_METHODS)) {
                 World world = mock(World.class);
                 bukkit.when(() -> Bukkit.getWorld("world")).thenReturn(world);
                 when(world.getName()).thenReturn("world");
