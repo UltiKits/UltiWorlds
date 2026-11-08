@@ -197,7 +197,8 @@ is rebuilt and checked (not every shipped language), and a changed framework `la
 is reported as pending rather than applied — a full `/ul reload` applies that change.
 `@ConditionalOnConfig` drift is reported for this module's one gated class
 (`InventoryIsolationService`, `## Configuration Gate` below), and the framework logs its own
-per-module line `Module 'UltiWorlds' reloaded.`. The module prints no reload line of its own. The
+per-module line `Module 'UltiWorlds' reloaded.` (when a language change is pending, that line instead says
+`reloaded partially; not reloaded: ...`). The module prints no reload line of its own. The
 reload row's Source cell names that inherited framework member.
 
 | ID | Feature | Kind | How to reach | Permission | Target | Tier | Manual | Source |
